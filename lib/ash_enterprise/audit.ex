@@ -30,11 +30,8 @@ defmodule AshEnterprise.Audit do
       define :archived_chain, action: :chain, args: [:organization_id]
     end
 
-    resource AshEnterprise.Audit.ArchivedEvidence do
-      define :archived_evidence_for_control,
-        action: :for_control,
-        args: [:organization_id, :control_id]
-    end
+    # Read through `AshCompliance.Ownership.Evidence.for_control/3`, with the hot table.
+    resource AshEnterprise.Audit.ArchivedEvidence
 
     # The audit package for one tenant and period, behind its own privilege.
     resource AshEnterprise.Audit.Package do

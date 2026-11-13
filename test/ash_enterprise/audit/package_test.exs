@@ -3,9 +3,10 @@ defmodule AshEnterprise.Audit.PackageTest do
   The audit package (`AshEnterprise.Audit.Package`): what an auditor is handed for one
   tenant and one period. Refusals first: a person without the auditor privilege, a
   call in another tenant, and another tenant's rows, which never appear. Then a broken
-  chain, which the package reports as broken. Then the OSCAL document, validated
-  against NIST's official schema vendored in `priv/vendor/oscal/1.2.3/`, and the files
-  the mix task writes.
+  chain, which the package reports as broken. Then the OSCAL document, built by
+  `AshCompliance.Oscal.AssessmentResults` (whose suite validates it against NIST's
+  official schema) with the identifiers this application has always derived, and the
+  files the mix task writes.
   """
 
   use AshEnterprise.DataCase, async: false
@@ -19,8 +20,7 @@ defmodule AshEnterprise.Audit.PackageTest do
   alias AshEnterprise.Platform.Correlation
   alias AshEnterprise.Repo
 
-  @schema_path "priv/vendor/oscal/1.2.3/oscal_assessment-results_schema.json"
-  @schema_sha256 "4034e2032332dbf597e59e0646ec16c2c31df992962490371e91f47b219ff42c"
+  @ns "urn:ash-enterprise:audit-package"
 
   setup do
     Correlation.start_new()
@@ -47,6 +47,10 @@ defmodule AshEnterprise.Audit.PackageTest do
 
   defp export(person, tenant \\ nil) do
     {from, to} = window()
+    export_period(person, from, to, tenant)
+  end
+
+  defp export_period(person, from, to, tenant \\ nil) do
     Audit.export_audit_package(from, to, actor: person.actor, tenant: tenant || person.tenant)
   end
 
@@ -170,7 +174,15 @@ defmodule AshEnterprise.Audit.PackageTest do
         assert finding["target"]["status"]["reason"] == "fail"
       end
 
-      assert :ok = validate(package["assessment_results"])
+      # The chain's verdict is an observation of its own, its status in our namespace.
+      chain_observation =
+        Enum.find(result["observations"], &(&1["title"] == "Audit chain verification"))
+
+      assert chain_observation["methods"] == ["TEST"]
+
+      assert %{"name" => "chain-status", "ns" => @ns, "value" => "broken"} in chain_observation[
+               "props"
+             ]
 
       # The other tenant's chain is its own, and untouched.
       {:ok, their_package} = export(ctx.their_auditor)
@@ -179,38 +191,68 @@ defmodule AshEnterprise.Audit.PackageTest do
   end
 
   describe "the OSCAL document" do
-    test "the vendored schema is the pinned release file" do
-      assert @schema_path |> File.read!() |> sha256() == @schema_sha256
+    test "keeps every identifier this application has always derived", ctx do
+      activity!(ctx.ours)
+      tamper!(ctx.ours.tenant)
+      {from, to} = window()
+
+      {:ok, package} = export_period(ctx.auditor, from, to)
+
+      tenant = ctx.ours.tenant
+      %{"period" => %{"from" => f, "to" => t}, "generated_at" => at} = package["manifest"]
+      as_of = package["manifest"]["freshness_as_of"]
+      chain = package["chain"]
+      criteria = package["evidence"]["criteria"]
+      key = "#{tenant}:#{f}:#{t}:#{at}"
+
+      observations =
+        for(c <- criteria, a <- c["artifacts"], a["in_period"], do: "artifact:#{a["id"]}") ++
+          for(c <- criteria, c["freshness"], do: "freshness:#{tenant}:#{c["id"]}:#{as_of}") ++
+          ["chain:#{chain["verified_at"]}:#{chain["checked"]}", "reviews:#{tenant}:#{f}:#{t}"]
+
+      findings =
+        for(
+          c <- criteria,
+          c["freshness"] && c["freshness"]["state"] == "unknown",
+          do: "freshness-finding:#{c["id"]}:#{c["freshness"]["detail"]}"
+        ) ++
+          for(
+            x <- package["findings"]["findings"],
+            x["subject_type"] != "evidence_freshness",
+            x["status"] != "compliant",
+            do: "finding:#{x["id"]}"
+          ) ++
+          for(
+            c <- ChainVerifyWorker.evidence_controls(),
+            do: "chain-finding:#{c}:#{chain["verified_at"]}"
+          )
+
+      assert chain["status"] == "broken"
+      ar = package["assessment_results"]["assessment-results"]
+      [result] = ar["results"]
+
+      assert ar["uuid"] == uuid5("assessment-results:" <> key)
+      assert result["uuid"] == uuid5("result:" <> key)
+      assert Enum.map(result["observations"], & &1["uuid"]) == Enum.map(observations, &uuid5/1)
+      assert Enum.map(result["findings"], & &1["uuid"]) == Enum.map(findings, &uuid5/1)
     end
 
-    test "the validator refuses what the schema refuses", ctx do
-      root = schema()
-      {:ok, %{"assessment_results" => doc}} = export(ctx.auditor)
-      assert {:ok, _} = JSV.validate(doc, root)
+    test "names the organization, in this application's namespace", ctx do
+      {:ok, package} = export(ctx.auditor)
+      [result] = package["assessment_results"]["assessment-results"]["results"]
 
-      # A version 7 UUID, as the database would issue: OSCAL requires 4 or 5.
-      bad_uuid = put_in(doc, ["assessment-results", "uuid"], Ash.UUIDv7.generate())
-      assert {:error, _} = JSV.validate(bad_uuid, root)
+      assert result["props"] == [
+               %{"name" => "organization", "ns" => @ns, "value" => ctx.ours.tenant}
+             ]
 
-      # A control id that is not a token (the pattern needs Unicode classes to work).
-      [result] = doc["assessment-results"]["results"]
-
-      bad_control =
-        put_in(doc, ["assessment-results", "results"], [
-          put_in(result, ["reviewed-controls", "control-selections"], [
-            %{"include-controls" => [%{"control-id" => "6.1"}]}
-          ])
-        ])
-
-      assert {:error, _} = JSV.validate(bad_control, root)
+      assert result["title"] == "Evidence, findings, reviews and audit-chain verification"
+      assert result["description"] =~ "Assessment results for one organization over ["
     end
 
-    test "is valid OSCAL 1.2.3 assessment results, and claims nothing satisfied", ctx do
+    test "is OSCAL 1.2.3 assessment results, and claims nothing satisfied", ctx do
       ours = activity!(ctx.ours)
       {:ok, package} = export(ctx.auditor)
       doc = package["assessment_results"]
-
-      assert :ok = validate(doc)
 
       ar = doc["assessment-results"]
       assert ar["metadata"]["oscal-version"] == "1.2.3"
@@ -227,7 +269,7 @@ defmodule AshEnterprise.Audit.PackageTest do
       observed = Enum.map(result["observations"], & &1["uuid"])
 
       for id <- ours.evidence do
-        assert Audit.Package.Oscal.uuid5("artifact:#{id}") in observed
+        assert uuid5("artifact:#{id}") in observed
       end
 
       # Unknown evidence is a not-satisfied finding; nothing is ever satisfied.
@@ -299,12 +341,8 @@ defmodule AshEnterprise.Audit.PackageTest do
 
       assert manifest["events_csv"]["complete"] == true
 
-      assert :ok =
-               dir
-               |> Path.join("assessment-results.json")
-               |> File.read!()
-               |> Jason.decode!()
-               |> validate()
+      assert %{"assessment-results" => %{"metadata" => %{"oscal-version" => "1.2.3"}}} =
+               dir |> Path.join("assessment-results.json") |> File.read!() |> Jason.decode!()
     end
 
     test "the mix task refuses a person without the privilege and writes nothing", ctx do
@@ -346,30 +384,16 @@ defmodule AshEnterprise.Audit.PackageTest do
     Repo.query!("ALTER TABLE audit_events ENABLE TRIGGER audit_events_immutable")
   end
 
-  defp validate(doc) do
-    case JSV.validate(doc, schema()) do
-      {:ok, _} -> :ok
-      {:error, error} -> {:error, JSV.normalize_error(error)}
-    end
-  end
+  # RFC 4122 version 5 over the URL namespace: how this application has always named
+  # the package's OSCAL identifiers. Written out here, not borrowed from the builder, so
+  # the test pins the identifiers rather than whichever function derives them.
+  defp uuid5(name) do
+    namespace = Ecto.UUID.dump!("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
 
-  # The official schema, read unchanged. Each definition repeats its own location as its
-  # `$id`, which JSV refuses as an identifier: such an `$id` is dropped, which changes
-  # nothing it resolves to, and any other `$id` fails the test.
-  defp schema do
-    raw = @schema_path |> File.read!() |> Jason.decode!()
+    <<a::48, _version::4, b::12, _variant::2, c::62>> =
+      binary_part(:crypto.hash(:sha, namespace <> name), 0, 16)
 
-    definitions =
-      Map.new(raw["definitions"], fn
-        {name, %{"$id" => id} = definition} ->
-          if id != "#/definitions/" <> name, do: flunk("unexpected $id #{id} on #{name}")
-          {name, Map.delete(definition, "$id")}
-
-        other ->
-          other
-      end)
-
-    raw |> Map.put("definitions", definitions) |> JSV.build!(formats: true)
+    Ecto.UUID.load!(<<a::48, 5::4, b::12, 2::2, c::62>>)
   end
 
   defp sha256(binary), do: :sha256 |> :crypto.hash(binary) |> Base.encode16(case: :lower)

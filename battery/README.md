@@ -57,6 +57,7 @@ they touch.
 | `operations_webhook_process_test.exs` | **provider webhook ↔ process receive task.** A provider's signed webhook, posted through `Battery.Operations.Router` (no body parser before the ingress), records a `Delivery` holding the activation id and nothing else; a follow-up reads the provider by that id through a declared operation and writes a CloudEvents envelope from THE READ, which an ash_bpmn receive task, correlated on the id, wakes on. Asserted: the token parks on the id; a signed delivery is 204 `:enqueued` with one delivery and no provider request; the follow-up makes one read and one envelope; the nudge is not a fact (the webhook says `revoked`, the read says `active`, the process takes the `active` branch); a redelivery is `:duplicate` and moves nothing; a bad or stale signature is 401 and an oversized body 413, recording and reading nothing; telemetry carries the provider, outcome and status only. |
 | `operations_ambiguous_invocation_test.exs` | **ambiguous provider create ↔ governed invocation reconcile.** A governed `Submission.submit` calls a non-idempotent declared operation keyed by the invocation key; the provider takes it and loses the answer. Asserted: the row is `outcome_unknown` (`ambiguous`) after one send and no wait; a redelivery skips; the reconciler asks the provider by the key, finds one activation and settles the row `succeeded` with it, still one send; reconciling again moves nothing; the transition is recorded once in the AshEvents log and once as OpenLineage COMPLETE, with no actor, key or id in the lineage. Negative halves: no match or two leave the row `outcome_unknown` for a person, never `failed`; a 429 is `transient` and deferred, never `outcome_unknown`. |
 | `operations_disclosure_decision_test.exs` | **disclosure gate ↔ published decision.** A `discloses? true` operation asks `Battery.Operations.Gate` before it sends; the gate evaluates the latest PUBLISHED `battery_disclosure_permitted` DMN through `AshDecisions.Evaluator` over three inputs of its own choosing (the submission's data class and consent, the transport's residency) and nothing from the payload. Asserted: a refusal sends nothing and names the policy version (`consent_required@v1`); the Evaluation is recorded with definition, version and matched rules; a permit sends once; publishing v2 flips the same call with no code change; through an invocation a refusal is a final `denied` failure; residency comes from the transport, not the caller. |
+| `evidence_archive_chain_test.exs` | **evidence archive ↔ audit chain.** An organization's hash-chained audit log (`ash_events_chain`, `Battery.Audit.EventLog`) is verified daily and each verification recorded as `ash_compliance` evidence for CC7.2. Past the ninety-day window, `AshEvents.Chain.Retention` moves the chain's old events to their archive and `AshCompliance.Ownership.Retention` moves the superseded evidence to `Battery.Compliance.ArchivedEvidence` (`use AshCompliance.Resources, {:evidence_archive, ...}`), each by a verified copy recorded in the one run ledger (`Battery.Audit.ArchiveRun`). Asserted: the chain verifies across the move, hot and archived together; a past period's evidence and the criterion's freshness at its end read the same after the move, from the archive, with every artifact's integrity verified; the sweep's current answer is unchanged; one verified run per store. |
 
 ## Layout
 
@@ -69,8 +70,10 @@ lib/battery/                        the reference instantiation
   decisions/                        ash_decisions Definition + Evaluation
   bpmn/                             ash_bpmn Definition/Instance/Token/ProcessEvent + Subject + the three engine seams (Invoker, Resolver, DecisionResolver→ash_decisions)
   business_events/                  BIZEV DSL host (sources+mappings), SourceRecord, Ledger, MappingVersion, VendorState, Projector
+  audit/                            ash_events_chain: a hash-chained audit log, its archive and the run ledger evidence moves share
   compliance/                       ash_rules rule sets (vendor review; intake revisions 1 and 2), compliance Projector (facts from the BIZEV projection), event log,
-                                    Applicant + ScheduledActivation (host subjects), Activation (the timer process's service tasks), Standing (as-of answer: compiled revisions → rules → DMN)
+                                    Applicant + ScheduledActivation (host subjects), Activation (the timer process's service tasks), Standing (as-of answer: compiled revisions → rules → DMN),
+                                    ArchivedEvidence (the evidence archive)
   mdm/                              ash_mdm Vendor (golden), Mapping, MatchRuleSet, MatchCandidate
   execution/                        ash_agent Invocation (fragment, audited and lineage-emitting), its identity and digest key, a Referral target, the Members who ask and approve, and the approval seam to ash_bpmn
   operations/                       ash_operations: the declared Registry (spec-pinned), its Transport, FailureClass and disclosure Gate (reads a published DMN), the Submission a governed call acts on, the signed Webhook + Router, Delivery, FollowUp and the ActivationSettled envelope
@@ -83,7 +86,7 @@ test/support/                       fixtures (DMN + BPMN documents), the ReqLLM 
 
 ## Pins
 
-The substrates (nine, `ash_agent` and `ash_operations`) are declared in `mix.exs` exactly as
+The substrates (nine, `ash_agent`, `ash_operations` and `ash_events_chain`) are declared in `mix.exs` exactly as
 `ash_enterprise` declares them (`ash_events` carries the platform's
 `temporal-as-of-support-0.7` fork with `override: true`), and `mix.lock`
 pins the same SHAs ash_enterprise's lock resolves, with one exception,
@@ -105,16 +108,17 @@ elixir scripts/battery-pins-check.exs          # check again
 A package that genuinely cannot match goes in the script's `@exceptions`
 map with its reason.
 
-**`ash_compliance` is locked at `a49e212`, in the root and here.** That is
-ash_compliance `main` after PR #15 (declared layer schemes) merged. It carries
-the temporal rule-set revisions and `activate`'s `effective_at` (the
-dated-activation seam `process_activation_reevaluation_test.exs` runs), with
-the activate-succession fix. It is declared in `mix.exs` exactly as the root
-declares it, with no `ref:` and no `override:`, so an app that takes the
-battery as a test dependency resolves its own `ash_compliance`, not one the
-battery picked. The declared layer schemes are not exercised here. Their
-nullable `scheme` columns (`20261025000616`) are ported anyway, so the
-battery's schema matches the code a host locking `a49e212` runs.
+**`ash_compliance` is locked at `92bbe30`, in the root and here.** That is
+ash_compliance `main` after PR #30 (OSCAL assessment results) merged, with
+PR #28's evidence archive and verified move, which
+`evidence_archive_chain_test.exs` runs. It also carries the temporal rule-set
+revisions and `activate`'s `effective_at` (the dated-activation seam
+`process_activation_reevaluation_test.exs` runs). It is declared in `mix.exs`
+exactly as the root declares it, with no `ref:` and no `override:`, so an app
+that takes the battery as a test dependency resolves its own `ash_compliance`,
+not one the battery picked. The declared layer schemes are not exercised here.
+Their nullable `scheme` columns (`20261025000616`) are ported anyway, so the
+battery's schema matches the code a host locking `92bbe30` runs.
 
 The temporal migrations are ported verbatim from ash_compliance's suite
 (`priv/repo/migrations/2026102500061*`).

@@ -218,7 +218,11 @@ config :ash_compliance,
   # The drain-nudge worker fans out to these (the recovery net for a missed
   # PubSub wake). The projector engine has its own list below — same module,
   # two keys, because the two packages ask their own config for it.
-  projectors: [AshEnterprise.Compliance.Projector, AshEnterprise.Mdm.QualityProjector]
+  projectors: [AshEnterprise.Compliance.Projector, AshEnterprise.Mdm.QualityProjector],
+  # Where evidence older than the hot window lives (`AshEnterprise.Audit.Retention`).
+  # Every read of evidence for a period (the freshness sweep, the audit package) takes
+  # the hot table and this archive together.
+  evidence_archive: AshEnterprise.Audit.ArchivedEvidence
 
 # The projector engine: one config for the repo it drains against, the PubSub
 # server wake-ups broadcast on, the event log it scans, and the projectors it

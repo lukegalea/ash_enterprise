@@ -76,6 +76,8 @@ defmodule AshEnterpriseBattery.MixProject do
       {:ash_operations, github: "lukegalea/ash_operations"},
       # --- AshEvents (the audit log extension) ---------------------------------
       {:ash_events, github: "lukegalea/ash_events", branch: "main-no-rollback", override: true},
+      # The audit log's hash chain, its verifier and its verified move to an archive.
+      {:ash_events_chain, github: "lukegalea/ash_events_chain"},
 
       # --- Platform base --------------------------------------------------------
       {:ash_postgres, "~> 2.0"},

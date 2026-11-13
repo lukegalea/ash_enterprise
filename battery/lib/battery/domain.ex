@@ -14,6 +14,13 @@ defmodule Battery.Domain do
     # The compliance plane's own event log.
     resource Battery.Compliance.EventLog
 
+    # A hash-chained audit log with its archive and run ledger (ash_events_chain), and the
+    # evidence archive (ash_compliance) whose moves share that ledger.
+    resource Battery.Audit.EventLog
+    resource Battery.Audit.ArchivedEvent
+    resource Battery.Audit.ArchiveRun
+    resource Battery.Compliance.ArchivedEvidence
+
     # System One (ash_judgments fragments on the battery's base).
     resource Battery.SystemOne.CaseFile
     resource Battery.SystemOne.Judgment

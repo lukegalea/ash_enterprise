@@ -333,14 +333,37 @@ defmodule AshEnterprise.Audit.RetentionTest do
       assert {:archived, %ArchiveRun{status: :verified, row_count: 2}} = step
       assert hot_artifacts(ctx.org) == 1
 
-      archived =
-        AshEnterprise.Audit.archived_evidence_for_control!(ctx.org, "CC4.1", authorize?: false)
+      # A read of evidence for the control takes the hot table and the archive together,
+      # so the move changes nothing a reader sees.
+      {:ok, all} = Evidence.for_control(ctx.org, "CC4.1")
 
-      assert Enum.map(archived, & &1.content) == ["old 300", "old 200"]
+      assert Enum.map(all, &{&1.content, Evidence.location(&1)}) == [
+               {"old 300", :archive},
+               {"old 200", :archive},
+               {"newest", :hot}
+             ]
 
-      assert Enum.all?(archived, fn a ->
-               a.hash == :crypto.hash(:sha256, a.content) |> Base.encode16(case: :lower)
-             end)
+      assert Enum.all?(all, &(Evidence.verify(&1) == :ok))
+    end
+
+    test "the archive is ash_compliance's, named in configuration" do
+      assert AshCompliance.Resources.evidence_archive?(AshEnterprise.Audit.ArchivedEvidence)
+
+      assert AshCompliance.Ownership.Retention.configured_archive() ==
+               AshEnterprise.Audit.ArchivedEvidence
+    end
+
+    test "a purge past four hundred days removes archived evidence, recorded", ctx do
+      for days <- [500, 450], do: artifact!(ctx.org, days, "old #{days}")
+      artifact!(ctx.org, 1, "newest")
+      {:ok, %{evidence: {:archived, _}}} = Retention.archive()
+
+      {:ok, %{evidence: step}} = Retention.purge(days: 400)
+
+      assert {:purged, %ArchiveRun{store: :evidence_artifacts, kind: :purge, row_count: 2}} =
+               step
+
+      assert {:ok, [%{content: "newest"}]} = Evidence.for_control(ctx.org, "CC4.1")
     end
   end
 end

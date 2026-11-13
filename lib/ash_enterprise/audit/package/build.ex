@@ -3,25 +3,28 @@ defmodule AshEnterprise.Audit.Package.Build do
   Assembles the audit package for one tenant and one period: the run of
   `AshEnterprise.Audit.Package.export`.
 
-  It composes what exists and writes nothing:
+  It composes what exists and writes nothing. The compliance plane's part is
+  `AshCompliance.Ownership.Package.sections/4`, over this application's control file and
+  the categories the freshness sweep uses (`AshEnterprise.Compliance.FreshnessSweepWorker`):
 
-    * **criteria** — the SOC 2 criteria in the audit's categories
-      (`AshCompliance.Ownership.Criteria`, the categories the freshness sweep uses) and
-      the control file's row for each (`AshCompliance.Ownership.ControlFile`);
+    * **controls** — the SOC 2 criteria in scope and the control file's row for each;
     * **evidence** — every artifact collected in the period, hot or archived
-      (`AshCompliance.Resources.EvidenceArtifact`, `AshEnterprise.Audit.ArchivedEvidence`),
-      with its integrity re-checked against its hash, plus the newest artifact from
-      each collector before the period; and each criterion's freshness at the end of
-      the period, evaluated by `AshCompliance.Ownership.Freshness` over the artifacts
-      collected by then and the waivers in force then;
-    * **findings** — the compliance findings open at any time in the period;
+      (`AshEnterprise.Audit.ArchivedEvidence`), with its integrity re-checked against its
+      hash, plus the newest artifact from each collector before the period; and each
+      criterion's freshness at the end of the period, with the waivers in force then;
+    * **findings** — the compliance findings open at any time in the period.
+
+  This module adds what the compliance plane cannot observe:
+
     * **reviews** — the human tasks opened, claimed, decided or cancelled in the period,
       with their outcomes and the process each belongs to;
     * **chain** — `AshEvents.Chain.verify/2` over the tenant's whole chain,
       hot and archived, at export time, the events in the period, and the daily
       verifications recorded in it (`AshEnterprise.Audit.ChainVerifyWorker`);
-    * **assessment_results** — the same as an OSCAL assessment-results document
-      (`AshEnterprise.Audit.Package.Oscal`).
+    * **assessment_results** — all of it as an OSCAL 1.2.3 assessment-results document
+      (`AshCompliance.Oscal.AssessmentResults`), with the chain's verification and the
+      reviews as observations of their own, a broken chain as a failing finding, and its
+      properties in the `urn:ash-enterprise:audit-package` namespace.
 
   ## Reach
 
@@ -43,20 +46,18 @@ defmodule AshEnterprise.Audit.Package.Build do
 
   use Ash.Resource.Actions.Implementation
 
-  alias AshCompliance.Domain, as: Compliance
-  alias AshCompliance.Ownership.{ControlFile, Criteria, Evidence, Freshness}
-  alias AshEnterprise.Audit
+  alias AshCompliance.Oscal.AssessmentResults
+  alias AshCompliance.Ownership.Evidence
+  alias AshCompliance.Ownership.Package, as: CompliancePackage
   alias AshEnterprise.Audit.{ChainVerifyWorker, EventLog}
-  alias AshEnterprise.Audit.Package.Oscal
   alias AshEnterprise.Compliance.FreshnessSweepWorker
   alias AshEnterprise.Security.ActorContext
 
   @format "ash_enterprise.audit_package"
   @format_version 1
 
-  # Evidence content is carried inline when it is text and small; anything else is
-  # carried by its hash, which is what pins its identity.
-  @inline_limit 64 * 1024
+  # The namespace of the OSCAL document's own properties.
+  @namespace "urn:ash-enterprise:audit-package"
 
   @impl true
   def run(input, _opts, context) do
@@ -106,42 +107,36 @@ defmodule AshEnterprise.Audit.Package.Build do
   @doc false
   def build(tenant, from, to, actor) do
     generated_at = DateTime.utc_now()
-    as_of = Enum.min([to, generated_at], DateTime)
-    # The compliance plane's rows carry an organization column and no Ash tenancy;
-    # the host's carry both. Either way the tenant is the one checked above.
-    plane = [actor: actor, authorize?: false]
+    period = %{from: from, to: to, as_of: Enum.min([to, generated_at], DateTime)}
+    # The host's rows are read in the tenant checked above. The compliance plane's carry
+    # an organization column and no Ash tenancy, and `sections/4` reads them by it.
     host = [actor: actor, tenant: tenant, authorize?: false]
 
-    categories = FreshnessSweepWorker.categories()
-    criteria = Criteria.in_categories(categories)
-    controls_path = FreshnessSweepWorker.controls_file()
-    loaded = ControlFile.load(controls_path)
+    reviews = reviews(period, host)
+    chain = chain(tenant, period, actor, host)
 
-    artifacts = Map.new(criteria, &{&1.id, artifacts(tenant, &1.id, plane)})
-    known_by_end = Map.new(artifacts, fn {id, list} -> {id, collected_before(list, as_of)} end)
-
-    overrides =
-      Compliance.valid_policy_overrides!(
-        tenant,
-        as_of,
-        [load: [:starts_at, :expires_at]] ++ plane
+    compliance =
+      tenant
+      |> CompliancePackage.sections(from, to,
+        controls_file: FreshnessSweepWorker.controls_file(),
+        categories: FreshnessSweepWorker.categories(),
+        generated_at: generated_at,
+        extra_observations: [
+          chain_observation(chain),
+          reviews_observation(reviews, tenant, period)
+        ],
+        extra_findings: chain_findings(chain),
+        actor: actor,
+        authorize?: false
       )
-
-    freshness =
-      Freshness.evaluate_all(loaded, known_by_end,
-        categories: categories,
-        now: as_of,
-        overrides: overrides
-      )
-
-    period = %{from: from, to: to, as_of: as_of}
+      |> ok!()
 
     sections = %{
-      controls: controls(criteria, categories, controls_path, loaded),
-      evidence: evidence(criteria, freshness, artifacts, period),
-      findings: findings(tenant, period, plane),
-      reviews: reviews(period, host),
-      chain: chain(tenant, artifacts, period, host)
+      controls: compliance.controls,
+      evidence: compliance.evidence,
+      findings: compliance.findings,
+      reviews: reviews,
+      chain: chain
     }
 
     manifest = %{
@@ -149,23 +144,21 @@ defmodule AshEnterprise.Audit.Package.Build do
       "format_version" => @format_version,
       "tenant" => tenant,
       "period" => %{"from" => iso(from), "to" => iso(to), "to_is" => "excluded"},
-      "freshness_as_of" => iso(as_of),
+      "freshness_as_of" => iso(period.as_of),
       "generated_at" => iso(generated_at),
       "generated_by" => exporter(actor),
-      "oscal_version" => Oscal.oscal_version(),
-      "chain_status" => sections.chain["status"],
+      "oscal_version" => AssessmentResults.oscal_version(),
+      "chain_status" => chain["status"],
       "attestation" =>
         "None. Criteria are reported as owned, evidenced or unknown, never as satisfied: " <>
           "an attestation is an auditor's to give."
     }
 
     oscal =
-      Oscal.assessment_results(sections, %{
-        tenant: tenant,
-        from: from,
-        to: to,
-        as_of: as_of,
-        generated_at: generated_at
+      AssessmentResults.build(compliance, %{
+        namespace: @namespace,
+        title: "Audit package #{iso(from)} to #{iso(to)}",
+        result_title: "Evidence, findings, reviews and audit-chain verification"
       })
 
     sections
@@ -175,226 +168,6 @@ defmodule AshEnterprise.Audit.Package.Build do
     # One JSON value throughout, so what the action returns is what the files hold.
     |> Jason.encode!()
     |> Jason.decode!()
-  end
-
-  # --- criteria --------------------------------------------------------------
-
-  defp controls(criteria, categories, path, loaded) do
-    rows =
-      case loaded do
-        {:ok, %{rows: rows}} -> Enum.filter(rows, &is_map/1)
-        {:error, _} -> []
-      end
-
-    %{
-      "framework" => "SOC 2 Trust Services Criteria (2017)",
-      "categories" => Enum.map(categories, &to_string/1),
-      "control_file" => control_file(path, loaded),
-      "criteria" =>
-        Enum.map(criteria, fn criterion ->
-          %{
-            "id" => criterion.id,
-            "category" => to_string(criterion.category),
-            "title" => criterion.title,
-            "row" => Enum.find(rows, &(&1["id"] == criterion.id))
-          }
-        end)
-    }
-  end
-
-  defp control_file(path, {:ok, %{document: document}}) do
-    %{
-      "path" => path,
-      "loaded" => true,
-      "sha256" => document |> Jason.encode!() |> Evidence.sha256(),
-      "frameworks" => document["frameworks"]
-    }
-  end
-
-  defp control_file(path, {:error, error}) do
-    %{"path" => path, "loaded" => false, "error" => ControlFile.describe_error(error)}
-  end
-
-  # --- evidence --------------------------------------------------------------
-
-  # Hot and archived, one list: during a retention move an artifact can be in both, and
-  # the copy hashes to the same row, so it is kept once.
-  defp artifacts(tenant, control_id, plane) do
-    hot =
-      tenant
-      |> Compliance.evidence_for_control!(control_id, plane)
-      |> Enum.map(&artifact(&1, "hot"))
-
-    archived =
-      tenant
-      |> Audit.archived_evidence_for_control!(control_id, plane)
-      |> Enum.map(&artifact(&1, "archive"))
-
-    (hot ++ archived)
-    |> Enum.uniq_by(& &1.id)
-    |> Enum.sort_by(& &1.collected_at, DateTime)
-  end
-
-  defp artifact(row, location) do
-    %{
-      id: row.id,
-      control_id: row.control_id,
-      collector: row.collector,
-      method: to_string(row.method),
-      media_type: row.media_type,
-      collected_at: row.collected_at,
-      hash: row.hash,
-      content: row.content,
-      subject_type: row.subject_type,
-      subject_id: row.subject_id,
-      retention_class: row.retention_class,
-      chain_of_custody: row.chain_of_custody || [],
-      location: location
-    }
-  end
-
-  defp collected_before(artifacts, at),
-    do: Enum.filter(artifacts, &(DateTime.compare(&1.collected_at, at) == :lt))
-
-  defp evidence(criteria, freshness, artifacts, period) do
-    by_id = Map.new(freshness, &{&1.criterion, &1})
-
-    %{
-      "freshness_as_of" => iso(period.as_of),
-      "criteria" =>
-        Enum.map(criteria, fn criterion ->
-          list = Map.get(artifacts, criterion.id, [])
-
-          %{
-            "id" => criterion.id,
-            "freshness" => freshness_json(Map.get(by_id, criterion.id)),
-            "artifacts" => list |> reported(period) |> Enum.map(&artifact_json(&1, period))
-          }
-        end)
-    }
-  end
-
-  # The artifacts collected in the period, and before it the newest one from each
-  # collector: what an annual control's freshness at the start of the period rests on.
-  defp reported(artifacts, %{from: from, to: to}) do
-    {before, rest} = Enum.split_with(artifacts, &(DateTime.compare(&1.collected_at, from) == :lt))
-    inside = Enum.filter(rest, &(DateTime.compare(&1.collected_at, to) == :lt))
-
-    basis =
-      before
-      |> Enum.group_by(& &1.collector)
-      |> Enum.map(fn {_collector, list} -> List.last(list) end)
-
-    Enum.sort_by(basis ++ inside, & &1.collected_at, DateTime)
-  end
-
-  defp artifact_json(artifact, %{from: from}) do
-    {content, omitted} = inline(artifact)
-
-    %{
-      "id" => artifact.id,
-      "control_id" => artifact.control_id,
-      "collector" => artifact.collector,
-      "method" => artifact.method,
-      "media_type" => artifact.media_type,
-      "collected_at" => iso(artifact.collected_at),
-      "in_period" => DateTime.compare(artifact.collected_at, from) != :lt,
-      "sha256" => artifact.hash,
-      "integrity" => integrity(artifact),
-      "location" => artifact.location,
-      "subject_type" => artifact.subject_type,
-      "subject_id" => artifact.subject_id,
-      "retention_class" => artifact.retention_class,
-      "chain_of_custody" => artifact.chain_of_custody,
-      "content" => content,
-      "content_omitted" => omitted
-    }
-  end
-
-  # `AshCompliance.Ownership.Evidence.verify/1`'s rule, over a hot or archived row alike:
-  # verified only when the stored bytes are present and hash to the row's hash.
-  @doc false
-  def integrity(%{content: content, hash: hash}) when is_binary(content) and content != "" do
-    if Evidence.sha256(content) == hash, do: "verified", else: "hash_mismatch"
-  end
-
-  def integrity(_artifact), do: "no_content"
-
-  defp inline(%{content: content, media_type: type}) when is_binary(content) do
-    cond do
-      byte_size(content) > @inline_limit -> {nil, "larger than #{@inline_limit} bytes"}
-      not text?(type) -> {nil, "not text (#{type})"}
-      not String.valid?(content) -> {nil, "not valid UTF-8"}
-      true -> {content, nil}
-    end
-  end
-
-  defp inline(_artifact), do: {nil, "no content stored"}
-
-  defp text?(type),
-    do: String.starts_with?(type, "text/") or type in ["application/json", "application/xml"]
-
-  defp freshness_json(nil), do: nil
-
-  defp freshness_json(result) do
-    %{
-      "state" => to_string(result.state),
-      "reason" => result.reason && to_string(result.reason),
-      "detail" => result.detail,
-      "sources" => result.sources,
-      "latest_at" => result.latest_at && iso(result.latest_at),
-      "silenced_by" => waiver(result.silenced_by)
-    }
-  end
-
-  defp waiver(nil), do: nil
-
-  defp waiver(by) do
-    %{
-      "approver" => by[:approver] && to_string(by[:approver]),
-      "expires_at" => by[:expires_at] && iso(by[:expires_at]),
-      "reason" => by[:reason]
-    }
-  end
-
-  # --- findings --------------------------------------------------------------
-
-  defp findings(tenant, %{from: from, to: to}, plane) do
-    open_in_period =
-      tenant
-      |> Compliance.findings_for_organization!(plane)
-      |> Enum.filter(fn finding ->
-        seen = finding.first_seen_at || finding.inserted_at
-
-        DateTime.compare(seen, to) == :lt and
-          (is_nil(finding.resolved_at) or DateTime.compare(finding.resolved_at, from) != :lt)
-      end)
-      |> Enum.sort_by(&{&1.control_id, &1.subject_type, &1.subject_id})
-
-    %{
-      "note" =>
-        "A finding is the projection's current state, read at export time; " <>
-          "those open at any time in the period are listed.",
-      "findings" =>
-        Enum.map(open_in_period, fn finding ->
-          %{
-            "id" => finding.id,
-            "control_id" => finding.control_id,
-            "subject_type" => finding.subject_type,
-            "subject_id" => finding.subject_id,
-            "status" => to_string(finding.status),
-            "severity" => finding.severity && to_string(finding.severity),
-            "gap" => finding.gap,
-            "breach_count" => finding.breach_count,
-            "first_seen_at" => finding.first_seen_at && iso(finding.first_seen_at),
-            "last_seen_at" => finding.last_seen_at && iso(finding.last_seen_at),
-            "resolved_at" => finding.resolved_at && iso(finding.resolved_at),
-            "explanation" => finding.explanation,
-            "bundle_hash" => finding.bundle_hash,
-            "rule_ids" => finding.rule_ids
-          }
-        end)
-    }
   end
 
   # --- reviews ---------------------------------------------------------------
@@ -441,7 +214,7 @@ defmodule AshEnterprise.Audit.Package.Build do
 
   # --- chain -----------------------------------------------------------------
 
-  defp chain(tenant, artifacts, %{from: from, to: to}, host) do
+  defp chain(tenant, %{from: from, to: to}, actor, host) do
     verified_at = DateTime.utc_now()
     result = AshEvents.Chain.verify(EventLog, tenant)
 
@@ -461,7 +234,7 @@ defmodule AshEnterprise.Audit.Package.Build do
       "events_in_period" => events_in_period(from, to, host),
       "findings" => Enum.map(result.findings, &chain_finding/1),
       "findings_in_period" => length(in_period),
-      "daily_verifications" => daily_verifications(artifacts, from, to)
+      "daily_verifications" => daily_verifications(tenant, from, to, actor)
     }
   end
 
@@ -480,15 +253,17 @@ defmodule AshEnterprise.Audit.Package.Build do
     |> Ash.count!()
   end
 
-  # The scheduled verifications stored in the period: one artifact a day per
-  # criterion the worker evidences, so one criterion's are counted.
-  defp daily_verifications(artifacts, from, to) do
+  # The scheduled verifications stored in the period, hot or archived: one artifact a day
+  # per criterion the worker evidences, so one criterion's are counted. Read whole rather
+  # than from the evidence section, which omits content past a size.
+  defp daily_verifications(tenant, from, to, actor) do
     [control | _] = ChainVerifyWorker.evidence_controls()
     producer = ChainVerifyWorker.producer()
 
     runs =
-      artifacts
-      |> Map.get(control, [])
+      tenant
+      |> Evidence.for_control(control, actor: actor, authorize?: false)
+      |> ok!()
       |> Enum.filter(fn artifact ->
         artifact.collector == producer and DateTime.compare(artifact.collected_at, from) != :lt and
           DateTime.compare(artifact.collected_at, to) == :lt
@@ -511,6 +286,75 @@ defmodule AshEnterprise.Audit.Package.Build do
     }
   end
 
+  # --- OSCAL: what the compliance plane cannot observe -----------------------
+  #
+  # Each `:id` is the name the observation's or finding's version 5 UUID is derived from.
+
+  defp chain_observation(chain) do
+    %{
+      id: "chain:#{chain["verified_at"]}:#{chain["checked"]}",
+      title: "Audit chain verification",
+      description:
+        "The chain was verified at export: #{chain["checked"]} event(s) checked, " <>
+          "#{length(chain["findings"])} finding(s), #{chain["findings_in_period"]} in the period; " <>
+          "#{chain["events_in_period"]} event(s) in the period; " <>
+          "#{chain["daily_verifications"]["recorded"]} daily verification(s) recorded in it. " <>
+          "Status: #{chain["status"]}.",
+      props: %{"chain-status" => chain["status"]},
+      methods: [:test],
+      collected: chain["verified_at"],
+      relevant_evidence: [
+        %{href: "chain.json", description: "The verifier's result and findings."}
+      ]
+    }
+  end
+
+  defp reviews_observation(reviews, tenant, period) do
+    tasks = reviews["tasks"]
+    decided = Enum.filter(tasks, &(&1["status"] == "completed"))
+
+    outcomes =
+      decided
+      |> Enum.frequencies_by(&(&1["outcome"] || "none"))
+      |> Enum.sort()
+      |> Enum.map_join(", ", fn {outcome, n} -> "#{outcome} #{n}" end)
+
+    %{
+      id: "reviews:#{tenant}:#{iso(period.from)}:#{iso(period.to)}",
+      title: "Review tasks",
+      description:
+        "#{length(tasks)} review task(s) touched in the period, #{length(decided)} completed" <>
+          if(outcomes == "", do: ".", else: " (#{outcomes})."),
+      methods: [:examine],
+      collected: period.as_of,
+      relevant_evidence: [
+        %{href: "reviews.json", description: "Each task, its outcome and who decided it."}
+      ]
+    }
+  end
+
+  # A broken chain fails each criterion the chain's verification evidences.
+  defp chain_findings(%{"status" => "intact"}), do: []
+
+  defp chain_findings(chain) do
+    problems =
+      chain["findings"]
+      |> Enum.take(5)
+      |> Enum.map_join("; ", &"#{&1["problem"]} at sequence #{&1["sequence"]}")
+
+    for control <- ChainVerifyWorker.evidence_controls() do
+      %{
+        id: "chain-finding:#{control}:#{chain["verified_at"]}",
+        title: "#{control}: the audit chain is broken",
+        description:
+          "The audit chain does not verify: #{length(chain["findings"])} finding(s) (#{problems}).",
+        control_id: control,
+        reason: :fail,
+        remarks: "The audit trail cannot be shown to be untouched."
+      }
+    end
+  end
+
   # --- helpers ---------------------------------------------------------------
 
   defp exporter(actor) do
@@ -522,6 +366,9 @@ defmodule AshEnterprise.Audit.Package.Build do
       true -> nil
     end
   end
+
+  defp ok!({:ok, value}), do: value
+  defp ok!({:error, error}), do: raise(Ash.Error.to_error_class(error))
 
   defp iso(%DateTime{} = at), do: DateTime.to_iso8601(at)
 end

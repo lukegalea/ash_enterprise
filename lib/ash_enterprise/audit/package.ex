@@ -6,7 +6,7 @@ defmodule AshEnterprise.Audit.Package do
   criteria in scope and the control file's row for each, the evidence collected with
   each criterion's freshness at the end of the period, the findings open during it,
   the review tasks and their outcomes, the audit chain's verification, and the same
-  content as an OSCAL assessment-results document (`AshEnterprise.Audit.Package.Oscal`).
+  content as an OSCAL assessment-results document (`AshCompliance.Oscal.AssessmentResults`).
   `mix ash_enterprise.audit.export` writes them to a directory.
 
   ## The auditor privilege

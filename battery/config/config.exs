@@ -15,6 +15,8 @@ config :ash_enterprise_battery,
 # See the ash_compliance host-wiring checklist.
 config :ash_compliance, :repo, Battery.Repo
 config :ash_compliance, :table_prefix, "ash_compliance_"
+# Where evidence goes after the hot window; every read of evidence takes it too.
+config :ash_compliance, :evidence_archive, Battery.Compliance.ArchivedEvidence
 
 # Same compile-time binding for the projections engine's internal
 # resources (checkpoints, dead letters, registry).
