@@ -850,7 +850,19 @@ ROOTISH="(parent_span_id = '' or parent_span_id not in (select span_id from $SPA
 trace_ch() {
   load_ports
   port_busy "$CLICKHOUSE_TCP" || die "ClickHouse is not answering on $CLICKHOUSE_TCP; run 'observability up'"
-  ch --output_format_json_quote_64bit_integers 0 "$@"
+  local err status=0
+  err="$(mktemp)"
+  ch --output_format_json_quote_64bit_integers 0 "$@" 2>"$err" || status=$?
+  if [ "$status" -ne 0 ]; then
+    if grep -qE 'MEMORY_LIMIT_EXCEEDED|Code: 241\.' "$err"; then
+      rm -f "$err"
+      die "the window $WINDOW_TEXT holds more spans than ClickHouse's per-query memory allows; narrow it with a shorter --since, or bound it with --until"
+    fi
+    cat "$err" >&2
+    rm -f "$err"
+    return "$status"
+  fi
+  rm -f "$err"
 }
 
 # A string as a ClickHouse literal body (no surrounding quotes).
@@ -862,6 +874,7 @@ sq() {
 set_trace_opt() {
   case "$1" in
     --since) SINCE="$2" ;;
+    --until) UNTIL="$2" ;;
     --limit) LIMIT="$2" ;;
     --threshold) THRESHOLD="$2" ;;
     --by) BY="$2" ;;
@@ -872,18 +885,37 @@ set_trace_opt() {
   esac
 }
 
-# Sets SINCE, LIMIT, THRESHOLD, BY, SORT, SERVICE, PORT, USER_FILTER, ALL, FULL, AS_JSON and
-# POSITIONAL from the arguments.
+# A --since or --until value as a ClickHouse time expression: a duration back from now
+# (90s, 30m, 3h, 2d) or a UTC time (2026-11-12T14:00, seconds and a trailing Z optional).
+time_sql() {
+  local v="$1" opt="$2" n
+  if [[ "$v" =~ ^([0-9]+)([smhd])$ ]]; then
+    case "${BASH_REMATCH[2]}" in
+      s) n="${BASH_REMATCH[1]}" ;;
+      m) n=$((BASH_REMATCH[1] * 60)) ;;
+      h) n=$((BASH_REMATCH[1] * 3600)) ;;
+      d) n=$((BASH_REMATCH[1] * 86400)) ;;
+    esac
+    printf 'now() - interval %s second' "$n"
+  elif [[ "$v" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}[T\ ][0-9]{2}:[0-9]{2}(:[0-9]{2})?Z?$ ]]; then
+    printf "parseDateTime64BestEffort('%s', 9, 'UTC')" "${v%Z}"
+  else
+    die "$opt takes a duration back from now (90s, 30m, 3h, 2d) or a UTC time like 2026-11-12T14:00; got '$v'"
+  fi
+}
+
+# Sets SINCE, UNTIL, WINDOW (the SQL condition on timestamp), WINDOW_TEXT, LIMIT, THRESHOLD,
+# BY, SORT, SERVICE, PORT, USER_FILTER, ALL, FULL, AS_JSON and POSITIONAL from the arguments.
 parse_trace_opts() {
-  SINCE=3h BY=name SORT=time LIMIT="" THRESHOLD=20 SERVICE="" PORT="" USER_FILTER="" ALL="" FULL="" AS_JSON="" POSITIONAL=()
+  SINCE=3h UNTIL="" BY=name SORT=time LIMIT="" THRESHOLD=20 SERVICE="" PORT="" USER_FILTER="" ALL="" FULL="" AS_JSON="" POSITIONAL=()
   while [ $# -gt 0 ]; do
     case "$1" in
-      --since|--limit|--threshold|--by|--sort|--service|--port|--user)
+      --since|--until|--limit|--threshold|--by|--sort|--service|--port|--user)
         [ $# -ge 2 ] || die "$1 needs a value"
         set_trace_opt "$1" "$2"
         shift 2
         ;;
-      --since=*|--limit=*|--threshold=*|--by=*|--sort=*|--service=*|--port=*|--user=*)
+      --since=*|--until=*|--limit=*|--threshold=*|--by=*|--sort=*|--service=*|--port=*|--user=*)
         set_trace_opt "${1%%=*}" "${1#*=}"
         shift
         ;;
@@ -894,13 +926,18 @@ parse_trace_opts() {
       *) POSITIONAL+=("$1"); shift ;;
     esac
   done
-  [[ "$SINCE" =~ ^([0-9]+)([smhd])$ ]] || die "--since takes a number and a unit (s, m, h or d), like 3h; got '$SINCE'"
-  case "${BASH_REMATCH[2]}" in
-    s) SINCE_SECONDS="${BASH_REMATCH[1]}" ;;
-    m) SINCE_SECONDS=$((BASH_REMATCH[1] * 60)) ;;
-    h) SINCE_SECONDS=$((BASH_REMATCH[1] * 3600)) ;;
-    d) SINCE_SECONDS=$((BASH_REMATCH[1] * 86400)) ;;
-  esac
+  local from to
+  from="$(time_sql "$SINCE" --since)" || exit 1
+  WINDOW="timestamp > $from"
+  if [ -z "$UNTIL" ]; then
+    WINDOW_TEXT="last $SINCE"
+  else
+    to="$(time_sql "$UNTIL" --until)" || exit 1
+    WINDOW="$WINDOW and timestamp <= $to"
+    WINDOW_TEXT="from $SINCE to $UNTIL"
+    [[ "$SINCE" =~ ^[0-9]+[smhd]$ ]] && WINDOW_TEXT="from $SINCE ago to $UNTIL"
+    [[ "$UNTIL" =~ ^[0-9]+[smhd]$ ]] && WINDOW_TEXT="${WINDOW_TEXT% to *} to $UNTIL ago"
+  fi
   [[ "${LIMIT:-1}" =~ ^[0-9]+$ ]] && [ "${LIMIT:-1}" -gt 0 ] || die "--limit takes a positive number; got '$LIMIT'"
   case "$BY" in name|page) ;; *) die "--by takes name or page; got '$BY'" ;; esac
   case "$SORT" in time|queries|spans) ;; *) die "--sort takes time, queries or spans; got '$SORT'" ;; esac
@@ -914,10 +951,16 @@ trace_scope() {
   local c=""
   if [ -n "$SERVICE" ]; then c+=" and serviceName = '$(sq "$SERVICE")'"; fi
   if [ -n "$PORT" ]; then
-    c+=" and trace_id in (select trace_id from $SPANS where timestamp > now() - interval $SINCE_SECONDS second and (attributes_number['server.port'] = toFloat64($PORT) or attributes_number['http.server.port'] = toFloat64($PORT)))"
+    # Only HTTP server spans carry the port, and a LiveView connect trace has none: its
+    # connect span is the browser's. So find the app instances (service.instance.id, one
+    # per VM start) that served requests on the port, and keep every trace with a span
+    # from one of them. A client span's server.port is the port it called, so only
+    # server spans (kind 2) count.
+    local on_port="(kind = 2 and (attributes_number['server.port'] = toFloat64($PORT) or attributes_number['http.server.port'] = toFloat64($PORT)))"
+    c+=" and trace_id in (select trace_id from $SPANS where $WINDOW and ($on_port or resources_string['service.instance.id'] in (select resources_string['service.instance.id'] from $SPANS where $WINDOW and $on_port and resources_string['service.instance.id'] != '')))"
   fi
   if [ -n "$USER_FILTER" ]; then
-    c+=" and trace_id in (select trace_id from $SPANS where timestamp > now() - interval $SINCE_SECONDS second and attributes_string['enduser.name'] = '$(sq "$USER_FILTER")')"
+    c+=" and trace_id in (select trace_id from $SPANS where $WINDOW and attributes_string['enduser.name'] = '$(sq "$USER_FILTER")')"
   fi
   printf '%s' "$c"
 }
@@ -940,7 +983,7 @@ slow_by_name() {
       argMax(attributes_string['ui.surface.id'], duration_nano) as surface,
       argMax(concat(attributes_string['ui.action.resource'], ' ', attributes_string['ui.action.name']), duration_nano) as action
     from $SPANS
-    where timestamp > now() - interval $SINCE_SECONDS second and $1 $scope $hide
+    where $WINDOW and $1 $scope $hide
     group by name
     order by max(duration_nano) desc
     limit $LIMIT
@@ -958,6 +1001,8 @@ print_slow() {
 
 # Page keys. An HTTP root is "GET /route", a connect span "/route lv.connect"; LiveView
 # lifecycle spans carry the module, and an event the surface id of its ui.* attributes.
+# slow_by_page then gives a mount or handle_params the route of the HTTP root or connect
+# span in its trace (the dead render and the connected render), so they sit with their page.
 read -r -d '' PAGE_SQL <<'SQL' || true
 multiIf(
     parent_span_id = '' and match(name, '^[A-Z]+( /|$)'), replaceRegexpOne(name, '^[A-Z]+ ', ''),
@@ -973,6 +1018,18 @@ multiIf(
     match(name, '\\.handle_params$'), 'params',
     'event')
 SQL
+
+# Rows of one page stay together, in request order (the HTTP request, then the LiveView
+# connect, mount, params and events), and pages are ranked by their worst row on the sort
+# key: a page whose cost is all in its connect is not separated from its cheap HTTP row.
+# shellcheck disable=SC2016
+PAGE_GROUP_JQ='
+  def rank: {http: 0, connect: 1, mount: 2, params: 3, event: 4}[.kind] // 5;
+  group_by(.page)
+  | sort_by(-(map(.sort_key) | max), -(map(.max_d) | max))
+  | .[0:$limit]
+  | map(sort_by(rank) | map(del(.sort_key, .max_d)))
+  | flatten'
 
 # Per page and kind: duration, and the queries / Ash actions / server spans of the traces
 # those requests belong to (browser spans are not counted). The worst trace is the one
@@ -995,29 +1052,32 @@ slow_by_page() {
       max(q) as max_queries, round(avg(q), 1) as avg_queries,
       max(a) as max_ash, round(avg(a), 1) as avg_ash,
       max(n) as max_spans, round(avg(n), 1) as avg_spans,
-      argMax(trace_id, $key) as trace_id
+      argMax(trace_id, $key) as trace_id,
+      max($key) as sort_key, max(d) as max_d
     from (
-      select page, kind, trace_id, max(duration_nano) as d
+      select if(route != '', route, page) as page, kind, trace_id, d
       from (
-        select trace_id, duration_nano, $PAGE_SQL as page, $KIND_SQL as kind
-        from $SPANS
-        where timestamp > now() - interval $SINCE_SECONDS second
-          and ((parent_span_id = '' and match(name, '$http_re')) or match(name, '$LV_RE'))
-          and not $BROWSER_NAMES_SQL $scope
+        select page, kind, trace_id, max(duration_nano) as d,
+          max(if(kind in ('http', 'connect'), page, '')) over (partition by trace_id) as route
+        from (
+          select trace_id, duration_nano, $PAGE_SQL as page, $KIND_SQL as kind
+          from $SPANS
+          where $WINDOW
+            and ((parent_span_id = '' and match(name, '$http_re')) or match(name, '$LV_RE'))
+            and not $BROWSER_NAMES_SQL $scope
+        )
+        group by page, kind, trace_id
       )
       where 1 $hide
-      group by page, kind, trace_id
     ) as x
     inner join (
       select trace_id, countIf($QUERY_SQL) as q, countIf($ASH_SQL) as a, countIf(not $BROWSER_SQL) as n
       from $SPANS
-      where timestamp > now() - interval $SINCE_SECONDS second $scope
+      where $WINDOW $scope
       group by trace_id
     ) as t using trace_id
     group by page, kind
-    order by max($key) desc, max(d) desc
-    limit $LIMIT
-    format JSONEachRow" | jq -s '.'
+    format JSONEachRow" | jq -s --argjson limit "$LIMIT" "$PAGE_GROUP_JQ"
 }
 
 cmd_slow() {
@@ -1028,13 +1088,16 @@ cmd_slow() {
     LIMIT="${LIMIT:-50}"
     pages="$(slow_by_page)"
     if [ -n "$AS_JSON" ]; then
-      jq --arg since "$SINCE" --arg sort "$SORT" '{since: $since, by: "page", sort: $sort, pages: .}' <<<"$pages"
+      jq --arg since "$SINCE" --arg until "$UNTIL" --arg sort "$SORT" '{since: $since, until: $until, by: "page", sort: $sort, pages: .}' <<<"$pages"
       return 0
     fi
-    echo "Pages, last $SINCE, worst first by $SORT (HTTP request, LiveView connect, mount, params and events per route or surface; queries, Ash actions and spans are per trace, browser spans not counted):"
+    echo "Pages, $WINDOW_TEXT, worst first by $SORT (HTTP request, LiveView connect, mount, params and events per route or surface; queries, Ash actions and spans are per trace, browser spans not counted):"
     if [ "$(jq length <<<"$pages")" -eq 0 ]; then echo "  (no spans in the window)"; return 0; fi
     jq -r '["PAGE", "KIND", "COUNT", "P50_MS", "P95_MS", "MAX_MS", "Q_MAX", "Q_AVG", "ASH_MAX", "ASH_AVG", "SPANS_MAX", "WORST_TRACE"],
-      (.[] | [.page, .kind, .spans, .p50_ms, .p95_ms, .max_ms, .max_queries, .avg_queries, .max_ash, .avg_ash, .max_spans, .trace_id]) | @tsv' <<<"$pages" | text_table
+      (reduce .[] as $r ({prev: null, rows: []};
+         .rows += [[(if $r.page == .prev then "  \"" else $r.page end), $r.kind, $r.spans, $r.p50_ms, $r.p95_ms, $r.max_ms,
+                    $r.max_queries, $r.avg_queries, $r.max_ash, $r.avg_ash, $r.max_spans, $r.trace_id]]
+         | .prev = $r.page) | .rows[]) | @tsv' <<<"$pages" | text_table
     if [ -z "$ALL" ]; then echo; echo "  (probe routes such as /health hidden; --all shows them)"; fi
     echo
     echo "Next: observability trace <WORST_TRACE>"
@@ -1045,12 +1108,12 @@ cmd_slow() {
   roots="$(slow_by_name "parent_span_id = ''")"
   lv="$(slow_by_name "match(name, '$LV_RE')")"
   if [ -n "$AS_JSON" ]; then
-    jq -n --arg since "$SINCE" --argjson roots "$roots" --argjson liveview "$lv" '{since: $since, roots: $roots, liveview: $liveview}'
+    jq -n --arg since "$SINCE" --arg until "$UNTIL" --argjson roots "$roots" --argjson liveview "$lv" '{since: $since, until: $until, roots: $roots, liveview: $liveview}'
     return 0
   fi
-  print_slow "Slowest root spans, last $SINCE (by worst case):" "$roots"
+  print_slow "Slowest root spans, $WINDOW_TEXT (by worst case):" "$roots"
   echo
-  print_slow "Slowest LiveView spans (mount, handle_params, handle_event, lv.connect), last $SINCE:" "$lv"
+  print_slow "Slowest LiveView spans (mount, handle_params, handle_event, lv.connect), $WINDOW_TEXT:" "$lv"
   echo
   echo "Next: observability trace <TRACE_ID>"
 }
@@ -1105,6 +1168,8 @@ MODEL_JQ='
   | ([$srv[] | select(.is_query == 1)] | sort_by(.start_us)) as $queries
   | ([$srv[] | select(.schema_migrations == 1)]) as $sm
   | (if ($queries | length) > 0 then (($queries[0].start_us - $rs) / 1000) else null end) as $first_q
+  | ([$srv[] | (.start_us + .ms * 1000)] | max) as $last_end
+  | ([$srv[] | select(.start_us >= $re)]) as $late
   | {
       spans: $n,
       queries: ($queries | length),
@@ -1114,6 +1179,11 @@ MODEL_JQ='
       biggest_gap: (if $big == null then null else
         {ms: ((($big.to - $big.from) / 1000) | r1), at_ms: ((($big.from - $rs) / 1000) | r1), after: $big.after, before: $big.before} end),
       first_query_ms: ($first_q | if . == null then null else r1 end),
+      after_root: {
+        ms: (([($last_end - $re), 0] | max) / 1000 | r1),
+        spans: ($late | length),
+        queries: ([$late[] | select(.is_query == 1)] | length)
+      },
       dev: {
         schema_migrations: {count: ($sm | length), ms: (([$sm[].ms] | add // 0) | r1)},
         slow_start: ($first_q != null and $first_q >= 250 and $first_q >= ($root.ms * 0.25))
@@ -1170,6 +1240,11 @@ HEADER_JQ='
       "\n  biggest gap: \(.biggest_gap.ms) ms, starting +\(.biggest_gap.at_ms) ms into the root ("
       + (if .biggest_gap.after != null then "after \(.biggest_gap.after)" else "at the start" end)
       + (if .biggest_gap.before != null then ", before \(.biggest_gap.before)" else ", to the end" end) + ")"
+    else "" end)
+  + (if .after_root.ms >= 1 then
+      "\n  after the root: work went on \(.after_root.ms) ms after the root span ended, in \(.after_root.spans) spans"
+      + " (\(.after_root.queries) queries) that started after it; the root handed it to a process that kept the"
+      + " trace (a Task, a LiveView async): the root duration is not what the page cost"
     else "" end)
   + (if .dev.schema_migrations.count > 0 then
       "\n  dev overhead: \(.dev.schema_migrations.count) schema_migrations queries, \(.dev.schema_migrations.ms) ms (CheckRepoStatus; not present in a release)"
@@ -1237,7 +1312,7 @@ cmd_queries() {
   # The slowest SQL spans of the window, as a subquery the root lookup reuses: a list of
   # trace ids in the query text would outgrow ClickHouse's max_query_size at a large --limit.
   slowest="select trace_id from $SPANS
-    where timestamp > now() - interval $SINCE_SECONDS second
+    where $WINDOW
       and (name like '%repo.query%' or attributes_string['db.statement'] != '') $scope
     order by duration_nano desc
     limit $LIMIT"
@@ -1247,7 +1322,7 @@ cmd_queries() {
       substring(attributes_string['db.statement'], 1, 400) as statement,
       length(attributes_string['db.statement']) as statement_bytes
     from $SPANS
-    where timestamp > now() - interval $SINCE_SECONDS second
+    where $WINDOW
       and (name like '%repo.query%' or attributes_string['db.statement'] != '') $scope
     order by duration_nano desc
     limit $LIMIT
@@ -1269,10 +1344,10 @@ cmd_queries() {
   merged="$({ printf '%s\n' "$queries"; printf '%s\n' "$roots"; } \
     | jq -n 'input as $q | input as $r | ($r | INDEX(.trace_id)) as $rt | $q | map(. + {root: ($rt[.trace_id] // null)})')"
   if [ -n "$AS_JSON" ]; then
-    jq --arg since "$SINCE" '{since: $since, queries: .}' <<<"$merged"
+    jq --arg since "$SINCE" --arg until "$UNTIL" '{since: $since, until: $until, queries: .}' <<<"$merged"
     return 0
   fi
-  echo "Slowest SQL spans, last $SINCE:"
+  echo "Slowest SQL spans, $WINDOW_TEXT:"
   if [ "$(jq length <<<"$merged")" -eq 0 ]; then echo "  (no query spans in the window)"; return 0; fi
   jq -r '.[] |
     "\n  \(.ms) ms  \(.name)\n    trace: \(.trace_id)"
@@ -1310,20 +1385,25 @@ usage: observability up|down|status|urls|prepare|provision|slow|trace|queries|re
   urls     where the UIs and endpoints are, and the sign-in
   prepare  allocate ports and write the env file without starting anything
   provision  make SigNoz's dashboards, alerts and saved views match the files again (`up` does it too)
-  slow [--since 3h] [--limit N] [--by page] [--sort time|queries|spans] [filters] [--json]
+  slow [--since 3h] [--until T] [--limit N] [--by page] [--sort time|queries|spans] [filters] [--json]
            the slowest root and LiveView spans by name, or per page with --by page
            (count, p50, p95, max, queries and Ash actions per trace, worst trace);
-           --by page lists 50 rows by default and --sort ranks by the worst trace on that
-           key; read-only
+           --by page keeps a page's rows together (HTTP request, connect, mount, params,
+           events), lists 50 pages by default and ranks them by their worst row on the
+           --sort key; read-only
   trace TRACE_ID [--threshold 20] [--full] [--json]
            the span tree and a by-name rollup, a counts header (spans, queries, Ash actions,
-           time in no child span), dev overhead marked, browser spans apart; a name repeated
+           time in no child span, work that went on after the root ended), dev overhead
+           marked, browser spans apart; a name repeated
            at least --threshold times, or 10 times and 15% of the spans, is flagged
            "likely N+1"; read-only
-  queries [--since 3h] [--limit N] [filters] [--json]
+  queries [--since 3h] [--until T] [--limit N] [filters] [--json]
            the slowest SQL spans (statement cut at 400 characters) with the root span and
            ui.* attributes of their trace; read-only
-  filters (slow, queries): --service NAME, --port N (server.port), --user NAME (enduser.name);
+  window (slow, queries): --since and --until each take a duration back from now (90s, 30m,
+           3h, 2d) or a UTC time (2026-11-12T14:00); --until defaults to now
+  filters (slow, queries): --service NAME, --port N (the app instance serving that port,
+           LiveView traces included), --user NAME (enduser.name);
            slow hides probe routes such as /health and a bare "GET" root; --all shows them
   restart-check [ROUNDS]
            cold restarts with traffic, each checked (default 5); leaves the stack stopped
