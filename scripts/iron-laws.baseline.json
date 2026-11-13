@@ -186,12 +186,6 @@
   "reason": "Test-support LiveView fixture used to provoke LiveView crash reports. The handler reads no data, touches no resource and returns the socket unchanged, so there is nothing to authorize; it is compiled only in the telemetry package test environment."
  },
   {
-    "law": "11",
-    "file": "lib/ash_enterprise_web/live/decisions/try_live.ex",
-    "text": "def handle_event(\"select_version\", %{\"version\" => id}, socket),",
-    "reason": "Authorized through the definition's read policy: every event re-reads the chosen version with the signed-in person as actor and their tenant (Trial.version/4), so a version they may not read is refused as missing; the handlers evaluate with record: false and write nothing."
-  },
-  {
     "law": "10",
     "file": "telemetry/lib/ash_enterprise/telemetry/metrics/reporter.ex",
     "text": "metric.name |> Enum.map_join(\".\", &Atom.to_string/1) |> String.to_atom()",
