@@ -267,3 +267,17 @@ Where the code differs from, or settles, the text above:
   --check-up-to-date`. Neither calls a model.
 - **Not yet in place:** the `CODEOWNERS` entry naming a French language reviewer (section 1). The `fr` catalogs that
   landed are machine-drafted and still need that review.
+
+## Amendment — 2026-11-13: goldens are A2UI 1.0 only
+
+`ash_a2ui` now speaks A2UI 1.0 and nothing else (lukegalea/ash_a2ui#91). Where this record says the explicit `locale:`
+works "for both v0.9.1 and v1.0" (section on `ash_a2ui`), or lists protocol goldens "on v0.9.1 and v1.0" (the phase 1
+row and the test plan), read 1.0 only: there is one encoder, one action handler and one set of goldens, and the locale
+option is unchanged on it. What the amendment adds to the localized surface:
+
+- The handler's feedback is the one `/ui/feedback` map, so the words it carries are the single place feedback is
+  translated. Two msgids are new in `ash_a2ui`'s domain, written in the surface's language into `/ui/feedback_text`:
+  "Working…" and "This is taking longer than usual. Still working…". The host's `fr` catalog has both.
+- The extracted source references in `priv/gettext/*/ash_a2ui.po` now point at `lib/ash_a2ui/encoder.ex`, not at the
+  removed `encoder/v0_9_1.ex`; `mix ash_a2ui.gettext.extract_metadata --check-up-to-date` still gates them.
+- The `fr` strings still wait for the French reviewer named above.

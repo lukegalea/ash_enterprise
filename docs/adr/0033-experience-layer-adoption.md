@@ -228,3 +228,29 @@ This application now locks a commit after it. What that removed:
 The reversal ladder is the two rungs the 2026-10-15 correction predicted:
 `catalog: :basic` (or delete the tuple), then the tier-3 exit. There is no
 configuration that restores the v1 screens.
+
+
+## Note — 2026-11-13: A2UI 1.0 is the only wire, and the admin catalog is v2
+
+`ash_a2ui` removed v0.9.1 and the per-surface `spec_version` switch (lukegalea/ash_a2ui#91, 4856e5a, "A2UI 1.0
+only"); this application now locks a commit after it. The decision above is unchanged: the experience layer is still
+the only composition and `catalog: :admin_v1` is still the configuration. What moved is the wire and the ids:
+
+- **One wire.** The 14 `spec_version "1.0"` lines in `lib/ash_enterprise_web/a2ui/` are gone, as are the 0.9.1 branches
+  that read `/ui/action_result`, `/ui/response` and the `actionResponse` handshake. A surface is one inline
+  `createSurface`. Every server-handled control is an `ashAction` function call (`callAgentFunction`), answered by an
+  `agentFunctionResponse` that comes last. The LiveView event is `a2ui:message`, one event for everything the renderer
+  says; `a2ui:action` and `a2ui:function_response` no longer exist. A plain `action` event is refused with an
+  `UNKNOWN_FUNCTION` feedback, and ACP's `_a2ui/action` refuses one with `-32602`.
+- **One outcome path.** `/ui/feedback` is the whole map (`kind`, `message`, `code`, `functionCallId`, `result`,
+  `resultText`); there is no `/ui/response`. The `result` there is a map-returning action's output, so the channels'
+  own word (`applied`, `pending`, `forbidden` ...; `AshEnterprise.Channels`) is written beside it as `channelResult`
+  and `blockedReason`. A refusal is the feedback with code `FORBIDDEN`; a field error is still `/errors/<field>`.
+- **Catalog ids.** The admin catalog is `https://github.com/lukegalea/ash_a2ui/catalogs/admin/v2` at contract 2.0.0
+  (it was `https://ash-a2ui.dev/catalogs/admin/v1`). Every surface also needs the ash_a2ui catalog
+  (`https://github.com/lukegalea/ash_a2ui/catalogs/ash_a2ui/v1`), so an ACP client's `supportedCatalogIds` must list
+  the basic and the ash_a2ui catalog, and the admin one for the admin composition; the capabilities key is `"1.0"`.
+- **The browser renderer** is a pinned build of upstream `a2ui-project/a2ui` at 8bf644a (`assets/vendor/a2ui/`), because
+  no published `@a2ui` release renders the 1.0 spec text yet. `docs/BLEEDING-EDGE.md` has the row and the way back.
+
+The reversal ladder is unchanged. There is no configuration that restores the 0.9.1 wire.
