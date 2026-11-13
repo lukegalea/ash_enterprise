@@ -15,7 +15,7 @@ defmodule AshEnterprise.Security.AuthenticationEventTest do
   require Ash.Query
 
   alias AshEnterprise.Accounts.{ApiKey, Lockout, User}
-  alias AshEnterprise.Audit.{Chain, EventLog}
+  alias AshEnterprise.Audit.EventLog
   alias AshEnterprise.Faults
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Repo
@@ -59,7 +59,7 @@ defmodule AshEnterprise.Security.AuthenticationEventTest do
       assert entry.data["user_id"] == user.id
       refute inspect(entry) =~ to_string(user.email)
       refute inspect(event) =~ to_string(user.email)
-      assert %{findings: []} = Chain.verify(nil)
+      assert %{findings: []} = AshEvents.Chain.verify(EventLog, nil)
     end
 
     test "a wrong password is a refusal with the user" do

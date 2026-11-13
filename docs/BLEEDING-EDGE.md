@@ -38,8 +38,8 @@ Facts below were checked on **2026-11-06**. Upstream status goes stale quickly, 
 - **The gap:** the pinned branch is upstream `main` (`e7679b3e`) plus one commit, the `no_rollback` fix. It has not
   been proposed upstream yet. The fork's earlier 0.7 branch (`temporal-as-of-support-0.7`), with its own as_of
   capture in event metadata, is retired.
-- **What moved with it.** The audit event log sets `record_as_of? true`, and the chain trigger and
-  `AshEnterprise.Audit.Chain` hash `as_of` and `as_of_range`. `concat_ws` skips NULLs, so rows written before the
+- **What moved with it.** The audit event log sets `record_as_of? true`, and its chain (the trigger and
+  `AshEvents.Chain.verify/2`) hashes `as_of` and `as_of_range`. `concat_ws` skips NULLs, so rows written before the
   columns existed hash exactly as they did. The archive (`AshEnterprise.Audit.ArchivedEvent`) carries both columns, so
   an archived row still verifies. Events the 0.7 branch recorded keep their `as_of` in `metadata` (still hashed), and
   upstream replay does not read it there. Nothing is backfilled: the table is append-only and hashed, and replay runs
@@ -120,6 +120,7 @@ confined so that removing one is a deletion, not a refactor.
 | `ash_acp` | Agent Client Protocol adapter | none | yes |
 | `ash_rules` | rule IR, fact schemas, evaluator | none | yes |
 | `ash_events_projections` | projector engine (transitive, via `ash_compliance`) | none | yes |
+| `ash_events_chain` | the audit log's hash chain, its verifier and its verified move to the archive (`AshEnterprise.Audit.EventLog`) | none | yes |
 | `ash_evidence` | evidence pipeline records (System One); declared `branch: "main"` | none | yes |
 | `ash_bpmn` | BPMN process engine (ADR 0009) | none | yes |
 | `ash_planning` | planning kernel: fragments, backend behaviour, IR and validators (ADR 0062) | `ash_open_lineage` | after `ash_open_lineage` |

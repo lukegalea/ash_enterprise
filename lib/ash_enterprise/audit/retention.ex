@@ -12,73 +12,62 @@ defmodule AshEnterprise.Audit.Retention do
   store, `AshEnterprise.Audit.ArchivedEvent` and `AshEnterprise.Audit.ArchivedEvidence`,
   tables in the same database. `archive/1` runs daily (`AshEnterprise.Audit.RetentionWorker`).
 
-  **Verified before anything is deleted.** Each move runs in one transaction: copy the rows,
-  then compare the copy with the hot rows (the same count on both sides, every column equal,
-  the same SHA-256 digest over their hashes in order, and for evidence every stored
-  `content` hashing to its `hash`). Only when all of that holds are the hot rows deleted, and
-  only if the delete removes exactly the rows that were verified. A failed comparison rolls
-  the transaction back, so nothing is copied and nothing is deleted, and a `:failed`
-  `AshEnterprise.Audit.ArchiveRun` records why. The database checks it a second time: the
-  audit log's trigger refuses a `DELETE` of any row that has no identical archived copy, or
-  is younger than ninety days.
+  **The audit log's move is `ash_events_chain`'s** (`AshEvents.Chain.Retention`): each tenant
+  chain is verified first, a chain with a finding is not moved, the tail of every chain stays
+  hot, and a purge records the hash of the last purged event so `AshEvents.Chain.verify/2`
+  verifies what remains from that anchor. This module passes it this application's
+  configuration and the `oban` system actor its run ledger (`AshEnterprise.Audit.ArchiveRun`)
+  allows.
+
+  **Evidence is this module's.** Each move runs in one transaction: copy the rows, then
+  compare the copy with the hot rows (the same count on both sides, every column equal, the
+  same SHA-256 digest over their hashes in order, and every stored `content` hashing to its
+  `hash`). Only when all of that holds are the hot rows deleted, and only if the delete
+  removes exactly the rows that were verified. A failed comparison rolls the transaction
+  back, so nothing is copied and nothing is deleted, and a `:failed`
+  `AshEnterprise.Audit.ArchiveRun` records why. The newest evidence artifact of each
+  organization, control and collector stays hot regardless of age, because the freshness
+  sweep reads the hot table, and an annual control's one artifact must not read as missing
+  because it is a hundred days old.
 
   **Never purged before four hundred days.** `purge/1` deletes from the archive only when a
   deployment configures `purge_after_days`, which defaults to `nil` (never), and refuses a
   value under 400. The archive tables' triggers refuse to delete a row younger than 400 days
-  whatever the configuration says. A purge of the audit archive records the hash of the last
-  purged event, and `AshEnterprise.Audit.Chain` verifies what remains from that anchor.
-
-  What stays hot regardless of age:
-
-    * the **tail of each audit chain**, so the chain trigger always finds the row the next
-      event links to;
-    * the **newest evidence artifact** of each organization, control and collector, because
-      the freshness sweep reads the hot table, and an annual control's one artifact must not
-      read as missing because it is a hundred days old.
-
-  An audit chain with a verification finding is not archived at all: a break is evidence,
-  and it stays where the verifier first found it.
+  whatever the configuration says.
 
   ## Why this module writes SQL
 
-  The audit log has no write actions (ash_events appends to it, and its triggers refuse
-  everything else), and neither archive table has any. Moving a run of rows is a set-based
-  copy and delete between tables the application never writes row by row, checked by
-  triggers in the database. That is the "named infrastructure module for an SQL-only
-  feature" case of the Ash discipline: it reads and writes no business row, and what it
-  records about itself goes through Ash (`ArchiveRun`).
+  Neither the evidence table's archive nor its move has a write action: moving a run of rows
+  is a set-based copy and delete between tables the application never writes row by row,
+  checked by triggers in the database. That is the "named infrastructure module for an
+  SQL-only feature" case of the Ash discipline: it reads and writes no business row, and what
+  it records about itself goes through Ash (`ArchiveRun`).
 
-  The SQL is built from table names and tenant clauses fixed in this module, never from
-  input; every value is a bound parameter. That is why the functions that build it carry
-  `sobelow_skip ["SQL.Query"]`.
+  The SQL is built from table names fixed in this module, never from input; every value is a
+  bound parameter. That is why the functions that build it carry `sobelow_skip ["SQL.Query"]`.
   """
 
   alias AshEnterprise.Audit
-  alias AshEnterprise.Audit.Chain
+  alias AshEnterprise.Audit.EventLog
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Repo
+  alias AshEvents.Chain.SQL
 
-  @hot_floor_days 90
-  @purge_floor_days 400
   @default_batch 10_000
-
-  @event_columns ~w(id sequence organization_id record_id version occurred_at resource action
-                    action_type user_id data changed_attributes metadata as_of as_of_range
-                    previous_hash hash)
 
   @evidence_columns ~w(id organization_id control_id subject_type subject_id hash content
                        media_type collector method chain_of_custody retention_class
                        collected_at inserted_at)
 
   @doc "The fewest days anything stays hot. `hot_days` below it is refused."
-  def hot_floor_days, do: @hot_floor_days
+  def hot_floor_days, do: SQL.hot_floor_days()
 
   @doc "The fewest days anything is kept at all. `purge_after_days` below it is refused."
-  def purge_floor_days, do: @purge_floor_days
+  def purge_floor_days, do: SQL.purge_floor_days()
 
   @doc "The configured hot window, in days."
   @spec hot_days() :: pos_integer()
-  def hot_days, do: Keyword.get(config(), :hot_days, @hot_floor_days)
+  def hot_days, do: Keyword.get(config(), :hot_days, hot_floor_days())
 
   @doc "The configured purge age, in days, or `nil` for never."
   @spec purge_after_days() :: pos_integer() | nil
@@ -102,147 +91,16 @@ defmodule AshEnterprise.Audit.Retention do
     days = Keyword.get(opts, :hot_days, hot_days())
     batch = Keyword.get(opts, :batch_size, Keyword.get(config(), :batch_size, @default_batch))
 
-    if days < @hot_floor_days do
-      {:error, {:below_floor, :hot_days, @hot_floor_days}}
-    else
+    with {:ok, audit} <-
+           AshEvents.Chain.Retention.archive(EventLog,
+             now: now,
+             hot_days: days,
+             batch_size: batch,
+             actor: SystemActor.oban()
+           ) do
       cutoff = DateTime.add(now, -days * 86_400, :second)
-
-      audit = Enum.map(chains("audit_events"), &archive_chain(&1, cutoff, now, batch))
       {:ok, %{audit: audit, evidence: archive_evidence(cutoff, now, batch)}}
     end
-  end
-
-  defp archive_chain(org, cutoff, now, batch) do
-    case Chain.verify(org) do
-      %{findings: []} ->
-        case boundary("audit_events", org, cutoff, batch, keep_tail?: true) do
-          nil -> :nothing
-          range -> move_chain(org, range, cutoff, now)
-        end
-
-      %{findings: findings} ->
-        fail(%{
-          store: :audit_events,
-          kind: :archive,
-          chain_organization_id: org,
-          cutoff: cutoff,
-          row_count: 0,
-          reason: "the chain has #{length(findings)} verification finding(s); nothing was moved"
-        })
-    end
-  end
-
-  # sobelow_skip ["SQL.Query"]
-  defp move_chain(org, {from, to, count}, cutoff, now) do
-    cols = Enum.join(@event_columns, ", ")
-    params = [dump(org), from, to]
-
-    result =
-      Repo.transaction(fn ->
-        Repo.query!(
-          "INSERT INTO audit_event_archive (#{cols}, archived_at) " <>
-            "SELECT #{cols}, $4 FROM audit_events " <>
-            "WHERE #{tenant("organization_id")} AND sequence BETWEEN $2 AND $3 " <>
-            "ON CONFLICT (id) DO NOTHING",
-          params ++ [now]
-        )
-
-        with {:ok, digest} <- verify_event_copy(params, count),
-             :ok <- delete_hot_events(params, count) do
-          record!(%{
-            store: :audit_events,
-            kind: :archive,
-            status: :verified,
-            chain_organization_id: org,
-            from_sequence: from,
-            to_sequence: to,
-            row_count: count,
-            digest: digest,
-            cutoff: cutoff
-          })
-        else
-          {:error, reason} -> Repo.rollback(reason)
-        end
-      end)
-
-    case result do
-      {:ok, run} ->
-        {:archived, run}
-
-      {:error, reason} ->
-        fail(move_failure(org, from, to, count, cutoff, reason))
-    end
-  rescue
-    # The database refused (the immutability trigger, most likely): the transaction is
-    # rolled back, so nothing was copied and nothing was deleted.
-    error in Postgrex.Error ->
-      fail(move_failure(org, from, to, count, cutoff, Exception.message(error)))
-  end
-
-  defp move_failure(org, from, to, count, cutoff, reason) do
-    %{
-      store: :audit_events,
-      kind: :archive,
-      chain_organization_id: org,
-      from_sequence: from,
-      to_sequence: to,
-      row_count: count,
-      cutoff: cutoff,
-      reason: reason
-    }
-  end
-
-  # The copy matches the hot rows: the same count on both sides of the range, every
-  # column of every row equal, and the same digest over the hashes in order.
-  # sobelow_skip ["SQL.Query"]
-  defp verify_event_copy(params, count) do
-    same_row =
-      @event_columns
-      |> Enum.map(&{"a.#{&1}", "h.#{&1}"})
-      |> Enum.unzip()
-      |> then(fn {a, h} ->
-        "(#{Enum.join(a, ", ")}) IS NOT DISTINCT FROM (#{Enum.join(h, ", ")})"
-      end)
-
-    range = "BETWEEN $2 AND $3"
-
-    %{rows: [[hot, archived, matching, hot_digest, archive_digest]]} =
-      Repo.query!(
-        """
-        SELECT
-          (SELECT count(*) FROM audit_events h
-             WHERE #{tenant("h.organization_id")} AND h.sequence #{range}),
-          (SELECT count(*) FROM audit_event_archive a
-             WHERE #{tenant("a.organization_id")} AND a.sequence #{range}),
-          (SELECT count(*) FROM audit_events h
-             JOIN audit_event_archive a ON a.id = h.id AND #{same_row}
-             WHERE #{tenant("h.organization_id")} AND h.sequence #{range}),
-          (SELECT #{digest_sql("h")} FROM audit_events h
-             WHERE #{tenant("h.organization_id")} AND h.sequence #{range}),
-          (SELECT #{digest_sql("a")} FROM audit_event_archive a
-             WHERE #{tenant("a.organization_id")} AND a.sequence #{range})
-        """,
-        params
-      )
-
-    cond do
-      hot != count -> {:error, "hot rows changed under the move: #{hot} for #{count}"}
-      archived != count -> {:error, "archive holds #{archived} rows for #{count} hot rows"}
-      matching != count -> {:error, "#{count - matching} archived row(s) differ from the hot row"}
-      hot_digest != archive_digest -> {:error, "digest mismatch"}
-      true -> {:ok, hot_digest}
-    end
-  end
-
-  # sobelow_skip ["SQL.Query"]
-  defp delete_hot_events(params, count) do
-    %{num_rows: deleted} =
-      Repo.query!(
-        "DELETE FROM audit_events WHERE #{tenant("organization_id")} AND sequence BETWEEN $2 AND $3",
-        params
-      )
-
-    if deleted == count, do: :ok, else: {:error, "deleted #{deleted} rows for #{count} verified"}
   end
 
   # --- evidence -------------------------------------------------------------------
@@ -404,89 +262,24 @@ defmodule AshEnterprise.Audit.Retention do
   def purge(opts \\ []) do
     now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
     batch = Keyword.get(opts, :batch_size, Keyword.get(config(), :batch_size, @default_batch))
+    days = Keyword.get(opts, :days, purge_after_days())
 
-    case Keyword.get(opts, :days, purge_after_days()) do
-      nil ->
+    case AshEvents.Chain.Retention.purge(EventLog,
+           now: now,
+           purge_after_days: days,
+           batch_size: batch,
+           actor: SystemActor.oban()
+         ) do
+      {:ok, :disabled} ->
         {:ok, :disabled}
 
-      days when is_integer(days) and days >= @purge_floor_days ->
+      {:ok, audit} ->
         cutoff = DateTime.add(now, -days * 86_400, :second)
-        audit = Enum.map(chains("audit_event_archive"), &purge_chain(&1, cutoff, batch))
         {:ok, %{audit: audit, evidence: purge_evidence(cutoff, batch)}}
 
-      _ ->
-        {:error, {:below_floor, :purge_after_days, @purge_floor_days}}
+      {:error, reason} ->
+        {:error, reason}
     end
-  end
-
-  defp purge_chain(org, cutoff, batch) do
-    case boundary("audit_event_archive", org, cutoff, batch, keep_tail?: false) do
-      nil -> :nothing
-      range -> purge_chain_range(org, range, cutoff)
-    end
-  end
-
-  # sobelow_skip ["SQL.Query"]
-  defp purge_chain_range(org, {from, to, count}, cutoff) do
-    params = [dump(org), from, to]
-
-    result =
-      Repo.transaction(fn ->
-        %{rows: [[tail_hash, digest]]} =
-          Repo.query!(
-            """
-            SELECT
-              (SELECT hash FROM audit_event_archive
-                 WHERE #{tenant("organization_id")} AND sequence = $3),
-              (SELECT #{digest_sql("a")} FROM audit_event_archive a
-                 WHERE #{tenant("a.organization_id")} AND a.sequence BETWEEN $2 AND $3)
-            """,
-            params
-          )
-
-        %{num_rows: deleted} =
-          Repo.query!(
-            "DELETE FROM audit_event_archive " <>
-              "WHERE #{tenant("organization_id")} AND sequence BETWEEN $2 AND $3",
-            params
-          )
-
-        if deleted != count, do: Repo.rollback("deleted #{deleted} rows for #{count}")
-
-        record!(%{
-          store: :audit_events,
-          kind: :purge,
-          status: :verified,
-          chain_organization_id: org,
-          from_sequence: from,
-          to_sequence: to,
-          row_count: count,
-          digest: digest,
-          tail_hash: tail_hash,
-          cutoff: cutoff
-        })
-      end)
-
-    case result do
-      {:ok, run} -> {:purged, run}
-      {:error, reason} -> fail(purge_failure(org, from, to, count, cutoff, reason))
-    end
-  rescue
-    error in Postgrex.Error ->
-      fail(purge_failure(org, from, to, count, cutoff, Exception.message(error)))
-  end
-
-  defp purge_failure(org, from, to, count, cutoff, reason) do
-    %{
-      store: :audit_events,
-      kind: :purge,
-      chain_organization_id: org,
-      from_sequence: from,
-      to_sequence: to,
-      row_count: count,
-      cutoff: cutoff,
-      reason: reason
-    }
   end
 
   defp purge_evidence(cutoff, batch) do
@@ -529,58 +322,6 @@ defmodule AshEnterprise.Audit.Retention do
   end
 
   # --- shared ---------------------------------------------------------------------
-
-  # Every chain in a table: one per tenant, plus the chain with no tenant.
-  # sobelow_skip ["SQL.Query"]
-  defp chains(table) do
-    %{rows: rows} =
-      Repo.query!("SELECT DISTINCT organization_id FROM #{table} ORDER BY 1 NULLS FIRST")
-
-    Enum.map(rows, fn [org] -> org && Ecto.UUID.cast!(org) end)
-  end
-
-  # The leading run of a chain older than the cutoff, at most `batch` rows: every row below
-  # the first one at or after the cutoff. In the hot log the chain's last row stays, so the
-  # chain trigger always has a row to link the next event to.
-  # sobelow_skip ["SQL.Query"]
-  defp boundary(table, org, cutoff, batch, keep_tail?: keep_tail?) do
-    tail_clause = if keep_tail?, do: "AND sequence < (SELECT max(sequence) FROM chain)", else: ""
-
-    %{rows: [[from, to, count]]} =
-      Repo.query!(
-        """
-        WITH chain AS (
-          SELECT sequence, occurred_at FROM #{table} WHERE #{tenant("organization_id")}
-        ),
-        eligible AS (
-          SELECT sequence FROM chain
-          WHERE occurred_at < $2
-            AND sequence < coalesce(
-              (SELECT min(sequence) FROM chain WHERE occurred_at >= $2), 9223372036854775807)
-            #{tail_clause}
-          ORDER BY sequence
-          LIMIT $3
-        )
-        SELECT min(sequence), max(sequence), count(*) FROM eligible
-        """,
-        [dump(org), cutoff, batch]
-      )
-
-    if count == 0, do: nil, else: {from, to, count}
-  end
-
-  # One filter for both kinds of chain, always on `$1`: a tenant's chain by equality, and the
-  # chain with no tenant by `IS NULL` (with `$1` null), so each can use the chain index.
-  defp tenant(column),
-    do: "((#{column} = $1::uuid) OR ($1::uuid IS NULL AND #{column} IS NULL))"
-
-  defp digest_sql(alias),
-    do:
-      "encode(sha256(convert_to(coalesce(string_agg(coalesce(#{alias}.hash, '-'), '|' " <>
-        "ORDER BY #{alias}.sequence), ''), 'UTF8')), 'hex')"
-
-  defp dump(nil), do: nil
-  defp dump(org), do: Ecto.UUID.dump!(org)
 
   defp record!(attrs), do: Audit.record_archive_run!(attrs, actor: SystemActor.oban())
 

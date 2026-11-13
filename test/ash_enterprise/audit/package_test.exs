@@ -14,7 +14,7 @@ defmodule AshEnterprise.Audit.PackageTest do
 
   alias AshCompliance.Domain, as: Compliance
   alias AshEnterprise.Audit
-  alias AshEnterprise.Audit.{Chain, ChainVerifyWorker, EventLog, Package}
+  alias AshEnterprise.Audit.{ChainVerifyWorker, EventLog, Package}
   alias AshEnterprise.Compliance.FreshnessSweepWorker
   alias AshEnterprise.Platform.Correlation
   alias AshEnterprise.Repo
@@ -54,7 +54,9 @@ defmodule AshEnterprise.Audit.PackageTest do
   # a freshness sweep (which files findings for every criterion with no evidence) and
   # a review task waiting on a person.
   defp activity!(admin) do
-    :ok = ChainVerifyWorker.record(Chain.verify(admin.tenant), DateTime.utc_now())
+    :ok =
+      ChainVerifyWorker.record(AshEvents.Chain.verify(EventLog, admin.tenant), DateTime.utc_now())
+
     {:ok, _} = FreshnessSweepWorker.sweep(admin.tenant)
     brief!(admin)
 
@@ -141,7 +143,11 @@ defmodule AshEnterprise.Audit.PackageTest do
       tamper!(ctx.ours.tenant)
 
       # The daily verification records a broken chain as evidence like any other run.
-      assert :ok = ChainVerifyWorker.record(Chain.verify(ctx.ours.tenant), DateTime.utc_now())
+      assert :ok =
+               ChainVerifyWorker.record(
+                 AshEvents.Chain.verify(EventLog, ctx.ours.tenant),
+                 DateTime.utc_now()
+               )
 
       {:ok, package} = export(ctx.auditor)
 

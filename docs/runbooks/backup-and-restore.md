@@ -25,7 +25,7 @@ scripts/backup-restore-drill --keep --dump /backups/drill.dump --json drill.json
 2. It restores the dump into a fresh database, `<database>_restore_drill` (dropped first if a previous drill left
    one), with `pg_restore --exit-on-error`.
 3. It checks the copy: every table has the same number of rows as the snapshot, and every audit chain verifies on
-   the copy (`AshEnterprise.Audit.Chain.verify_all/0`, hot and archived events together).
+   the copy (`AshEvents.Chain.verify_all/1` over `AshEnterprise.Audit.EventLog`, hot and archived events together).
 4. It prints the dump's size and SHA-256 and how long the dump and the restore took (`--json` writes the same report
    as JSON). On success it drops the restored database (`--keep` keeps it) and deletes the dump unless `--dump`
    names a path. On any difference it exits non-zero and keeps the restored database for inspection.

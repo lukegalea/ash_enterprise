@@ -18,7 +18,7 @@ defmodule AshEnterprise.Execution.RunErasureTest do
 
   require Ash.Query
 
-  alias AshEnterprise.Audit.{Chain, EventLog}
+  alias AshEnterprise.Audit.EventLog
   alias AshEnterprise.Erasure
   alias AshEnterprise.Erasure.Shredded
   alias AshEnterprise.Execution
@@ -176,8 +176,8 @@ defmodule AshEnterprise.Execution.RunErasureTest do
     # Retention: the audit log never held the words, and its chain verifies after the shred.
     for id <- [run.id, call.id], event <- recorded(id), do: refute(event =~ "SYNTHETIC")
     assert recorded(call.id) != []
-    assert Chain.verify(tenant).findings == []
-    assert Chain.verify(nil).findings == []
+    assert AshEvents.Chain.verify(EventLog, tenant).findings == []
+    assert AshEvents.Chain.verify(EventLog, nil).findings == []
   end
 
   test "a run erased before it finishes fails at its next step, with no model call",

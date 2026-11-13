@@ -9,14 +9,14 @@ defmodule Mix.Tasks.AshEnterprise.Audit.Verify do
       mix ash_enterprise.audit.verify --tenant 0198f3a4-...
 
   Exits non-zero when any chain has a finding, so it can be a scheduled check
-  rather than something someone remembers to run. See `AshEnterprise.Audit.Chain`
+  rather than something someone remembers to run. See `AshEvents.Chain`
   for what each kind of finding means and why rows predating the chain are
   skipped rather than reported.
   """
 
   use Mix.Task
 
-  alias AshEnterprise.Audit.Chain
+  alias AshEnterprise.Audit.EventLog
   alias AshEnterprise.Mix.Helpers
 
   @requirements ["app.config"]
@@ -40,8 +40,8 @@ defmodule Mix.Tasks.AshEnterprise.Audit.Verify do
 
     results =
       case opts[:tenant] do
-        nil -> Chain.verify_all()
-        tenant -> [Chain.verify(tenant)]
+        nil -> AshEvents.Chain.verify_all(EventLog)
+        tenant -> [AshEvents.Chain.verify(EventLog, tenant)]
       end
 
     Enum.each(results, &report/1)
@@ -61,7 +61,7 @@ defmodule Mix.Tasks.AshEnterprise.Audit.Verify do
     end
   end
 
-  defp report(%{organization_id: org, checked: checked} = result) do
+  defp report(%{partition: org, checked: checked} = result) do
     Mix.shell().info("\nChain #{org || "(no tenant)"} — #{checked} event(s) checked")
 
     if result.skipped_unchained_prefix > 0 do

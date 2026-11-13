@@ -45,7 +45,6 @@ defmodule AshEnterprise.Showcase.Credentialing do
 
   alias AshEnterprise.Accounts
   alias AshEnterprise.AI.ModelCall
-  alias AshEnterprise.Audit.Chain
   alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Credentialing
 
@@ -399,9 +398,10 @@ defmodule AshEnterprise.Showcase.Credentialing do
     end
   end
 
-  @doc "Whether `tenant`'s audit hash chain verifies (`AshEnterprise.Audit.Chain.verify/1`)."
+  @doc "Whether `tenant`'s audit hash chain verifies (`AshEvents.Chain.verify/2`)."
   @spec chain_verifies?(Ash.UUID.t()) :: boolean()
-  def chain_verifies?(tenant), do: Chain.verify(tenant).findings == []
+  def chain_verifies?(tenant),
+    do: AshEvents.Chain.verify(AshEnterprise.Audit.EventLog, tenant).findings == []
 
   # --- the fault panel -------------------------------------------------------------
 

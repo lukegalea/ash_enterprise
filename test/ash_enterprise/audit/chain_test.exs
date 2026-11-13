@@ -13,7 +13,7 @@ defmodule AshEnterprise.Audit.ChainTest do
   require Ash.Query
 
   alias AshEnterprise.Accounts.BusinessUnit
-  alias AshEnterprise.Audit.Chain
+  alias AshEnterprise.Audit.EventLog
   alias AshEnterprise.Platform.Correlation
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Repo
@@ -104,7 +104,7 @@ defmodule AshEnterprise.Audit.ChainTest do
       create_bu("One", ctx.org)
       create_bu("Two", ctx.org)
 
-      assert %{findings: [], checked: 2} = Chain.verify(ctx.org)
+      assert %{findings: [], checked: 2} = AshEvents.Chain.verify(EventLog, ctx.org)
     end
   end
 
@@ -123,7 +123,9 @@ defmodule AshEnterprise.Audit.ChainTest do
                ).rows
 
       # And it is verified on its own: only the untenanted rows, both of them.
-      assert %{organization_id: nil, findings: [], checked: checked} = Chain.verify(nil)
+      assert %{partition: nil, findings: [], checked: checked} =
+               AshEvents.Chain.verify(EventLog, nil)
+
       assert checked >= 2
     end
 
@@ -151,6 +153,98 @@ defmodule AshEnterprise.Audit.ChainTest do
       assert after_writes.seq == before.seq
       assert after_writes.index >= before.index + 2
     end
+  end
+
+  describe "rows the log's own trigger wrote, before the chain was ash_events_chain's" do
+    # The trigger function this log had, verbatim, under another name. Rows hashed by
+    # it are in every database this application has run against, so the package's
+    # trigger and verifier must hash them identically, NULLs and all.
+    @legacy_chain_function """
+    CREATE OR REPLACE FUNCTION legacy_audit_chain_test() RETURNS trigger AS $fn$
+    DECLARE
+      prev text;
+    BEGIN
+      NEW.organization_id := NULLIF(NEW.metadata->>'organization_id', '')::uuid;
+
+      IF NEW.organization_id IS NULL THEN
+        SELECT hash INTO prev FROM audit_events WHERE organization_id IS NULL
+        ORDER BY organization_id DESC, sequence DESC LIMIT 1;
+      ELSE
+        SELECT hash INTO prev FROM audit_events WHERE organization_id = NEW.organization_id
+        ORDER BY organization_id DESC, sequence DESC LIMIT 1;
+      END IF;
+
+      NEW.previous_hash := prev;
+      NEW.hash := encode(sha256(convert_to(concat_ws('|',
+        coalesce(prev, ''),
+        NEW.sequence::text,
+        NEW.id::text,
+        NEW.record_id::text,
+        NEW.version::text,
+        NEW.occurred_at::text,
+        NEW.resource,
+        NEW.action,
+        NEW.action_type,
+        coalesce(NEW.user_id::text, ''),
+        coalesce(NEW.organization_id::text, ''),
+        NEW.data::text,
+        NEW.changed_attributes::text,
+        NEW.metadata::text,
+        NEW.as_of::text,
+        NEW.as_of_range::text
+      ), 'UTF8')), 'hex');
+
+      RETURN NEW;
+    END;
+    $fn$ LANGUAGE plpgsql
+    """
+
+    test "verify, and the package's trigger links the next event to them", ctx do
+      Repo.query!(@legacy_chain_function)
+
+      Repo.query!(
+        "CREATE OR REPLACE TRIGGER audit_events_chain BEFORE INSERT ON audit_events " <>
+          "FOR EACH ROW EXECUTE FUNCTION legacy_audit_chain_test()"
+      )
+
+      # A row with an actor, a row with application time and one with a period, in a
+      # tenant chain and in the chain with no tenant.
+      legacy_event!(ctx.org, user_id: Ash.UUID.generate())
+      legacy_event!(ctx.org, as_of: true)
+      legacy_event!(ctx.org, as_of_range: true)
+      legacy_event!(nil, as_of: true)
+
+      Repo.query!(
+        "CREATE OR REPLACE TRIGGER audit_events_chain BEFORE INSERT ON audit_events " <>
+          "FOR EACH ROW EXECUTE FUNCTION ash_enterprise_audit_chain()"
+      )
+
+      create_bu("After the swap", ctx.org)
+      insert_event!(nil)
+
+      assert %{findings: [], checked: 4, skipped_unchained_prefix: 0} =
+               AshEvents.Chain.verify(EventLog, ctx.org)
+
+      assert %{findings: []} = AshEvents.Chain.verify(EventLog, nil)
+    end
+  end
+
+  defp legacy_event!(org, opts) do
+    Repo.query!(
+      "INSERT INTO audit_events (record_id, version, metadata, data, changed_attributes, " <>
+        "occurred_at, resource, action, action_type, user_id, as_of, as_of_range) " <>
+        "VALUES (gen_random_uuid(), 1, $1::jsonb, $2::jsonb, '{}'::jsonb, now(), " <>
+        "'Elixir.Legacy', 'create', 'create', $3::uuid, " <>
+        "CASE WHEN $4::boolean THEN now() END, " <>
+        "CASE WHEN $5::boolean THEN tstzrange(now(), NULL, '[)') END)",
+      [
+        if(org, do: %{"organization_id" => org}, else: %{}),
+        %{"name" => "Legacy"},
+        opts[:user_id] && Ecto.UUID.dump!(opts[:user_id]),
+        Keyword.get(opts, :as_of, false),
+        Keyword.get(opts, :as_of_range, false)
+      ]
+    )
   end
 
   describe "the trigger prevents" do
@@ -198,7 +292,7 @@ defmodule AshEnterprise.Audit.ChainTest do
         )
       end)
 
-      assert %{findings: [finding | _]} = Chain.verify(ctx.org)
+      assert %{findings: [finding | _]} = AshEvents.Chain.verify(EventLog, ctx.org)
       assert finding.problem == :altered
     end
 
@@ -215,7 +309,7 @@ defmodule AshEnterprise.Audit.ChainTest do
         )
       end)
 
-      assert %{findings: findings} = Chain.verify(ctx.org)
+      assert %{findings: findings} = AshEvents.Chain.verify(EventLog, ctx.org)
       assert Enum.any?(findings, &(&1.problem == :broken_link))
     end
 
@@ -245,7 +339,7 @@ defmodule AshEnterprise.Audit.ChainTest do
         )
       end)
 
-      assert %{findings: findings, checked: 3} = Chain.verify(ctx.org)
+      assert %{findings: findings, checked: 3} = AshEvents.Chain.verify(EventLog, ctx.org)
       assert Enum.any?(findings, &(&1.problem == :unchained))
     end
   end

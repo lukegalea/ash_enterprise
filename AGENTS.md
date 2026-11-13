@@ -1835,6 +1835,15 @@ _The extension for tracking changes to your resources via a centralized event lo
 
 [ash_events usage rules](deps/ash_events/usage-rules.md)
 <!-- ash_events-end -->
+<!-- ash_events_chain-start -->
+## ash_events_chain usage
+_A tamper-evident hash chain for an AshEvents event log: chain and immutability
+triggers from one SQL source, a verifier that reads the hot table and its
+archive as one chain, and a verified hot-to-archive retention move with a run
+ledger._
+
+[ash_events_chain usage rules](deps/ash_events_chain/usage-rules.md)
+<!-- ash_events_chain-end -->
 <!-- ash_graphql-start -->
 ## ash_graphql usage
 _The extension for building GraphQL APIs with Ash_

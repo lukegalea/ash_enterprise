@@ -44,7 +44,6 @@ defmodule AshEnterprise.Audit do
     resource AshEnterprise.Audit.ArchiveRun do
       define :record_archive_run, action: :record
       define :list_archive_runs, action: :read
-      define :latest_purge_anchor, action: :latest_purge_anchor, args: [:chain_organization_id]
     end
   end
 end

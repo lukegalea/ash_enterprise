@@ -17,7 +17,7 @@ defmodule AshEnterprise.Audit.Export do
   The integrity columns are included deliberately. An export that omits them is a
   list of assertions; an export that carries `sequence`, `previous_hash` and
   `hash` can be checked against the live chain by anyone who receives it, which
-  is what makes it evidence rather than a claim. See `AshEnterprise.Audit.Chain`.
+  is what makes it evidence rather than a claim. See `AshEvents.Chain`.
 
   ## Scoping
 

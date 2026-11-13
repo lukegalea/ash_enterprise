@@ -18,7 +18,7 @@ defmodule Mix.Tasks.AshEnterprise.Backup.Drill do
   2. **Restore into a fresh database** (`<database>_restore_drill`, dropped first if a
      previous drill left it): `pg_restore --exit-on-error`.
   3. **Prove the copy.** Every table holds the same number of rows as the snapshot, and every
-     audit chain in the copy verifies (`AshEnterprise.Audit.Chain.verify_all/0`, hot and
+     audit chain in the copy verifies (`AshEvents.Chain.verify_all/1`, hot and
      archived rows), so the restore brought back the log intact, not only a log of the right
      length.
   4. **Report** the dump's size and SHA-256, how long the dump and the restore took, and
@@ -35,7 +35,7 @@ defmodule Mix.Tasks.AshEnterprise.Backup.Drill do
 
   use Mix.Task
 
-  alias AshEnterprise.Audit.Chain
+  alias AshEnterprise.Audit.EventLog
 
   @requirements ["app.config"]
 
@@ -201,7 +201,7 @@ defmodule Mix.Tasks.AshEnterprise.Backup.Drill do
     AshEnterprise.Repo.put_dynamic_repo(repo)
 
     try do
-      Chain.verify_all()
+      AshEvents.Chain.verify_all(EventLog)
     after
       AshEnterprise.Repo.put_dynamic_repo(AshEnterprise.Repo)
       Supervisor.stop(repo)

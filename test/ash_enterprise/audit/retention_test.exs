@@ -11,7 +11,7 @@ defmodule AshEnterprise.Audit.RetentionTest do
   use AshEnterprise.DataCase, async: false
 
   alias AshCompliance.Ownership.Evidence
-  alias AshEnterprise.Audit.{ArchiveRun, Chain, Retention}
+  alias AshEnterprise.Audit.{ArchiveRun, EventLog, Retention}
   alias AshEnterprise.Repo
 
   setup do
@@ -166,7 +166,7 @@ defmodule AshEnterprise.Audit.RetentionTest do
       assert hot_count(ctx.org) == 2
       assert archived_count(ctx.org) == 3
 
-      assert %{findings: [], checked: 5} = Chain.verify(ctx.org)
+      assert %{findings: [], checked: 5} = AshEvents.Chain.verify(EventLog, ctx.org)
 
       # Archived rows read back through Ash like the log does.
       assert length(AshEnterprise.Audit.archived_chain!(ctx.org, authorize?: false)) == 3
@@ -180,7 +180,7 @@ defmodule AshEnterprise.Audit.RetentionTest do
       assert hot_count(ctx.org) == 1
 
       event!(ctx.org, 0)
-      assert %{findings: [], checked: 4} = Chain.verify(ctx.org)
+      assert %{findings: [], checked: 4} = AshEvents.Chain.verify(EventLog, ctx.org)
     end
 
     test "nothing on a second run", ctx do
@@ -248,7 +248,9 @@ defmodule AshEnterprise.Audit.RetentionTest do
       end
 
       # What remains verifies from the purge's anchor.
-      assert %{findings: [], checked: 2, anchored_after: anchored} = Chain.verify(ctx.org)
+      assert %{findings: [], checked: 2, anchored_after: anchored} =
+               AshEvents.Chain.verify(EventLog, ctx.org)
+
       assert is_integer(anchored)
     end
 

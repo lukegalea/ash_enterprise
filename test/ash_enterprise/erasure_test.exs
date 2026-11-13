@@ -17,7 +17,7 @@ defmodule AshEnterprise.ErasureTest do
   require Ash.Query
 
   alias AshEnterprise.Agents.MorningBrief
-  alias AshEnterprise.Audit.{Chain, EventLog}
+  alias AshEnterprise.Audit.EventLog
   alias AshEnterprise.Canonical.{CalendarEvent, Conversation, Message, Projection}
   alias AshEnterprise.Erasure
   alias AshEnterprise.Erasure.{Crypto, Key, Keyring, Scope, Shredded}
@@ -677,7 +677,7 @@ defmodule AshEnterprise.ErasureTest do
   end
 
   defp assert_chains_verify(organization_id) do
-    assert %{findings: []} = Chain.verify(organization_id)
+    assert %{findings: []} = AshEvents.Chain.verify(EventLog, organization_id)
   end
 
   defp user!(name, bu, org) do

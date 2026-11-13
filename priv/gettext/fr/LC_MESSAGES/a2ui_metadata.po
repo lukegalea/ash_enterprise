@@ -1559,10 +1559,6 @@ msgstr "Plus récent"
 msgid "Latest published"
 msgstr "Dernière publication"
 
-#: lib/ash_enterprise/canvas/registry.ex:2
-msgid "Latest purge anchor"
-msgstr "Dernière ancre de purge"
-
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
 msgid "Latest sync run"
 msgstr "Dernière exécution de synchronisation"

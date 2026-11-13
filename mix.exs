@@ -125,6 +125,7 @@ defmodule AshEnterprise.MixProject do
         {:ash_authentication, link: :markdown},
         {:ash_credo, link: :markdown},
         {:ash_events, link: :markdown},
+        {:ash_events_chain, link: :markdown},
         {:ash_graphql, link: :markdown},
         {:ash_json_api, link: :markdown},
         {:ash_money, link: :markdown},
@@ -452,6 +453,10 @@ defmodule AshEnterprise.MixProject do
       # ash_judgments and ash_discrete_business_events declare it too, and one
       # package cannot resolve from both Hex and git.
       {:ash_events, github: "lukegalea/ash_events", branch: "main-no-rollback", override: true},
+      # The audit log's hash chain: the chain and immutability triggers, the verifier
+      # that reads the hot log and its archive as one chain, and the verified move to
+      # the archive (`AshEnterprise.Audit.EventLog`, `ArchivedEvent`, `ArchiveRun`).
+      {:ash_events_chain, github: "lukegalea/ash_events_chain"},
       {:ash_archival, "~> 2.0"},
       {:ash_oban, "~> 0.8"},
       {:ash_graphql, "~> 1.0"},

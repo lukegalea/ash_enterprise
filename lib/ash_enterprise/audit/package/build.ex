@@ -17,7 +17,7 @@ defmodule AshEnterprise.Audit.Package.Build do
     * **findings** — the compliance findings open at any time in the period;
     * **reviews** — the human tasks opened, claimed, decided or cancelled in the period,
       with their outcomes and the process each belongs to;
-    * **chain** — `AshEnterprise.Audit.Chain.verify/1` over the tenant's whole chain,
+    * **chain** — `AshEvents.Chain.verify/2` over the tenant's whole chain,
       hot and archived, at export time, the events in the period, and the daily
       verifications recorded in it (`AshEnterprise.Audit.ChainVerifyWorker`);
     * **assessment_results** — the same as an OSCAL assessment-results document
@@ -46,7 +46,7 @@ defmodule AshEnterprise.Audit.Package.Build do
   alias AshCompliance.Domain, as: Compliance
   alias AshCompliance.Ownership.{ControlFile, Criteria, Evidence, Freshness}
   alias AshEnterprise.Audit
-  alias AshEnterprise.Audit.{Chain, ChainVerifyWorker, EventLog}
+  alias AshEnterprise.Audit.{ChainVerifyWorker, EventLog}
   alias AshEnterprise.Audit.Package.Oscal
   alias AshEnterprise.Compliance.FreshnessSweepWorker
   alias AshEnterprise.Security.ActorContext
@@ -443,7 +443,7 @@ defmodule AshEnterprise.Audit.Package.Build do
 
   defp chain(tenant, artifacts, %{from: from, to: to}, host) do
     verified_at = DateTime.utc_now()
-    result = Chain.verify(tenant)
+    result = AshEvents.Chain.verify(EventLog, tenant)
 
     in_period =
       Enum.filter(result.findings, fn finding ->

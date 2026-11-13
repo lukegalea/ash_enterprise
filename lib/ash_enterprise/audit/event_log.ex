@@ -62,9 +62,9 @@ defmodule AshEnterprise.Audit.EventLog do
   **The chain detects.** Every row carries the SHA-256 of its own contents
   concatenated with the previous row's hash, so altering any row invalidates
   every row after it, and removing one breaks the link across the gap.
-  `mix ash_enterprise.audit.verify` walks the chain and reports the first break
-  by sequence number. Dropping the trigger to make an edit therefore does not
-  help: the edit is still detectable, which is the point of doing both.
+  `mix ash_enterprise.audit.verify` walks the chain (`AshEvents.Chain.verify/2`) and
+  reports every break by sequence number. Dropping the trigger to make an edit
+  therefore does not help: the edit is still detectable, which is the point of doing both.
 
   ### One chain per tenant, and why that is not a compromise
 
@@ -126,9 +126,9 @@ defmodule AshEnterprise.Audit.EventLog do
   ## Retention
 
   Ninety days hot, then archived; never purged before four hundred days
-  (`AshEnterprise.Audit.Retention`, ADR 0024's age half). An event older than ninety days
-  is copied to `AshEnterprise.Audit.ArchivedEvent`, the copy is verified, and only then is
-  the hot row deleted. The immutability trigger below allows that delete and no other: the
+  (`AshEvents.Chain.Retention`, run by `AshEnterprise.Audit.Retention`; ADR 0024's age
+  half). An event older than ninety days is copied to `AshEnterprise.Audit.ArchivedEvent`,
+  the copy is verified, and only then is the hot row deleted. The immutability trigger below allows that delete and no other: the
   row must be past ninety days and an identical copy must already be archived. The tail
   of every chain stays hot, so the chain trigger always finds the row to link to. Nothing
   is partitioned: ADR 0024 accepted monthly partitions, but none was ever created.
@@ -155,7 +155,7 @@ defmodule AshEnterprise.Audit.EventLog do
     domain: AshEnterprise.Audit,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
-    extensions: [AshEvents.EventLog],
+    extensions: [AshEvents.EventLog, AshEvents.Chain.Extension],
     # The bpmn trigger engine's nudge. It runs *after* the transaction -- Ash defers
     # notifications -- so it cannot extend the per-tenant advisory lock this chain relies on.
     # It also cannot be transactional with the write, which is why it only nudges and the
@@ -164,6 +164,46 @@ defmodule AshEnterprise.Audit.EventLog do
     # `AshEnterprise.Audit.EventSource`; the nudge reads `:resource` and `:organization_id`
     # off the row, which are the library's default field spellings.
     notifiers: [AshBpmn.Triggers.Nudge]
+
+  # The chain is `ash_events_chain`'s: the trigger SQL, the verifier
+  # (`AshEvents.Chain.verify/2`) and the move to the archive
+  # (`AshEvents.Chain.Retention`) are built from this one declaration. The names and
+  # the digest are the ones this table's rows were written under, so the rows already
+  # in it verify unchanged:
+  #
+  #   * the trigger functions keep their names, and the statements, triggers and chain
+  #     index are named after the table as they always were;
+  #   * `digest_columns` is the column list the rows were hashed over, in order. A
+  #     column the trigger wrote bare is `:omit_nil` (`concat_ws` skips a NULL); the
+  #     actor and the tenant were coalesced to an empty field, the package's default
+  #     rendering. Changing it stops every existing row from verifying.
+  use AshEvents.Chain.Resources,
+      {:chained_log,
+       partition: :organization_id,
+       partition_metadata_key: "organization_id",
+       chain_function: "ash_enterprise_audit_chain",
+       immutable_function: "ash_enterprise_audit_immutable",
+       archive_table: "audit_event_archive",
+       archive_run: AshEnterprise.Audit.ArchiveRun,
+       digest_columns: [
+         {:sequence, :omit_nil},
+         {:id, :omit_nil},
+         {:record_id, :omit_nil},
+         {:version, :omit_nil},
+         {:occurred_at, :omit_nil},
+         {:resource, :omit_nil},
+         {:action, :omit_nil},
+         {:action_type, :omit_nil},
+         :user_id,
+         :organization_id,
+         {:data, :omit_nil},
+         {:changed_attributes, :omit_nil},
+         {:metadata, :omit_nil},
+         # Application time (record_as_of?): a row without either hashes as it did
+         # before they existed.
+         {:as_of, :omit_nil},
+         {:as_of_range, :omit_nil}
+       ]}
 
   postgres do
     table "audit_events"
@@ -175,149 +215,14 @@ defmodule AshEnterprise.Audit.EventLog do
       reference :lineage_run, ignore?: true
     end
 
-    custom_indexes do
-      # The chain trigger reads the tail of each tenant's chain on every insert,
-      # so this index is on the hot path of every audited write in the system,
-      # not just of reading the log. Only a lookup the index can serve uses it:
-      # see the two branches in `audit_events_chain_function` below.
-      index [:organization_id, :sequence], name: "audit_events_chain_index"
-    end
-
+    # The chain index (`audit_events_chain_index`) and the chain and immutability
+    # statements are the package's (`AshEvents.Chain.Resources`, above): it emits them
+    # under the names this table has always had, and refuses a second declaration.
+    #
     # One command per statement, deliberately: Ecto's `execute/1` sends the string
     # as a prepared statement, and Postgres refuses "cannot insert multiple
-    # commands into a prepared statement". Splitting them also means a failure
-    # names which piece failed.
+    # commands into a prepared statement".
     custom_statements do
-      statement :audit_events_chain_function do
-        up """
-        CREATE OR REPLACE FUNCTION ash_enterprise_audit_chain() RETURNS trigger AS $fn$
-        DECLARE
-          prev text;
-        BEGIN
-          -- The tenant is taken from the metadata the platform stamps rather than
-          -- accepted from the caller, so the column and the metadata cannot
-          -- disagree. See AshEnterprise.Platform.Changes.StampCorrelation.
-          NEW.organization_id := NULLIF(NEW.metadata->>'organization_id', '')::uuid;
-
-          -- The tail of the chain, read backwards off audit_events_chain_index.
-          -- `IS NOT DISTINCT FROM` cannot use the index, so the two cases are
-          -- written apart; and only with the index's own order does the planner
-          -- see that an `IS NULL` match is already ordered by sequence. Without
-          -- either, every audited insert reads and sorts the whole table.
-          IF NEW.organization_id IS NULL THEN
-            SELECT hash INTO prev
-            FROM audit_events
-            WHERE organization_id IS NULL
-            ORDER BY organization_id DESC, sequence DESC
-            LIMIT 1;
-          ELSE
-            SELECT hash INTO prev
-            FROM audit_events
-            WHERE organization_id = NEW.organization_id
-            ORDER BY organization_id DESC, sequence DESC
-            LIMIT 1;
-          END IF;
-
-          NEW.previous_hash := prev;
-          NEW.hash := encode(sha256(convert_to(concat_ws('|',
-            coalesce(prev, ''),
-            NEW.sequence::text,
-            NEW.id::text,
-            NEW.record_id::text,
-            NEW.version::text,
-            NEW.occurred_at::text,
-            NEW.resource,
-            NEW.action,
-            NEW.action_type,
-            coalesce(NEW.user_id::text, ''),
-            coalesce(NEW.organization_id::text, ''),
-            NEW.data::text,
-            NEW.changed_attributes::text,
-            NEW.metadata::text,
-            -- Application time (record_as_of?). concat_ws skips NULLs, so a row
-            -- without either hashes exactly as it did before they existed.
-            NEW.as_of::text,
-            NEW.as_of_range::text
-          ), 'UTF8')), 'hex');
-
-          RETURN NEW;
-        END;
-        $fn$ LANGUAGE plpgsql;
-        """
-
-        # Not CASCADE. A changed statement migrates as its old `down` and then its
-        # new `up`, and CASCADE took the trigger with the function, leaving no chain.
-        # Without it, a change to this statement alone fails its migration; change
-        # the trigger statement with it, so the trigger is dropped first and rebuilt.
-        down "DROP FUNCTION IF EXISTS ash_enterprise_audit_chain();"
-      end
-
-      # Migrated with every change to the function statement above, which cannot
-      # be dropped while this trigger exists. `OR REPLACE` makes rerunning it safe.
-      statement :audit_events_chain_trigger do
-        up """
-        -- Rebuilt with the chain function: it hashes as_of and as_of_range.
-        CREATE OR REPLACE TRIGGER audit_events_chain
-          BEFORE INSERT ON audit_events
-          FOR EACH ROW EXECUTE FUNCTION ash_enterprise_audit_chain();
-        """
-
-        down "DROP TRIGGER IF EXISTS audit_events_chain ON audit_events;"
-      end
-
-      statement :audit_events_immutable_function do
-        up """
-        CREATE OR REPLACE FUNCTION ash_enterprise_audit_immutable() RETURNS trigger AS $fn$
-        BEGIN
-          -- The one DELETE allowed: retention moving a row out of the hot log. The row
-          -- must be past the ninety-day hot window, and an identical copy of it must
-          -- already be in the archive (`AshEnterprise.Audit.ArchivedEvent`). So a row can
-          -- leave this table only by having arrived there first.
-          IF TG_OP = 'DELETE'
-             AND OLD.occurred_at < now() - interval '90 days'
-             AND EXISTS (
-               SELECT 1 FROM audit_event_archive a
-               WHERE a.id = OLD.id
-                 AND (a.sequence, a.organization_id, a.record_id, a.version, a.occurred_at,
-                      a.resource, a.action, a.action_type, a.user_id, a.data,
-                      a.changed_attributes, a.metadata, a.previous_hash, a.hash)
-                     IS NOT DISTINCT FROM
-                     (OLD.sequence, OLD.organization_id, OLD.record_id, OLD.version,
-                      OLD.occurred_at, OLD.resource, OLD.action, OLD.action_type, OLD.user_id,
-                      OLD.data, OLD.changed_attributes, OLD.metadata, OLD.previous_hash,
-                      OLD.hash)
-             ) THEN
-            RETURN OLD;
-          END IF;
-
-          RAISE EXCEPTION 'audit_events is append-only; % is not permitted', TG_OP
-            USING ERRCODE = 'restrict_violation',
-                  HINT = 'Correct a wrong entry by recording a new one.';
-        END;
-        $fn$ LANGUAGE plpgsql;
-        """
-
-        down "DROP FUNCTION IF EXISTS ash_enterprise_audit_immutable() CASCADE;"
-      end
-
-      statement :audit_events_immutable_trigger do
-        # Row-level on purpose: TRUNCATE is deliberately still allowed, because
-        # `mix ecto.reset` has to work and a TRUNCATE is not a quiet edit -- it
-        # takes the whole table, which is conspicuous in a way one altered row
-        # is not.
-        #
-        # `OR REPLACE` because the function statement above drops with CASCADE, which
-        # takes this trigger with it: a change to the function must change this statement
-        # too, so the migration recreates the trigger after the function.
-        up """
-        CREATE OR REPLACE TRIGGER audit_events_immutable
-          BEFORE UPDATE OR DELETE ON audit_events
-          FOR EACH ROW EXECUTE FUNCTION ash_enterprise_audit_immutable();
-        """
-
-        down "DROP TRIGGER IF EXISTS audit_events_immutable ON audit_events;"
-      end
-
       # The correlation id as a real, indexed column, so "the audit entries of
       # this lineage run" is an index lookup and a plain relationship
       # (`AshEnterprise.Lineage.Run.audit_entries`, and `lineage_run` below).
@@ -375,6 +280,14 @@ defmodule AshEnterprise.Audit.EventLog do
     # and "we failed to record who did this" are different findings, and a null
     # user_id alone cannot tell them apart.
     persist_actor_primary_key :user_id, AshEnterprise.Accounts.User
+
+    # The tenant's key, not `AshEvents.Chain.LockKeyGenerator`'s. That one reads the
+    # tenant from the event's metadata, which `StampCorrelation` writes when the
+    # action is built: a write given its tenant only when it runs has none there, and
+    # would lock the shared default key instead of the one
+    # `AshEnterprise.Repo.AdvisoryLock.xact_lock_audit_log!/2` takes to order the
+    # MDM refold behind audited writes.
+    advisory_lock_key_generator AshEvents.AdvisoryLockKeyGenerator.Default
 
     # What the Audit trail and Lineage surfaces show of an entry: when, what,
     # which record and who. Never `data`, `changed_attributes` or `metadata`.

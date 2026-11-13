@@ -14,8 +14,8 @@ defmodule AshEnterprise.Audit.SensitiveRedactionTest do
   require Ash.Query
 
   alias AshEnterprise.Accounts.{Organization, User}
-  alias AshEnterprise.Audit.{Chain, EventLog}
   alias AshEnterprise.Audit.Changes.RedactSensitive
+  alias AshEnterprise.Audit.EventLog
   alias AshEnterprise.Canonical.Message
   alias AshEnterprise.Integration.LinkedAccount
   alias AshEnterprise.Repo
@@ -38,7 +38,7 @@ defmodule AshEnterprise.Audit.SensitiveRedactionTest do
 
       refute_spelled_anywhere(user.hashed_password)
       refute_spelled_anywhere(@password)
-      assert %{findings: []} = Chain.verify(nil)
+      assert %{findings: []} = AshEvents.Chain.verify(EventLog, nil)
     end
 
     test "a password change records neither the old nor the new hash" do
@@ -79,7 +79,7 @@ defmodule AshEnterprise.Audit.SensitiveRedactionTest do
       assert event.data["email"] == nil
 
       refute_spelled_anywhere(email)
-      assert %{findings: []} = Chain.verify(nil)
+      assert %{findings: []} = AshEvents.Chain.verify(EventLog, nil)
     end
 
     test "the address still finds the user" do

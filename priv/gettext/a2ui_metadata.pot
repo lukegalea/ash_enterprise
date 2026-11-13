@@ -1553,10 +1553,6 @@ msgstr ""
 msgid "Latest published"
 msgstr ""
 
-#: lib/ash_enterprise/canvas/registry.ex:2
-msgid "Latest purge anchor"
-msgstr ""
-
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
 msgid "Latest sync run"
 msgstr ""

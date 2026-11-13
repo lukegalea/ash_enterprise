@@ -14,7 +14,7 @@ defmodule AshEnterprise.Compliance.ContinuousVerificationTest do
   use AshEnterprise.DataCase, async: false
 
   alias AshCompliance.Ownership.Evidence
-  alias AshEnterprise.Audit.{Chain, ChainVerifyWorker}
+  alias AshEnterprise.Audit.{ChainVerifyWorker, EventLog}
   alias AshEnterprise.Compliance.FreshnessSweepWorker
   alias AshEnterprise.Platform.{Correlation, SystemActor}
 
@@ -89,7 +89,11 @@ defmodule AshEnterprise.Compliance.ContinuousVerificationTest do
       create_bu!("One", ctx.org)
       create_bu!("Two", ctx.org)
 
-      assert :ok = ChainVerifyWorker.record(Chain.verify(ctx.org), DateTime.utc_now())
+      assert :ok =
+               ChainVerifyWorker.record(
+                 AshEvents.Chain.verify(EventLog, ctx.org),
+                 DateTime.utc_now()
+               )
 
       for control <- ChainVerifyWorker.evidence_controls() do
         assert [artifact] =
@@ -101,7 +105,8 @@ defmodule AshEnterprise.Compliance.ContinuousVerificationTest do
     end
 
     test "records nothing for the chain with no tenant" do
-      assert :skipped = ChainVerifyWorker.record(Chain.verify(nil), DateTime.utc_now())
+      assert :skipped =
+               ChainVerifyWorker.record(AshEvents.Chain.verify(EventLog, nil), DateTime.utc_now())
     end
 
     test "runs over every chain from its job", ctx do
@@ -117,7 +122,9 @@ defmodule AshEnterprise.Compliance.ContinuousVerificationTest do
       assert %{resolved_at: nil} = finding(ctx.org, "CC7.2")
 
       create_bu!("One", ctx.org)
-      :ok = ChainVerifyWorker.record(Chain.verify(ctx.org), DateTime.utc_now())
+
+      :ok =
+        ChainVerifyWorker.record(AshEvents.Chain.verify(EventLog, ctx.org), DateTime.utc_now())
 
       assert {:ok, results} = FreshnessSweepWorker.sweep(ctx.org)
       assert %{state: :evidenced} = Enum.find(results, &(&1.criterion == "CC7.2"))
