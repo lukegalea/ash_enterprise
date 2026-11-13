@@ -23,6 +23,42 @@ you need, fall back to grep AND append a one-line note to `.agents/logs/tool-gap
 
 ## Project guidelines
 
+### Placement: before you write a new module or component
+
+The rule is [ADR 0070](docs/adr/0070-upstream-first-placement.md). Run this before any new module, LiveView,
+hook, JS file or Lit element.
+
+1. **Gap map first.** For a feature that uses a package, list each part (each visible element of the real
+   screen, or each capability called) as expressible / needs a host swap / missing upstream. Check each
+   "expressible" row against running code, not the docs. Put the map in the PR description before the first commit.
+2. **Ladder.** Take the first that fits: (1) a tier-1 library, `ash_*` package or AE already does it: use it.
+   (2) General, no product noun, but missing: add it to the `ash_*` package (or to AE when it spans packages).
+   (3) Needs a product noun, used by more than one of that product's apps: a private extension package.
+   (4) Host-only (a domain decision, a declaration, wiring): keep it here and say why.
+3. **0/1/N.** First use with no answer: one local version, with `# GAP: <missing concept> (<issue>)` and the
+   upstream issue opened in the same change. Second use (written, or named in a ticket or planned host): STOP.
+   Do not copy. Move the first one up, then use both at 0. Search the other hosts and packages first.
+4. **Brake.** No product noun in package code. No option, field or callback without a caller today. Never wrap
+   a tier-1 library. Domain decisions stay in the host.
+5. **UI.** An A2UI surface with the existing catalogs. Any missing capability (component, option, field shape,
+   row layout, DSL entity, renderer behaviour) is a STOP: add it to `ash_a2ui` per its ADR 0001 section 8.
+   Hand-written UI only for real domain UI, with a reason and a row in `docs/UPSTREAM-EXCEPTIONS.md`.
+   An additive U2 change to a FROZEN CONTRACT module is an integration commit.
+6. **Round trip.** Prove on a local `path:` dependency (never committed). Open the upstream PR with a
+   package-side test. Pin its commit meanwhile with a `docs/BLEEDING-EDGE.md` row. After the merge, one PR
+   bumps the pin, runs `mix usage_rules.sync`, bumps the catalog version, and deletes the rows and `# GAP:`s.
+
+Also STOP for: `Application.get_env/put_env` on a dependency's app name (add an accessor upstream); a patch
+for a dependency bug (fix upstream; interim row in `docs/BLEEDING-EDGE.md` section 3); one layer doing
+another's job (raise a tension).
+
+When stopped: (a) the ticket names the upstream repo: draft PR there, return the commit to pin. (b) It does
+not: write the issue, add the `# GAP:` and the exception row, take the smallest local step. (c) Unsure what
+is general or where it goes: raise a tension, do not guess. (d) The feature is due and the upstream draft PR
+is open: ship the smallest workaround with an exception row naming the PR and a remove-by date no later than
+the next pin bump. Never merge upstream, never push to a package's `main`, never publish to Hex. Say in the PR
+which step you took.
+
 - Use `mix precommit` alias when you are done with all changes and fix any pending issues
 - Use the already included and available `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`. Req is included by default and is the preferred HTTP client for Phoenix apps
 
@@ -51,7 +87,7 @@ custom classes must fully style the input
 
 - **Always use and maintain this import syntax** in the app.css file for projects generated with `phx.new`
 - **Never** use `@apply` when writing raw css
-- **Always** manually write your own tailwind-based components instead of using daisyUI for a unique, world-class design
+- For UI, follow the UI ladder in Placement above: prefer an A2UI surface (`AshA2ui.Standalone`) over hand-written components. Hand-written Tailwind components are for host-specific UI that has a row in `docs/UPSTREAM-EXCEPTIONS.md`
 - Out of the box **only the app.js and app.css bundles are supported**
   - You cannot reference an external vendor'd script `src` or link `href` in the layouts
   - You must import the vendor deps into app.js and app.css to use them
@@ -59,7 +95,7 @@ custom classes must fully style the input
 
 ### UI/UX & design guidelines
 
-- **Produce world-class UI designs** with a focus on usability, aesthetics, and modern design principles
+- Aim for good usability, clean design and modern principles. Get there through the A2UI catalog and design system first (see Placement); add a missing widget upstream in `ash_a2ui` instead of writing it by hand here
 - Implement **subtle micro-interactions** (e.g., button hover effects, and smooth transitions)
 - Ensure **clean typography, spacing, and layout balance** for a refined, premium look
 - Focus on **delightful details** like hover effects, loading states, and smooth page transitions
