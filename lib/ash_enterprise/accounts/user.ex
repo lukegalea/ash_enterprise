@@ -443,6 +443,9 @@ defmodule AshEnterprise.Accounts.User do
     attribute :email, :ci_string do
       allow_nil? false
       public? true
+      # Personal data, which the audit log would otherwise keep in the clear where no
+      # shred reaches it (ADR 0024): `Audit.Changes.RedactSensitive` records it as nil.
+      sensitive? true
     end
 
     attribute :hashed_password, :string do

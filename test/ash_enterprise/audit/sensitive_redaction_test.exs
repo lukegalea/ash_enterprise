@@ -68,6 +68,30 @@ defmodule AshEnterprise.Audit.SensitiveRedactionTest do
     end
   end
 
+  describe "User.email" do
+    test "registration records that the address was set, never the address" do
+      user = register!()
+      email = to_string(user.email)
+
+      [event] = events(user.id, :register_with_password)
+
+      assert event.changed_attributes["email"] == nil
+      assert event.data["email"] == nil
+
+      refute_spelled_anywhere(email)
+      assert %{findings: []} = Chain.verify(nil)
+    end
+
+    test "the address still finds the user" do
+      user = register!()
+
+      assert {:ok, %{id: id}} =
+               AshEnterprise.Accounts.get_user_by_email(user.email, authorize?: false)
+
+      assert id == user.id
+    end
+  end
+
   describe "LinkedAccount.connection_id and label" do
     test "a link records neither the connection id nor the label" do
       org = organization!()
@@ -100,7 +124,7 @@ defmodule AshEnterprise.Audit.SensitiveRedactionTest do
       assert :hashed_password in names
       assert :password in names
       assert :password_confirmation in names
-      refute :email in names
+      assert :email in names
     end
 
     test "keeps ash_cloak ciphertext, which ADR 0024 shreds by key" do
