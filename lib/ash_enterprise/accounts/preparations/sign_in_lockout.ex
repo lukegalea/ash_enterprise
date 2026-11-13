@@ -11,12 +11,18 @@ defmodule AshEnterprise.Accounts.Preparations.SignInLockout do
   the count the lockout holds after this failure, so a recipe can tell the third failure in
   a row from the first.
 
+  Every attempt is also recorded in the audit chain (`AshEnterprise.Security.AuthenticationAudit`):
+  an admission, or a refusal with its reason. An admission the chain cannot hold is turned into
+  a refusal, so no token is issued without the evidence of it.
+
   Declare it before `AshAuthentication.Strategy.Password.SignInPreparation`.
   """
   use Ash.Resource.Preparation
 
+  alias AshAuthentication.Errors.AuthenticationFailed
   alias AshEnterprise.Accounts.Lockout
   alias AshEnterprise.Automation.Occurrences
+  alias AshEnterprise.Security.AuthenticationAudit
 
   require Ash.Query
 
@@ -37,9 +43,42 @@ defmodule AshEnterprise.Accounts.Preparations.SignInLockout do
     |> Ash.Query.after_transaction(fn query, result ->
       failures = settle(identity, result)
       announce(identity, query, result, failures)
-      result
+      audit(identity, query, result)
     end)
   end
+
+  # The admission is recorded before the token leaves: if the chain cannot hold it, the
+  # sign-in becomes a refusal like any other.
+  defp audit(_identity, query, {:ok, %{} = user} = result) when not is_list(user),
+    do: admit(query, user, result)
+
+  defp audit(_identity, query, {:ok, [user]} = result), do: admit(query, user, result)
+
+  defp audit(identity, query, result) do
+    AuthenticationAudit.password_refused(identity, locked?(query))
+    result
+  end
+
+  defp admit(query, user, result) do
+    case AuthenticationAudit.admitted(:password, user.id) do
+      :ok ->
+        result
+
+      {:error, _error} ->
+        {:error,
+         AuthenticationFailed.exception(
+           query: query,
+           caused_by: %{
+             module: __MODULE__,
+             action: query.action,
+             resource: query.resource,
+             message: "The sign-in could not be recorded"
+           }
+         )}
+    end
+  end
+
+  defp locked?(query), do: Map.get(query.context, :sign_in_locked?, false)
 
   # A refusal is handed to `Occurrences` and forgotten: it starts a task and returns,
   # for every refusal alike, so a known address costs the caller no more than an unknown
@@ -47,10 +86,8 @@ defmodule AshEnterprise.Accounts.Preparations.SignInLockout do
   defp announce(_identity, _query, {:ok, %{} = user}, _failures) when not is_list(user), do: :ok
   defp announce(_identity, _query, {:ok, [_user]}, _failures), do: :ok
 
-  defp announce(identity, query, _failure, failures) do
-    locked? = Map.get(query.context, :sign_in_locked?, false)
-    Occurrences.sign_in_refused(identity, locked?, failures)
-  end
+  defp announce(identity, query, _failure, failures),
+    do: Occurrences.sign_in_refused(identity, locked?(query), failures)
 
   defp settle(identity, {:ok, %{} = user}) when not is_list(user), do: Lockout.clear(identity)
   defp settle(identity, {:ok, [_user]}), do: Lockout.clear(identity)

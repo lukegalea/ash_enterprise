@@ -99,5 +99,10 @@ defmodule AshEnterprise.Security do
     # The exception path: per-record sharing.
     resource AshEnterprise.Security.AccessGrant
     resource AshEnterprise.Security.AccessRequest
+
+    # Who was admitted or refused at a sign-in door (`AuthenticationAudit`).
+    resource AshEnterprise.Security.AuthenticationEvent do
+      define :record_authentication_event, action: :record
+    end
   end
 end

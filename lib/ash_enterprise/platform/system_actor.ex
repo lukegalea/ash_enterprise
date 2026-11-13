@@ -54,6 +54,10 @@ defmodule AshEnterprise.Platform.SystemActor do
     lineage:
       "The lineage store, recording the OpenLineage run events every write and sync emits " <>
         "(`AshEnterprise.Lineage.Store`). It writes the lineage tables and nothing else.",
+    sign_in:
+      "The sign-in doors (password, password reset, confirmation, API key), recording who " <>
+        "was admitted or refused (`AshEnterprise.Security.AuthenticationAudit`). It writes " <>
+        "authentication events and nothing else.",
     system: "Generic fallback. Prefer a specific actor above; this one tells an auditor little."
   }
 

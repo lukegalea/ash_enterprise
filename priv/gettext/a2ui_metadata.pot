@@ -333,6 +333,10 @@ msgstr ""
 msgid "Audit trail"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Authentication event"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 msgctxt "one_of:status"
 msgid "Auto merged"

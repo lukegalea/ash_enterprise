@@ -376,6 +376,34 @@ defmodule AshEnterprise.Accounts.User do
 
       # Generates an authentication token for the user
       change AshAuthentication.GenerateTokenChange
+
+      # The reset signs the user in: the admission goes into the audit chain, or
+      # the reset fails (`AshEnterprise.Security.AuthenticationAudit`).
+      change {AshEnterprise.Accounts.Changes.RecordSignIn, door: :password_reset}
+    end
+
+    # The confirmation add-on's action (`confirm_new_user`'s `confirm_action_name`),
+    # declared here so it records the admission it makes (`Changes.RecordSignIn`) and its
+    # token argument is sensitive, so the audit log does not keep it. Otherwise it is what
+    # the add-on generates.
+    update :confirm do
+      description "Confirms the user's address with the token mailed to it, and signs them in."
+      accept [:email]
+      require_atomic? false
+
+      argument :confirm, :string do
+        allow_nil? false
+        public? true
+        sensitive? true
+      end
+
+      change AshAuthentication.AddOn.Confirmation.ConfirmChange
+      change AshAuthentication.GenerateTokenChange
+      change {AshEnterprise.Accounts.Changes.RecordSignIn, door: :confirmation}
+
+      metadata :token, :string do
+        allow_nil? false
+      end
     end
   end
 
