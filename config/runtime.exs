@@ -20,6 +20,17 @@ if System.get_env("PHX_SERVER") do
   config :ash_enterprise, AshEnterpriseWeb.Endpoint, server: true
 end
 
+# The audited deployment class (AshEnterprise.Security.AuditedDeployment).
+# DEPLOYMENT_CLASS=audited refuses to boot, naming every problem, unless this is the
+# production configuration and self-registration and the showcase's fault panel are off.
+# Unset (dev, test, CI, a demo) checks nothing. Never keyed on MIX_ENV alone: an instance
+# can run the dev configuration and hold real data, and declaring the class is what says so.
+AshEnterprise.Security.AuditedDeployment.assert!(System.get_env(), config_env())
+
+if AshEnterprise.Security.AuditedDeployment.class(System.get_env()) == :audited do
+  config :ash_enterprise, :deployment_class, :audited
+end
+
 # The directory of reviewed planning model artifacts (`<key>/<key>.mzn`, `<key>.mzc.mzn`,
 # `validator.ex`). Deployment-owned and kept out of the repository: private models live elsewhere
 # and are named here. Unset, no model can run.
