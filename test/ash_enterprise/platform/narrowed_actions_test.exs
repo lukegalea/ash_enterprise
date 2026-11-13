@@ -2,8 +2,10 @@ defmodule AshEnterprise.Platform.NarrowedActionsTest do
   @moduledoc """
   ADR 0059's compile-time guards: `human_only:`, `machinery_only:` and `engine_only:` must name
   real actions and must not contradict each other or `self_service:`, and a
-  strangled read model that projects `version_number` as a constant must opt
-  out of the optimistic lock.
+  strangled read model that projects `version_number` as a constant must keep
+  the platform's optimistic lock off its writes. That last check is
+  `ash_strangler`'s (`VerifyOptimisticLock`); the cases here run it over this
+  application's resources.
 
   The verifiers run on a real resource's DSL with one option changed, the way
   the Nango edge tests its verifier: a resource defined in a test would fail
@@ -13,8 +15,9 @@ defmodule AshEnterprise.Platform.NarrowedActionsTest do
   use ExUnit.Case, async: true
 
   alias AshEnterprise.Conformance.Widget
+  alias AshEnterprise.Legacy.User, as: LegacyUser
   alias AshEnterprise.Platform.Verifiers.NarrowedActions
-  alias AshEnterprise.Platform.Verifiers.OptimisticLock
+  alias AshStrangler.Verifiers.VerifyOptimisticLock
   alias Spark.Dsl.Transformer
 
   defp widget(changes) do
@@ -75,25 +78,42 @@ defmodule AshEnterprise.Platform.NarrowedActionsTest do
     end
   end
 
-  describe "OptimisticLock" do
-    test "a strangled read model that projects version_number opts out, and passes" do
-      assert :ok = OptimisticLock.verify(AshEnterprise.Legacy.User.spark_dsl_config())
+  describe "the optimistic lock on a strangled read model" do
+    # The widget's update action and the lock `Platform.Resource` puts on every
+    # update, added to a DSL that lacks them.
+    defp with_platform_lock(dsl) do
+      update = Widget |> Ash.Resource.Info.actions() |> Enum.find(&(&1.type == :update))
+
+      lock =
+        Widget
+        |> Ash.Resource.Info.changes()
+        |> Enum.find(&match?({Ash.Resource.Change.OptimisticLock, _}, &1.change))
+
+      {update.name,
+       dsl
+       |> Transformer.add_entity([:actions], update)
+       |> Transformer.add_entity([:changes], lock)}
     end
 
-    test "the same read model with the lock left on is refused" do
-      dsl =
-        Transformer.set_option(
-          AshEnterprise.Legacy.User.spark_dsl_config(),
-          [:platform],
-          :optimistic_lock?,
-          true
-        )
+    test "the extension the read models are strangled with carries the check" do
+      assert AshStrangler.Resource in Spark.extensions(LegacyUser)
+      assert VerifyOptimisticLock in AshStrangler.Resource.verifiers()
+    end
 
-      assert refusal(OptimisticLock, dsl) =~ "set `optimistic_lock?: false`"
+    test "Legacy.User, which opts out of the lock, passes" do
+      refute Spark.Dsl.Extension.get_opt(LegacyUser, [:platform], :optimistic_lock?, true)
+      assert :ok = VerifyOptimisticLock.verify(LegacyUser.spark_dsl_config())
+    end
+
+    test "Legacy.User with an update carrying the platform's lock is refused" do
+      {action, dsl} = with_platform_lock(LegacyUser.spark_dsl_config())
+
+      assert refusal(VerifyOptimisticLock, dsl) =~
+               "action #{inspect(action)} locks on :version_number"
     end
 
     test "an ordinary resource keeps the lock and passes" do
-      assert :ok = OptimisticLock.verify(Widget.spark_dsl_config())
+      assert :ok = VerifyOptimisticLock.verify(Widget.spark_dsl_config())
     end
   end
 end

@@ -90,7 +90,7 @@ The concrete exit: which files change, and how much work it is.
 | [0056](0056-the-ash-agent-package.md) | The agent runtime is a separate public package, `ash_agent`, that the host instantiates | accepted (2026-10-23); the package, its invocation fragment and agent versions built (2026-10-29, 2026-10-31) |
 | [0057](0057-actions-declare-their-effects.md) | Every action exposed to an agent, an editor or a process declares its effects | accepted (2026-10-23); the extension, its verifiers and the host's ACP readers built, the library resolvers and ash_ai annotations not built (2026-10-29) |
 | [0058](0058-agent-quality-and-releases.md) | Agent quality is measured in a host Quality domain, and a release is a gated, attested manifest | accepted (2026-10-23; amended 2026-10-31: a certified judgment family may gate); suites and effect-free runs built (2026-11-01) |
-| [0059](0059-version-number-is-an-optimistic-lock.md) | `version_number` is an optimistic lock; human-only and machinery-only actions narrow the bypasses | accepted |
+| [0059](0059-version-number-is-an-optimistic-lock.md) | `version_number` is an optimistic lock; human-only and machinery-only actions narrow the bypasses | accepted; amended 2026-11-13: the check on a constant-projected version is `ash_strangler`'s |
 | [0060](0060-localization-through-gettext-and-library-catalogs.md) | Localization through Gettext and library-shipped catalogs | accepted, in progress |
 | [0061](0061-judgment-surfaces-ship-with-the-package.md) | Judgment surfaces ship with ash_judgments; a host binds them to its own resources | accepted |
 | [0062](0062-planning-proposes-declarations-and-people-commit.md) | Planning proposes; declarations and people commit | accepted, not built (2026-11-05) |

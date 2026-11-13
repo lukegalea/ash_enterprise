@@ -59,9 +59,21 @@ Destroys are not locked. Soft delete is a destroy action, and archiving a row so
 lost update.
 
 A resource opts out with `optimistic_lock?: false`, and only where the column is not one this application stores and
-writes. Today that is `Legacy.User`, which projects `version_number` as a strangler `constant`. The verifier
-`Platform.Verifiers.OptimisticLock` refuses a resource that projects `version_number` as a constant with the lock on, so
-the exemption is a declaration someone made and can review, not something found at the first write.
+writes. Today that is `Legacy.User`, which projects `version_number` as a strangler `constant`. `ash_strangler`'s
+verifier `VerifyOptimisticLock` refuses a strangled resource that puts the lock on an attribute it projects as a
+constant, so the exemption is a declaration someone made and can review, not something found at the first write.
+
+*Amended 2026-11-13.* This check was first this application's own verifier, `Platform.Verifiers.OptimisticLock`. It now
+lives in `ash_strangler`, and the host's copy is removed. The package's check differs from it in three ways:
+
+- It refuses the lock only on an action that writes the row: an update, or a soft destroy (an update underneath). A
+  strangled resource with no such action passes whether or not it opts out. The lock never runs there, so there is
+  nothing to refuse. The first such action added with the lock on is refused, as before.
+- It applies while a view stands in for the table. From `:read_from_new` the resource owns its table, the column is
+  stored, and the lock is accepted. The host's verifier refused a constant `version_number` in every phase.
+- It covers whichever attribute the lock names, not only `version_number`.
+
+`Legacy.User` keeps `optimistic_lock?: false`. Its column is still a constant, and the declaration still says so.
 
 ### `human_only:` and `machinery_only:` narrow the bypasses
 

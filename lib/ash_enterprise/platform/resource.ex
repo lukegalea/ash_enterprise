@@ -66,7 +66,8 @@ defmodule AshEnterprise.Platform.Resource do
       `Ash.Error.Changes.StaleRecord` instead of overwriting the write it did
       not see, and `version_number` counts writes. Default `true`; off only for
       a strangled read model that projects `version_number` as a constant
-      (`AshEnterprise.Platform.Verifiers.OptimisticLock`). ADR 0059.
+      (`AshStrangler.Verifiers.VerifyOptimisticLock` refuses the lock on its
+      writes while a view stands in for the table). ADR 0059.
     * `:audit?` — write to the central event log. Default `true`.
     * `:archival?` — soft delete. Default `true`.
     * `:lineage?` — emit an OpenLineage COMPLETE RunEvent on every successful

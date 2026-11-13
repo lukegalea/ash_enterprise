@@ -210,8 +210,9 @@ defmodule AshEnterprise.Platform.SystemAttributes do
 
         Off only where `version_number` is not a stored column this application
         writes: a strangled read model that projects it as a constant
-        (`AshEnterprise.Platform.Verifiers.OptimisticLock` refuses the
-        combination with the lock on).
+        (`AshStrangler.Verifiers.VerifyOptimisticLock` refuses the lock on an
+        update or soft destroy of such a resource while a view stands in for
+        its table).
         """
       ],
       audit?: [
@@ -244,7 +245,6 @@ defmodule AshEnterprise.Platform.SystemAttributes do
     verifiers: [
       AshEnterprise.Platform.Verifiers.SelfServiceActions,
       AshEnterprise.Platform.Verifiers.NarrowedActions,
-      AshEnterprise.Platform.Verifiers.OptimisticLock,
       AshEnterprise.Platform.Verifiers.ProjectedLifecycle
     ]
 end
