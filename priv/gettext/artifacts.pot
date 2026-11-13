@@ -351,7 +351,7 @@ msgstr ""
 msgid "Removed"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts/differs/process.ex:28
+#: lib/ash_enterprise/artifacts/differs/process.ex:26
 #: lib/ash_enterprise/artifacts/differs/release_manifest.ex:41
 #, elixir-autogen, elixir-format
 msgid "Routing"
@@ -384,12 +384,12 @@ msgstr ""
 msgid "Scorers"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts/differs/process.ex:29
+#: lib/ash_enterprise/artifacts/differs/process.ex:27
 #, elixir-autogen, elixir-format
 msgid "Start"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts/differs/process.ex:27
+#: lib/ash_enterprise/artifacts/differs/process.ex:25
 #, elixir-autogen, elixir-format
 msgid "Steps"
 msgstr ""
