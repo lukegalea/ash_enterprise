@@ -5,9 +5,10 @@ defmodule AshEnterprise.Automation do
 
   | Resource | What it is |
   |---|---|
-  | `Occurrence` | A fact recorded into a tenant's audit chain so that a subscription can match it: a user deactivated, a sign-in refused |
+  | `Occurrence` | A fact recorded into a tenant's audit chain so that a subscription can match it: a user deactivated, a sign-in refused, a break-glass session approved, an API key issued, an inbound alert |
 
-  `AshEnterprise.Automation.Occurrences` is the only writer.
+  `AshEnterprise.Automation.Occurrences` is the only writer. Inbound alerts reach it through
+  `AshEnterprise.Automation.AlertWebhook`.
   """
 
   use Ash.Domain, otp_app: :ash_enterprise

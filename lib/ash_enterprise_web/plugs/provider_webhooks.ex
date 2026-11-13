@@ -13,6 +13,8 @@ defmodule AshEnterpriseWeb.Plugs.ProviderWebhooks do
   | Provider segment | Handled by |
   |---|---|
   | `credential-registry` | `AshEnterprise.Credentialing.RegistryWebhook` |
+  | `alerts-signoz` | `AshEnterprise.Automation.AlertWebhook.Signoz` |
+  | `alerts-glitchtip` | `AshEnterprise.Automation.AlertWebhook.Glitchtip` |
 
   Failed verifications (400 and 401) are counted per provider and remote address, and past
   the limit they answer 429 instead. A verified delivery is never limited: behind a TLS
@@ -28,7 +30,11 @@ defmodule AshEnterpriseWeb.Plugs.ProviderWebhooks do
 
   alias AshOperations.Webhook.Ingress
 
-  @providers %{"credential-registry" => AshEnterprise.Credentialing.RegistryWebhook}
+  @providers %{
+    "credential-registry" => AshEnterprise.Credentialing.RegistryWebhook,
+    "alerts-signoz" => AshEnterprise.Automation.AlertWebhook.Signoz,
+    "alerts-glitchtip" => AshEnterprise.Automation.AlertWebhook.Glitchtip
+  }
 
   # Failed verifications per provider and address.
   @window_ms 60_000

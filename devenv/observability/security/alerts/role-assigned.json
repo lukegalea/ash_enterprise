@@ -1,0 +1,79 @@
+{
+  "alert": "Security: a role was assigned",
+  "alertType": "TRACES_BASED_ALERT",
+  "description": "A security role was assigned somewhere in the deployment. Each tenant's security_alerts recipe opens a review only for an Administrator or Platform Operator; this counts every assignment, for the deployment's operator.",
+  "annotations": {
+    "summary": "{{$service.name}}: {{$value}} role assignment(s)",
+    "description": "A security role was assigned somewhere in the deployment. Each tenant's security_alerts recipe opens a review only for an Administrator or Platform Operator; this counts every assignment, for the deployment's operator."
+  },
+  "condition": {
+    "compositeQuery": {
+      "queryType": "builder",
+      "panelType": "graph",
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "traces",
+            "aggregations": [
+              {
+                "expression": "count()"
+              }
+            ],
+            "filter": {
+              "expression": "name IN ('security:user_role.assign', 'security:user_role.assign_governed') AND ash.error.class NOT EXISTS"
+            },
+            "groupBy": [
+              {
+                "name": "service.name",
+                "fieldContext": "resource",
+                "fieldDataType": "string"
+              }
+            ],
+            "legend": "{{service.name}}",
+            "stepInterval": 60
+          }
+        }
+      ]
+    },
+    "selectedQueryName": "A",
+    "thresholds": {
+      "kind": "basic",
+      "spec": [
+        {
+          "name": "info",
+          "op": "above",
+          "target": 0,
+          "matchType": "at_least_once",
+          "channels": []
+        }
+      ]
+    }
+  },
+  "evaluation": {
+    "kind": "rolling",
+    "spec": {
+      "evalWindow": "5m",
+      "frequency": "1m"
+    }
+  },
+  "labels": {
+    "severity": "info",
+    "category": "security",
+    "provisioned": "ash_enterprise"
+  },
+  "notificationSettings": {
+    "usePolicy": true,
+    "renotify": {
+      "enabled": false,
+      "interval": "30m",
+      "alertStates": [
+        "firing"
+      ]
+    }
+  },
+  "ruleType": "threshold_rule",
+  "schemaVersion": "v2alpha1",
+  "version": "v5"
+}

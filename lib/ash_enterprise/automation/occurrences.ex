@@ -23,10 +23,19 @@ defmodule AshEnterprise.Automation.Occurrences do
   | `type` | When | `subject` | `data` |
   |---|---|---|---|
   | `user.deactivated` | after the `User` `:deactivate` action commits | the user's id | none |
-  | `user.sign_in_refused` | after a password sign-in for a **known** user is refused | the user's id | `reason`: `bad_password`, `locked` or `deactivated` |
+  | `user.sign_in_refused` | after a password sign-in for a **known** user is refused | the user's id | `reason`: `bad_password`, `locked` or `deactivated`; `failures`: the consecutive failures the lockout counter holds for that identity, this one included, when it could be read |
+  | `security.break_glass_approved` | after a `BreakGlassSession` `:approve` commits, which is what makes it usable | the operator's id | `session_id`, `acting_as` (the subject's id), `approver_id`, `minutes` (how long it is live) |
+  | `accounts.api_key_issued` | after an `ApiKey` `:issue` commits | the owner's id | `key_id`, `expires_at` |
+  | `alert.firing`, `alert.resolved` | an inbound SigNoz or GlitchTip alert, signed and verified (`AshEnterprise.Automation.AlertWebhook`) | none: an alert is about no person (`rule_id` in `data` names the rule or issue) | `provider`, `alertname`, `severity`, `category`, `rule_id` |
 
   No address, password, token or attempted credential is ever recorded, so `data` carries
   a reason and nothing that identifies what was typed.
+
+  Break-glass sessions and API keys are `tenant?: false`, like `User`, so their own audit
+  rows land in the chain no sweep reads; these occurrences are how a tenant's recipe sees
+  them. A break-glass approval is recorded in the organizations of the person acted as
+  (the tenant whose data it reaches), an API key in its owner's. An inbound alert is
+  recorded in the one organization its webhook key maps to, and nowhere else.
 
   ## An unknown identity writes nothing
 
@@ -69,12 +78,35 @@ defmodule AshEnterprise.Automation.Occurrences do
   alias AshEnterprise.Security.UserRole
 
   @source "urn:ash-enterprise:accounts"
+  @security_source "urn:ash-enterprise:security"
+  @alerts_source "urn:ash-enterprise:alerts"
   @deactivated "user.deactivated"
   @refused "user.sign_in_refused"
+  @break_glass "security.break_glass_approved"
+  @api_key "accounts.api_key_issued"
 
-  @doc "The `source` of every occurrence these writers record."
+  @doc """
+  The `source` of the account facts: deactivations, refused sign-ins and API keys issued.
+  A break-glass approval's is `security_source/0`, an inbound alert's `alerts_source/1`.
+  """
   @spec source() :: String.t()
   def source, do: @source
+
+  @doc "The `source` of a break-glass approval."
+  @spec security_source() :: String.t()
+  def security_source, do: @security_source
+
+  @doc "The `source` of an inbound alert from `provider` (`signoz`, `glitchtip`)."
+  @spec alerts_source(String.t()) :: String.t()
+  def alerts_source(provider), do: "#{@alerts_source}:#{provider}"
+
+  @doc "The `type` of a break-glass approval."
+  @spec break_glass_approved() :: String.t()
+  def break_glass_approved, do: @break_glass
+
+  @doc "The `type` of an API key issued."
+  @spec api_key_issued() :: String.t()
+  def api_key_issued, do: @api_key
 
   @doc "The `type` of a deactivation."
   @spec deactivated() :: String.t()
@@ -171,17 +203,20 @@ defmodule AshEnterprise.Automation.Occurrences do
 
   `locked?` says whether the identity was already locked when the attempt began (the
   caller knows; the task cannot reconstruct it, because the failed attempt may itself
-  lock the identity). The task finds the user, if any, and writes one occurrence per
-  organization typed by reason; no user, no write. Always `:ok`.
+  lock the identity). `failures` is the lockout counter's count after this failure, when
+  the caller could read it (`nil` otherwise): the consecutive failures within the lockout
+  window, which a recipe's guard compares against a threshold. The task finds the user, if
+  any, and writes one occurrence per organization typed by reason; no user, no write.
+  Always `:ok`.
   """
-  @spec sign_in_refused(term(), boolean()) :: :ok
-  def sign_in_refused(identity, locked?) do
+  @spec sign_in_refused(term(), boolean(), non_neg_integer() | nil) :: :ok
+  def sign_in_refused(identity, locked?, failures \\ nil) do
     config = Application.get_env(:ash_enterprise, __MODULE__, [])
     supervisor = Keyword.get(config, :supervisor, AshEnterprise.TaskSupervisor)
 
     try do
       Task.Supervisor.start_child(supervisor, fn ->
-        safely(fn -> record_refusal(identity, locked?) end)
+        safely(fn -> record_refusal(identity, locked?, failures) end)
       end)
     catch
       kind, _reason -> Logger.warning("Occurrences: refusal not recorded (#{kind})")
@@ -191,8 +226,8 @@ defmodule AshEnterprise.Automation.Occurrences do
   end
 
   @doc false
-  @spec record_refusal(term(), boolean()) :: :ok
-  def record_refusal(identity, locked?) do
+  @spec record_refusal(term(), boolean(), non_neg_integer() | nil) :: :ok
+  def record_refusal(identity, locked?, failures \\ nil) do
     case find_user(identity) do
       nil ->
         :ok
@@ -205,15 +240,103 @@ defmodule AshEnterprise.Automation.Occurrences do
             true -> "bad_password"
           end
 
+        data =
+          if is_integer(failures),
+            do: %{"reason" => reason, "failures" => failures},
+            else: %{"reason" => reason}
+
         attrs = %{
           event_id: "#{@refused}:#{Ash.UUID.generate()}",
           type: @refused,
           subject: user.id,
-          data: %{"reason" => reason}
+          data: data
         }
 
         write_all(organizations_of(user), attrs)
     end
+  end
+
+  @doc """
+  Records that a break-glass session was approved, which is what makes it usable, once
+  per organization of the person it acts as. Call after the approving transaction
+  commits. Never raises: a failure is logged and the approval stands. Returns `:ok`.
+  """
+  @spec break_glass_approved(struct()) :: :ok
+  def break_glass_approved(%{id: id, operator_id: operator, subject_id: subject} = session) do
+    attrs = %{
+      event_id: "#{@break_glass}:#{id}",
+      source: @security_source,
+      type: @break_glass,
+      subject: operator,
+      data: %{
+        "session_id" => id,
+        "acting_as" => subject,
+        "approver_id" => Map.get(session, :approver_id),
+        "minutes" => minutes(session)
+      }
+    }
+
+    safely(fn -> write_all(organizations_of(subject), attrs) end)
+  end
+
+  defp minutes(%{started_at: %DateTime{} = from, expires_at: %DateTime{} = until}),
+    do: DateTime.diff(until, from, :minute)
+
+  defp minutes(_session), do: nil
+
+  @doc """
+  Records that an API key was issued, once per organization of its owner. Call after the
+  issuing transaction commits. Never raises: a failure is logged and the key stands.
+  Nothing about the key but its id and expiry is recorded. Returns `:ok`.
+  """
+  @spec api_key_issued(struct()) :: :ok
+  def api_key_issued(%{id: id, user_id: owner} = key) do
+    attrs = %{
+      event_id: "#{@api_key}:#{id}",
+      type: @api_key,
+      subject: owner,
+      data: %{"key_id" => id, "expires_at" => iso8601(Map.get(key, :expires_at))}
+    }
+
+    safely(fn -> write_all(organizations_of(owner), attrs) end)
+  end
+
+  defp iso8601(%DateTime{} = at), do: DateTime.to_iso8601(at)
+  defp iso8601(_other), do: nil
+
+  @doc """
+  Records inbound alerts in one organization, the one the webhook key that signed them
+  maps to (`AshEnterprise.Automation.AlertWebhook`). Each entry is an occurrence's
+  attributes without `source` and `time`'s default; `provider` names the source.
+
+  Returns `{:ok, created}` with the number of alerts that were new (a replay of one already
+  recorded is not), or `{:error, reason}` when a write failed. Unlike the other writers it
+  reports a failure, because a webhook caller is told to deliver again.
+  """
+  @spec record_alerts(Ash.UUID.t(), String.t(), [map()]) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  def record_alerts(organization, provider, alerts) when is_list(alerts) do
+    source = alerts_source(provider)
+    now = DateTime.utc_now()
+
+    Enum.reduce_while(alerts, {:ok, 0}, fn alert, {:ok, created} ->
+      attrs = alert |> Map.put(:source, source) |> Map.put_new(:time, now)
+
+      case write_new(organization, attrs) do
+        :created -> {:cont, {:ok, created + 1}}
+        :existing -> {:cont, {:ok, created}}
+        {:error, _} = error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp write_new(organization, attrs) do
+    case Automation.record_occurrence(attrs, actor: SystemActor.oban(), tenant: organization) do
+      {:ok, _row} -> :created
+      {:error, error} -> if recorded?(organization, attrs), do: :existing, else: {:error, error}
+    end
+  rescue
+    exception -> {:error, exception}
   end
 
   # Any state, so a deactivated user is known. A lookup, not a sign-in: nothing
@@ -240,7 +363,7 @@ defmodule AshEnterprise.Automation.Occurrences do
     now = DateTime.utc_now()
 
     for organization <- organizations do
-      write_one({organization, attrs |> Map.put(:source, @source) |> Map.put(:time, now)})
+      write_one({organization, attrs |> Map.put_new(:source, @source) |> Map.put(:time, now)})
     end
 
     :ok
@@ -264,12 +387,13 @@ defmodule AshEnterprise.Automation.Occurrences do
 
   # Writing the same fact twice is one row (the envelope identity).
   defp duplicate_or_raise(organization, attrs, error) do
-    exists? =
-      AshEnterprise.Automation.Occurrence
-      |> Ash.Query.filter(source == ^attrs.source and event_id == ^attrs.event_id)
-      |> Ash.exists?(actor: SystemActor.oban(), tenant: organization)
+    if recorded?(organization, attrs), do: :ok, else: raise(error)
+  end
 
-    if exists?, do: :ok, else: raise(error)
+  defp recorded?(organization, attrs) do
+    AshEnterprise.Automation.Occurrence
+    |> Ash.Query.filter(source == ^attrs.source and event_id == ^attrs.event_id)
+    |> Ash.exists?(actor: SystemActor.oban(), tenant: organization)
   end
 
   defp safely(fun) do

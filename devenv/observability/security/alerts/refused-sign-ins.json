@@ -1,0 +1,79 @@
+{
+  "alert": "Security: refused sign-ins above 20 in 5 minutes",
+  "alertType": "TRACES_BASED_ALERT",
+  "description": "More than 20 password sign-ins were refused across the deployment in five minutes, including for addresses that belong to no account, which no tenant records.",
+  "annotations": {
+    "summary": "{{$service.name}}: {{$value}} refused sign-ins in 5 minutes",
+    "description": "More than 20 password sign-ins were refused across the deployment in five minutes, including for addresses that belong to no account, which no tenant records."
+  },
+  "condition": {
+    "compositeQuery": {
+      "queryType": "builder",
+      "panelType": "graph",
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "traces",
+            "aggregations": [
+              {
+                "expression": "count()"
+              }
+            ],
+            "filter": {
+              "expression": "name = 'accounts:user.sign_in_with_password' AND ash.error.class = 'forbidden'"
+            },
+            "groupBy": [
+              {
+                "name": "service.name",
+                "fieldContext": "resource",
+                "fieldDataType": "string"
+              }
+            ],
+            "legend": "{{service.name}}",
+            "stepInterval": 60
+          }
+        }
+      ]
+    },
+    "selectedQueryName": "A",
+    "thresholds": {
+      "kind": "basic",
+      "spec": [
+        {
+          "name": "warning",
+          "op": "above",
+          "target": 20,
+          "matchType": "at_least_once",
+          "channels": []
+        }
+      ]
+    }
+  },
+  "evaluation": {
+    "kind": "rolling",
+    "spec": {
+      "evalWindow": "5m",
+      "frequency": "1m"
+    }
+  },
+  "labels": {
+    "severity": "warning",
+    "category": "security",
+    "provisioned": "ash_enterprise"
+  },
+  "notificationSettings": {
+    "usePolicy": true,
+    "renotify": {
+      "enabled": false,
+      "interval": "30m",
+      "alertStates": [
+        "firing"
+      ]
+    }
+  },
+  "ruleType": "threshold_rule",
+  "schemaVersion": "v2alpha1",
+  "version": "v5"
+}

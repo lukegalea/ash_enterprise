@@ -1,0 +1,79 @@
+{
+  "alert": "Security: a break-glass session was approved",
+  "alertType": "TRACES_BASED_ALERT",
+  "description": "A break-glass session was approved, so an operator can act as someone else until it expires.",
+  "annotations": {
+    "summary": "{{$service.name}}: {{$value}} break-glass session(s) approved",
+    "description": "A break-glass session was approved, so an operator can act as someone else until it expires."
+  },
+  "condition": {
+    "compositeQuery": {
+      "queryType": "builder",
+      "panelType": "graph",
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "traces",
+            "aggregations": [
+              {
+                "expression": "count()"
+              }
+            ],
+            "filter": {
+              "expression": "name = 'security:break_glass_session.approve' AND ash.error.class NOT EXISTS"
+            },
+            "groupBy": [
+              {
+                "name": "service.name",
+                "fieldContext": "resource",
+                "fieldDataType": "string"
+              }
+            ],
+            "legend": "{{service.name}}",
+            "stepInterval": 60
+          }
+        }
+      ]
+    },
+    "selectedQueryName": "A",
+    "thresholds": {
+      "kind": "basic",
+      "spec": [
+        {
+          "name": "warning",
+          "op": "above",
+          "target": 0,
+          "matchType": "at_least_once",
+          "channels": []
+        }
+      ]
+    }
+  },
+  "evaluation": {
+    "kind": "rolling",
+    "spec": {
+      "evalWindow": "5m",
+      "frequency": "1m"
+    }
+  },
+  "labels": {
+    "severity": "warning",
+    "category": "security",
+    "provisioned": "ash_enterprise"
+  },
+  "notificationSettings": {
+    "usePolicy": true,
+    "renotify": {
+      "enabled": false,
+      "interval": "30m",
+      "alertStates": [
+        "firing"
+      ]
+    }
+  },
+  "ruleType": "threshold_rule",
+  "schemaVersion": "v2alpha1",
+  "version": "v5"
+}

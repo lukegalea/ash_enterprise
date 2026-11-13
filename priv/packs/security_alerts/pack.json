@@ -1,0 +1,60 @@
+{
+  "name": "security_alerts",
+  "version": 1,
+  "title": "High-risk security events are reviewed",
+  "description": "When an Administrator or a Platform Operator is made, a break-glass session is approved, an API key is issued, a known person's sign-in is refused a third time in a row, or an inbound alert labelled security fires, an administrator other than the people involved reviews it and records whether it was expected. Installed as drafts: nothing runs until a person publishes the process and the recipes. Every other audited write is only logged.",
+  "controls": ["CC7.2", "CC7.3", "CC6.3"],
+  "processes": [
+    {
+      "key": "security.review_alert",
+      "name": "Review a security alert",
+      "file": "review_security_alert.bpmn"
+    }
+  ],
+  "recipes": [
+    {
+      "key": "security_alerts.privileged_role_assigned",
+      "match_resource": "AshEnterprise.Security.UserRole",
+      "match_action_type": "create",
+      "guard_feel": "metadata.role_name = \"Administrator\" or metadata.role_name = \"Platform Operator\"",
+      "process_key": "security.review_alert",
+      "authority": "human_tasks_only"
+    },
+    {
+      "key": "security_alerts.break_glass_approved",
+      "match_resource": "AshEnterprise.Automation.Occurrence",
+      "match_action": "record",
+      "match_action_type": "create",
+      "guard_feel": "data.type = \"security.break_glass_approved\"",
+      "process_key": "security.review_alert",
+      "authority": "human_tasks_only"
+    },
+    {
+      "key": "security_alerts.api_key_issued",
+      "match_resource": "AshEnterprise.Automation.Occurrence",
+      "match_action": "record",
+      "match_action_type": "create",
+      "guard_feel": "data.type = \"accounts.api_key_issued\"",
+      "process_key": "security.review_alert",
+      "authority": "human_tasks_only"
+    },
+    {
+      "key": "security_alerts.repeated_sign_in_refusals",
+      "match_resource": "AshEnterprise.Automation.Occurrence",
+      "match_action": "record",
+      "match_action_type": "create",
+      "guard_feel": "data.type = \"user.sign_in_refused\" and data.data.failures = 3",
+      "process_key": "security.review_alert",
+      "authority": "human_tasks_only"
+    },
+    {
+      "key": "security_alerts.inbound_security_alert",
+      "match_resource": "AshEnterprise.Automation.Occurrence",
+      "match_action": "record",
+      "match_action_type": "create",
+      "guard_feel": "data.type = \"alert.firing\" and data.data.category = \"security\"",
+      "process_key": "security.review_alert",
+      "authority": "human_tasks_only"
+    }
+  ]
+}

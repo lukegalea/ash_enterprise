@@ -371,6 +371,31 @@ if config_env() != :test do
       |> Enum.map(&String.trim/1)
 end
 
+# The inbound alert webhook (`POST /webhooks/alerts-signoz`, `/webhooks/alerts-glitchtip`,
+# `AshEnterprise.Automation.AlertWebhook`): an alert from SigNoz or GlitchTip recorded as an
+# occurrence a recipe can match.
+#
+#   * ALERT_WEBHOOK_KEYS   comma-separated `id:organization_id:secret` entries. A request names
+#                          its key in `x-alert-key` and signs with that key's secret; what it
+#                          records goes into that key's organization and no other. A secret of
+#                          the same class as the database password. None: the routes answer 503.
+if config_env() != :test do
+  config :ash_enterprise, AshEnterprise.Automation.AlertWebhook,
+    keys:
+      "ALERT_WEBHOOK_KEYS"
+      |> System.get_env("")
+      |> String.split(",", trim: true)
+      |> Enum.flat_map(fn entry ->
+        case entry |> String.trim() |> String.split(":", parts: 3) do
+          [id, organization_id, secret] ->
+            [%{id: id, organization_id: organization_id, secret: secret}]
+
+          _ ->
+            []
+        end
+      end)
+end
+
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
   config :ash_enterprise, AshEnterpriseWeb.Endpoint,

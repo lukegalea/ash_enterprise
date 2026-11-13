@@ -13,6 +13,11 @@ defmodule AshEnterprise.Security.BreakGlassSession do
   `open` and `approve` are `human_only`: a system actor cannot do either, because
   the row names the people who did.
 
+  Approving one is also recorded as a `security.break_glass_approved` occurrence in each
+  organization of the person acted as (`AshEnterprise.Security.Changes.RecordBreakGlassApproval`),
+  since a session's own audit row is in no tenant's chain; the `security_alerts` pack opens a
+  review on it.
+
   A host sets the longest session:
 
       config :ash_enterprise, :break_glass_max_minutes, 120
@@ -146,6 +151,7 @@ defmodule AshEnterprise.Security.BreakGlassSession do
 
       validate AshEnterprise.Security.Validations.BreakGlassApproval
       change set_attribute(:approved_at, &DateTime.utc_now/0)
+      change AshEnterprise.Security.Changes.RecordBreakGlassApproval
     end
   end
 end

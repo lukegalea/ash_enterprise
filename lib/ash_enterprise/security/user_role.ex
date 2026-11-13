@@ -39,6 +39,13 @@ defmodule AshEnterprise.Security.UserRole do
   `assign` stays ungoverned for the callers that have not moved to `invoke` yet: the
   tenant seeder, the demo data, the access-request process, the admin UI and test
   fixtures.
+
+  ## What the audit row says
+
+  An assignment's audit row carries the assigned role's name in its metadata
+  (`role_name`, `AshEnterprise.Security.Changes.StampRoleName`), because `role_id` alone
+  means a different role in every tenant. The `security_alerts` pack's recipe reads it to
+  open a review when an Administrator or a Platform Operator is made.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -143,6 +150,7 @@ defmodule AshEnterprise.Security.UserRole do
 
       change AshEnterprise.Security.Changes.DefaultScopingBusinessUnit
       change AshEnterprise.Security.Changes.ReturnHeldAssignment
+      change AshEnterprise.Security.Changes.StampRoleName
     end
 
     create :assign_governed do
@@ -159,6 +167,7 @@ defmodule AshEnterprise.Security.UserRole do
       validate {AshAgent.Validations.Governed, invocation: AshEnterprise.Execution.Invocation}
       change AshEnterprise.Security.Changes.DefaultScopingBusinessUnit
       change AshEnterprise.Security.Changes.ReturnHeldAssignment
+      change AshEnterprise.Security.Changes.StampRoleName
     end
 
     action :request_assignment, :map do

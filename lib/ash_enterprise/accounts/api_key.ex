@@ -14,6 +14,10 @@ defmodule AshEnterprise.Accounts.ApiKey do
 
   Revoking is `destroy` (soft delete): an archived key is never read again.
 
+  Issuing one is also recorded as an `accounts.api_key_issued` occurrence in each of the
+  owner's organizations (`AshEnterprise.Accounts.Changes.RecordApiKeyIssue`), since a key's
+  own audit row is in no tenant's chain; the `security_alerts` pack opens a review on it.
+
   A host sets the longest lifetime a key may be issued for:
 
       config :ash_enterprise, :api_key_max_lifetime_days, 90
@@ -97,6 +101,7 @@ defmodule AshEnterprise.Accounts.ApiKey do
       validate AshEnterprise.Accounts.Validations.ActiveOwner
 
       change {AshAuthentication.Strategy.ApiKey.GenerateApiKey, prefix: :aek, hash: :api_key_hash}
+      change AshEnterprise.Accounts.Changes.RecordApiKeyIssue
     end
   end
 end

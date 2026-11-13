@@ -17,6 +17,7 @@ defmodule AshEnterprise.Site.CryptographyClaimTest do
 
   # Each module that uses one, and the words both pages use for its job.
   @named %{
+    "lib/ash_enterprise/automation/alert_webhook.ex" => "checking signed provider webhooks",
     "lib/ash_enterprise/credentialing/registry_webhook.ex" => "checking signed provider webhooks",
     "lib/ash_enterprise/erasure/crypto.ex" => "sub-keys of an erasure scope's key",
     "lib/ash_enterprise/execution/digest_key.ex" => "invocation argument digests",

@@ -226,7 +226,7 @@ defmodule AshEnterprise.Automation.OccurrenceTest do
         assert [row] = occurrences(tenant)
         assert row.type == "user.sign_in_refused"
         assert row.subject == a.user.id
-        assert row.data == %{"reason" => "bad_password"}
+        assert row.data == %{"reason" => "bad_password", "failures" => 1}
       end
     end
 
