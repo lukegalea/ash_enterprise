@@ -58,6 +58,9 @@ RUN mix compile
 
 COPY config/runtime.exs config/
 COPY rel rel
+# The release copies the control file into its priv (`copy_control_file/1` in mix.exs):
+# the freshness sweep and the audit package read it at run time.
+COPY docs/controls.json docs/controls.json
 RUN mix release
 
 # --- runtime -----------------------------------------------------------------

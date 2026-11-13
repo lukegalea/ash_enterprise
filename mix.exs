@@ -72,9 +72,33 @@ defmodule AshEnterprise.MixProject do
         # Bakes the ERTS into the release, so the runtime image needs no Erlang
         # installed and cannot drift from what the release was built against.
         include_erts: true,
-        steps: [:assemble, :tar]
+        steps: [:assemble, &copy_control_file/1, :tar]
       ]
     ]
+  end
+
+  # The freshness sweep and the audit package read the control file, `docs/controls.json`
+  # (`AshEnterprise.Compliance.FreshnessSweepWorker.controls_file/0`). A release has no
+  # docs directory and runs from its own root, so the file is copied into the release's
+  # priv, where the worker looks when the configured path is not there. Without it every
+  # criterion sweeps as unknown, with `control_file_missing`, whatever evidence exists.
+  @doc false
+  def copy_control_file(%Mix.Release{} = release) do
+    vsn = release.applications |> Map.fetch!(:ash_enterprise) |> Keyword.fetch!(:vsn)
+
+    target =
+      Path.join([
+        release.path,
+        "lib",
+        "ash_enterprise-#{vsn}",
+        "priv",
+        "compliance",
+        "controls.json"
+      ])
+
+    File.mkdir_p!(Path.dirname(target))
+    File.cp!("docs/controls.json", target)
+    release
   end
 
   # Configuration for `mix usage_rules.sync`, which gathers the `usage-rules.md`

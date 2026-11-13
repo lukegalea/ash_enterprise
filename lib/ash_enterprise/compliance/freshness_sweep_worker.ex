@@ -54,8 +54,31 @@ defmodule AshEnterprise.Compliance.FreshnessSweepWorker do
     )
   end
 
-  @doc "The control file every sweep reads."
-  def controls_file, do: Keyword.get(config(), :controls_file, "docs/controls.json")
+  @release_copy Path.join(["priv", "compliance", "controls.json"])
+
+  @doc """
+  The control file every sweep reads: the configured path (`docs/controls.json`, relative to
+  a source checkout) when it is there, otherwise the copy a release carries in its priv
+  (`copy_control_file/1` in `mix.exs`). A release runs from its own root, which has no docs
+  directory, so the configured path alone would leave every criterion `unknown` with
+  `control_file_missing`.
+  """
+  @spec controls_file() :: Path.t()
+  def controls_file do
+    config()
+    |> Keyword.get(:controls_file, "docs/controls.json")
+    |> resolve(Application.app_dir(:ash_enterprise, @release_copy))
+  end
+
+  @doc false
+  @spec resolve(Path.t(), Path.t()) :: Path.t()
+  def resolve(configured, release_copy) do
+    cond do
+      File.regular?(configured) -> configured
+      File.regular?(release_copy) -> release_copy
+      true -> configured
+    end
+  end
 
   @doc "The criteria categories in the audit."
   def categories, do: Keyword.get(config(), :categories, [:security, :availability])
