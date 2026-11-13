@@ -32,6 +32,24 @@ export default defineConfig({
       // We own `src/pages/*`, including the landing page at `/`. Starlight would
       // otherwise inject its own 404 route and collide with ours.
       disable404Route: true,
+      // The docs wear the marketing pages' tokens and type: `starlight.css`
+      // maps Starlight's `--sl-*` variables onto `tokens.css`, and the fonts are
+      // the same self-hosted @fontsource files `layouts/Base.astro` loads.
+      customCss: [
+        '@fontsource/newsreader/400.css',
+        '@fontsource/geist/400.css',
+        '@fontsource/geist/500.css',
+        '@fontsource/geist/600.css',
+        '@fontsource/ibm-plex-mono/400.css',
+        './src/styles/starlight.css',
+      ],
+      expressiveCode: {
+        styleOverrides: {
+          borderRadius: '2px',
+          codeFontFamily: 'var(--ae-font-mono)',
+          uiFontFamily: 'var(--ae-font-sans)',
+        },
+      },
       social: [
         {
           icon: 'github',

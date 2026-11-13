@@ -60,7 +60,7 @@ const label =
       <h1
         class="mt-7 font-display text-[44px] leading-[1.05] tracking-[-0.025em] font-normal text-ae-ink sm:text-[56px] lg:mt-7 lg:text-[78px] lg:leading-[1.0]"
       >
-        Say what the software must do.
+        Say what the software must do.{' '}
         <em class="text-ae-workshop">Let the machine do the rest.</em>
       </h1>
 
@@ -74,7 +74,7 @@ const label =
 
       <div class="mt-10 flex flex-wrap items-center gap-6">
         <a
-          class="inline-flex items-center gap-[10px] rounded-[2px] bg-ae-vermilion px-7 py-4 font-sans text-base font-medium text-ae-paper transition-opacity duration-150 hover:opacity-90 dark:text-[#14160f]"
+          class="inline-flex items-center gap-[10px] rounded-ae bg-ae-vermilion px-7 py-4 font-sans text-base font-medium text-ae-on-accent transition-opacity duration-150 hover:opacity-90"
           href={withBase('/docs/manifesto/')}
         >
           Read the doctrine <span aria-hidden="true">→</span>
@@ -106,7 +106,7 @@ const label =
     >
       <p class={label}>The declaration</p>
 
-      <CodePanel code={declaration} lang="elixir" theme="atelier" />
+      <CodePanel code={declaration} lang="elixir" />
 
       <p class={`${label} mt-10 lg:mb-4`}>The consequences</p>
 

@@ -1,35 +1,72 @@
 ---
 /**
- * A status pill. The label, icon and colours all come from `statusMeta` in
- * `src/lib/roadmap.ts`, which reads `docs/roadmap.json`. Nothing in the markup
- * hardcodes a status word — that is the whole point of the file: the site
- * cannot claim something is shipped unless the repo says so.
+ * A status chip: the glyph and the word, on a tint of the status colour.
+ *
+ * The status always comes from a ledger (`docs/roadmap.json`, or a control
+ * evidence report), never from a literal in a page, so the site cannot say
+ * something is shipped unless the repository does. The word is always printed:
+ * the chip never depends on colour alone. See `status.ts` for the vocabularies.
+ *
+ *   <StatusChip status={item.status} />
+ *   <StatusChip status="evidenced" label="CC7.2" size="sm" />
  */
-import { statusMeta, type Status } from '../lib/roadmap';
+import StatusIcon from './StatusIcon.astro';
+import { statusColor, statusLabel, type ChipStatus } from './status';
 
 interface Props {
-  status: Status;
-  /** Prefix, e.g. "Approvals" -> "Approvals · Partial". Optional. */
+  status: ChipStatus;
+  /** Prefix, e.g. "Approvals" renders "Approvals · Partial". */
   label?: string;
   size?: 'sm' | 'md';
   class?: string;
 }
 
 const { status, label, size = 'md', class: className = '' } = Astro.props;
-const meta = statusMeta[status];
-
-const sizing =
-  size === 'sm' ? 'gap-1 px-2 py-0.5 text-[0.6875rem]' : 'gap-1.5 px-2.5 py-1 text-xs';
+const word = statusLabel[status];
 ---
 
 <span
-  class:list={[
-    'inline-flex shrink-0 items-center rounded-full font-medium whitespace-nowrap',
-    sizing,
-    meta.classes,
-    className,
-  ]}
+  class:list={['ae-chip', size === 'sm' ? 'ae-chip-sm' : 'ae-chip-md', className]}
+  style={`--ae-chip: ${statusColor[status]}`}
+  data-status={status}
 >
-  <span aria-hidden="true" class="text-[0.8em] leading-none">{meta.icon}</span>
-  {label ? <span>{label} · {meta.label}</span> : <span>{meta.label}</span>}
+  <StatusIcon status={status} size={size === 'sm' ? 11 : 13} />
+  {
+    label ? (
+      <span>
+        {label} <span aria-hidden="true">·</span>
+        <span class="sr-only">:</span> {word}
+      </span>
+    ) : (
+      <span>{word}</span>
+    )
+  }
 </span>
+
+<style>
+  .ae-chip {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    border: 1px solid color-mix(in oklab, var(--ae-chip) 40%, var(--ae-paper));
+    border-radius: var(--ae-radius);
+    background-color: color-mix(in oklab, var(--ae-chip) 9%, var(--ae-paper));
+    color: var(--ae-ink);
+    font-family: var(--ae-font-sans);
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .ae-chip-md {
+    gap: 0.4rem;
+    padding: 0.25rem 0.55rem;
+    font-size: 0.75rem;
+  }
+
+  .ae-chip-sm {
+    gap: 0.3rem;
+    padding: 0.125rem 0.4rem;
+    font-size: 0.6875rem;
+  }
+</style>

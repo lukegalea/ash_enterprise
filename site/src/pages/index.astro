@@ -353,7 +353,7 @@ const doctrines: { title: string; body: string; href: string }[] = [
 
         <div class="mt-12 flex flex-wrap items-center gap-6">
           <a
-            class="inline-flex items-center gap-[10px] rounded-[2px] bg-ae-vermilion px-7 py-4 font-sans text-base font-medium text-ae-paper transition-opacity duration-150 hover:opacity-90 dark:text-[#14160f]"
+            class="inline-flex items-center gap-[10px] rounded-ae bg-ae-vermilion px-7 py-4 font-sans text-base font-medium text-ae-on-accent transition-opacity duration-150 hover:opacity-90"
             href={withBase('/docs/manifesto/')}
           >
             Read the doctrine <span aria-hidden="true">→</span>
@@ -374,17 +374,3 @@ const doctrines: { title: string; body: string; href: string }[] = [
     </section>
   </div>
 </Base>
-
-<style is:global>
-  /*
-   * Blueprint focus rings for this page's interactive elements, per the
-   * handoff — scoped under the page root so the rest of the site keeps the
-   * shared indigo ring from global.css.
-   */
-  .ae-home a:focus-visible,
-  .ae-home button:focus-visible {
-    outline: 2px solid var(--ae-blueprint);
-    outline-offset: 2px;
-    border-radius: 0;
-  }
-</style>

@@ -111,21 +111,32 @@ is stored, toggling on one and navigating to the other lands the reader in the w
 
 Two consequences for anything you write:
 
-- Colours come from tokens in `src/styles/global.css` (`bg-bg`, `bg-surface`, `text-fg`, `text-muted`,
-  `border-line`, `text-brand`, …). They are declared on `:root`, redefined under
-  `:root[data-theme="dark"]`, and again under `@media (prefers-color-scheme: dark)` guarded as
-  `:root:not([data-theme="light"])` so the system default works before anyone chooses.
-- Tailwind's `dark:` variant is redefined to follow `data-theme` rather than `prefers-color-scheme`
-  (`@custom-variant dark` in `global.css`). `dark:bg-emerald-500/10` therefore agrees with the tokens.
+- Colours, type, spacing and radius come from `src/styles/tokens.css`, and nowhere else. Light is
+  declared on `:root`, dark under `:root[data-theme="dark"]` and again under
+  `@media (prefers-color-scheme: dark)` guarded as `:root:not([data-theme="light"])`.
+- Tailwind's `dark:` variant follows `data-theme` rather than `prefers-color-scheme`
+  (`@custom-variant dark` in `global.css`).
+
+## Styling
+
+One set of tokens serves both halves of the site:
+
+- `src/styles/tokens.css` defines every `--ae-*` custom property.
+- `src/styles/global.css` (imported by `Base.astro`) publishes them as Tailwind utilities
+  (`bg-ae-paper`, `text-ae-ink`, `text-ae-muted`, `border-ae-rule`, `text-ae-workshop`, …) and defines the
+  shared `ae-*` classes (`ae-container`, `ae-eyebrow`, `ae-h1`, `ae-h2`, `ae-lead`, `ae-link`, `ae-btn`,
+  `ae-btn-primary`, `ae-card`, `ae-code`, `ae-overflow`).
+- `src/styles/starlight.css` (Starlight `customCss`) maps Starlight's `--sl-*` variables onto the same
+  tokens, so `/docs/` wears the same palette and fonts without loading Tailwind.
+
+Every class this site defines starts `ae-`; there is no second palette.
 
 ## Stack notes
 
 - **Tailwind 4 via `@tailwindcss/vite`**, not `@astrojs/tailwind`. The latter is a Tailwind 3 wrapper,
   unmaintained since March 2025, and will mis-compile against Tailwind 4.
-- `global.css` is imported by `Base.astro` only. It is deliberately **not** passed to Starlight as
-  `customCss`: Tailwind's preflight and Starlight's own stylesheet would fight over cascade layers, and
-  the docs already have a coherent theme. Tailwind styles the marketing pages; Starlight styles the
-  docs; the tokens above keep them looking like one site.
+- `global.css` is imported by `Base.astro` only and is **not** passed to Starlight: Tailwind's preflight
+  and Starlight's stylesheet would fight over cascade layers. Starlight gets `starlight.css` instead.
 
 ## Deployment
 

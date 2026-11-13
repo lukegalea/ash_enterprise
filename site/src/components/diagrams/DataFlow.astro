@@ -1,297 +1,315 @@
 ---
 /**
- * Where data comes from and where it goes: ingestion, the promotion step that
- * is the only place ingested rows acquire ownership, and the three consumers
- * downstream of the action layer.
+ * What one write does, from the request to the evidence, as the code does it.
+ * Every step names the module or command that performs it, and links to it;
+ * nothing here is planned work. Read top to bottom: the request, the action,
+ * the one transaction the row and its audit event share, what happens after
+ * the commit, and how the record is read back.
  *
- * Two things are drawn rather than glossed:
- *  - the authorization boundary, with Meltano deliberately *outside* it, and
- *  - the hole. Neither Meltano nor Airbyte emits OpenLineage, so the edge from
- *    ingestion into the lineage graph does not exist. ADR 0008's argument
- *    applies: a diagram that omits an edge it could not work out is worse than
- *    no diagram, because the reader cannot tell "nothing feeds this" from "the
- *    generator gave up". So the missing edge is drawn, and drawn as missing.
+ * Sources: `AshEnterpriseWeb.Plugs.LoadActorContext`,
+ * `AshEnterprise.Security.Policies`, `AshEnterprise.Audit.EventLog` (and the
+ * `audit_events` triggers in `priv/repo/migrations/*tamper_evident_audit_log*`),
+ * `AshEnterprise.Audit.Changes.RedactSensitive`,
+ * `AshEnterprise.Platform.Correlation`, `AshEnterprise.Lineage.Transport`,
+ * the `audit.verify` and `audit.export` mix tasks and `AshEnterprise.Erasure`.
  *
- * Status words come from `roadmap.json` via the caller — never from this file.
+ * HTML, not one SVG: a single column with a rail on its left reads at phone
+ * width without shrinking the text, and every colour is a token.
  */
-import { statusMeta, type Status } from '../../lib/roadmap';
+import { repoHref } from '../../lib/roadmap';
 
 interface Props {
-  ingestion: Status;
-  lineage: Status;
-  catalog: Status;
-  bi: Status;
+  caption?: string;
   class?: string;
 }
 
-const { ingestion, lineage, catalog, bi, class: className = '' } = Astro.props;
+const {
+  caption = 'Fig. — One write, end to end. The row and its audit event commit together or not at all; the span and the lineage event follow the commit and never fail it.',
+  class: className = '',
+} = Astro.props;
 
-const consumers = [
+interface Step {
+  title: string;
+  body: string;
+  /** Module, table or command, printed in mono. */
+  what: string;
+  path?: string;
+}
+
+interface Stage {
+  label: string;
+  steps: Step[];
+  /** Drawn as one boxed group: the transaction. */
+  boxed?: string;
+}
+
+const stages: Stage[] = [
   {
-    x: 60,
-    title: 'Marquez',
-    role: 'lineage',
-    detail: 'OpenLineage runId is the correlation id',
-    status: lineage,
+    label: 'Request',
+    steps: [
+      {
+        title: 'The actor’s context is built once',
+        body: 'Teams, the business-unit subtree, the privilege map and the reporting chain, loaded before any action runs. A correlation id is started for the request.',
+        what: 'Plugs.LoadActorContext',
+        path: 'lib/ash_enterprise_web/plugs/load_actor_context.ex',
+      },
+    ],
   },
   {
-    x: 330,
-    title: 'OpenMetadata',
-    role: 'catalog',
-    detail: 'pushed alongside mix ash.codegen',
-    status: catalog,
+    label: 'Action',
+    steps: [
+      {
+        title: 'Policies decide from that context',
+        body: 'The grant union and the narrowed bypasses read the precomputed sets. A check that queries is a bug.',
+        what: 'Security.Policies',
+        path: 'lib/ash_enterprise/security/policies.ex',
+      },
+    ],
   },
   {
-    x: 600,
-    title: 'Superset',
-    role: 'analytics',
-    detail: 'tenant-scoped views from ActorContext',
-    status: bi,
+    label: 'Commit',
+    boxed: 'One database transaction',
+    steps: [
+      {
+        title: 'The row is written',
+        body: 'Owner, tenant and provenance columns are stamped by the platform, not by the caller.',
+        what: 'Platform.SystemAttributes',
+        path: 'lib/ash_enterprise/platform/system_attributes.ex',
+      },
+      {
+        title: 'The tenant’s advisory lock is taken',
+        body: 'ash_events serialises audited writes per tenant, so within a tenant the event sequence is commit order.',
+        what: 'pg_advisory_xact_lock',
+        path: 'lib/ash_enterprise/audit/event_log.ex',
+      },
+      {
+        title: 'The audit event is inserted',
+        body: 'Action name, actor or named system actor, correlation id and the changed attributes. A sensitive value is recorded as nil, its key kept.',
+        what: 'Audit.EventLog · RedactSensitive',
+        path: 'lib/ash_enterprise/audit/event_log.ex',
+      },
+      {
+        title: 'A trigger chains it',
+        body: 'Postgres stores the SHA-256 of the event with the hash of the tenant’s previous one. A second trigger makes UPDATE and DELETE on the log raise.',
+        what: 'audit_events_chain · audit_events_immutable',
+        path: 'priv/repo/migrations/20260819010542_tamper_evident_audit_log.exs',
+      },
+    ],
+  },
+  {
+    label: 'After',
+    steps: [
+      {
+        title: 'A span carries the same correlation id',
+        body: 'Every action is an OpenTelemetry span with ash.correlation_id. Nothing is exported until an OTLP endpoint is configured.',
+        what: 'OpentelemetryAsh · ash.correlation_id',
+        path: 'telemetry/lib/ash_enterprise/telemetry/attributes.ex',
+      },
+      {
+        title: 'A lineage run event is recorded',
+        body: 'An OpenLineage COMPLETE event goes to the lineage store, and to an HTTP backend only when one is configured. Its failure never fails the write.',
+        what: 'Lineage.Transport',
+        path: 'lib/ash_enterprise/lineage/transport.ex',
+      },
+    ],
+  },
+  {
+    label: 'Evidence',
+    steps: [
+      {
+        title: 'Verify the chain',
+        body: 'Walks every tenant’s chain and reports each break by sequence number.',
+        what: 'mix ash_enterprise.audit.verify',
+        path: 'lib/mix/tasks/ash_enterprise.audit.verify.ex',
+      },
+      {
+        title: 'Export a window',
+        body: 'One tenant’s events for a date range, as the sample an auditor asks for.',
+        what: 'mix ash_enterprise.audit.export',
+        path: 'lib/mix/tasks/ash_enterprise.audit.export.ex',
+      },
+      {
+        title: 'Erase by destroying a key',
+        body: 'Third-party content reaches the log only as ciphertext under its scope’s key. Shredding the key makes it unreadable; no event is deleted.',
+        what: 'Erasure.shred_scope/4',
+        path: 'lib/ash_enterprise/erasure.ex',
+      },
+    ],
   },
 ];
 ---
 
-<div class:list={['overflow-guard', className]}>
-  <svg
-    viewBox="0 0 900 432"
-    role="img"
-    aria-labelledby="dataflow-title dataflow-desc"
-    class="block w-full min-w-[760px] text-fg"
-    style="max-width:100%"
-  >
-    <title id="dataflow-title">Ingestion, promotion, and the three consumers downstream</title>
-    <desc id="dataflow-desc">
-      External sources feed Meltano, which lands rows in a staging schema outside the boundary
-      where authorization applies. Promotion out of staging is an ordinary Ash action — the only
-      place ingested data acquires ownership, tenancy and audit. Downstream of the action layer sit
-      Marquez for lineage, OpenMetadata for cataloguing and Superset for analytics. The edge from
-      ingestion into the lineage graph is drawn as broken, because neither Meltano nor Airbyte
-      emits OpenLineage events.
-    </desc>
-
-    <defs>
-      <marker
-        id="df-arrow"
-        viewBox="0 0 10 10"
-        refX="9"
-        refY="5"
-        markerWidth="6"
-        markerHeight="6"
-        orient="auto-start-reverse"
-      >
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ae-line-strong)"></path>
-      </marker>
-      <marker
-        id="df-arrow-brand"
-        viewBox="0 0 10 10"
-        refX="9"
-        refY="5"
-        markerWidth="6"
-        markerHeight="6"
-        orient="auto-start-reverse"
-      >
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ae-brand)"></path>
-      </marker>
-    </defs>
-
-    {/* ---------- Outside the boundary ---------- */}
-    <rect
-      x="60"
-      y="28"
-      width="150"
-      height="62"
-      rx="9"
-      fill="var(--ae-surface-2)"
-      stroke="var(--ae-line-strong)"
-      stroke-width="1.25"
-      stroke-dasharray="5 4"></rect>
-    <text x="135" y="54" font-size="13.5" text-anchor="middle" font-weight="600" fill="currentColor"
-      >External sources</text
-    >
-    <text x="135" y="72" font-size="11" text-anchor="middle" fill="var(--ae-fg-muted)"
-      >SaaS · files · other databases</text
-    >
-
-    <rect
-      x="240"
-      y="28"
-      width="170"
-      height="62"
-      rx="9"
-      fill="var(--ae-surface)"
-      stroke="var(--ae-line-strong)"
-      stroke-width="1.25"></rect>
-    <text
-      x="325"
-      y="52"
-      font-size="13.5"
-      text-anchor="middle"
-      font-weight="600"
-      fill="currentColor"
-      font-family="var(--font-mono)">Meltano</text
-    >
-    <text x="325" y="70" font-size="11" text-anchor="middle" fill="var(--ae-fg-muted)"
-      >extract &amp; load · {statusMeta[ingestion].label}</text
-    >
-
-    <rect
-      x="445"
-      y="28"
-      width="200"
-      height="62"
-      rx="9"
-      fill="var(--ae-surface)"
-      stroke="var(--ae-line-strong)"
-      stroke-width="1.25"></rect>
-    <text x="545" y="52" font-size="13.5" text-anchor="middle" font-weight="600" fill="currentColor"
-      >staging schema</text
-    >
-    <text x="545" y="70" font-size="11" text-anchor="middle" fill="var(--ae-fg-muted)"
-      >unauthorized at rest, on purpose</text
-    >
-
-    <text x="668" y="52" font-size="11.5" fill="var(--ae-fg-muted)">No second copy of the</text>
-    <text x="668" y="68" font-size="11.5" fill="var(--ae-fg-muted)">security model lives here.</text>
-
-    <path
-      d="M 210 59 L 234 59"
-      stroke="var(--ae-line-strong)"
-      stroke-width="1.5"
-      marker-end="url(#df-arrow)"></path>
-    <path
-      d="M 410 59 L 439 59"
-      stroke="var(--ae-line-strong)"
-      stroke-width="1.5"
-      marker-end="url(#df-arrow)"></path>
-
-    {/* ---------- The boundary ---------- */}
-    <line
-      x1="44"
-      y1="126"
-      x2="884"
-      y2="126"
-      stroke="var(--ae-brand)"
-      stroke-width="1.5"
-      stroke-dasharray="7 6"
-      opacity="0.75"></line>
-    <text x="884" y="118" font-size="11" text-anchor="end" fill="var(--ae-brand)"
-      >the boundary where authorization applies</text
-    >
-
-    <path
-      d="M 545 90 L 545 144"
-      stroke="var(--ae-brand)"
-      stroke-width="1.75"
-      marker-end="url(#df-arrow-brand)"></path>
-
-    {/* ---------- Promotion ---------- */}
-    <rect
-      x="240"
-      y="150"
-      width="405"
-      height="58"
-      rx="9"
-      fill="var(--ae-brand-soft)"
-      stroke="var(--ae-brand)"
-      stroke-width="1.5"></rect>
-    <text x="442" y="174" font-size="13.5" text-anchor="middle" font-weight="600" fill="currentColor"
-      >Promotion is an ordinary Ash action</text
-    >
-    <text x="442" y="192" font-size="11" text-anchor="middle" fill="var(--ae-fg-muted)"
-      >the only place ingested rows acquire ownership, tenancy and audit</text
-    >
-
-    <path
-      d="M 442 208 L 442 229"
-      stroke="var(--ae-line-strong)"
-      stroke-width="1.5"
-      marker-end="url(#df-arrow)"></path>
-
-    {/* ---------- The action layer ---------- */}
-    <rect
-      x="60"
-      y="235"
-      width="780"
-      height="62"
-      rx="9"
-      fill="var(--ae-surface)"
-      stroke="var(--ae-line-strong)"
-      stroke-width="1.75"></rect>
-    <text x="450" y="260" font-size="14" text-anchor="middle" font-weight="600" fill="currentColor"
-      >Ash action → ActorContext → policies → audit log</text
-    >
-    <text x="450" y="279" font-size="11" text-anchor="middle" fill="var(--ae-fg-muted)"
-      >one correlation id threaded through every effect</text
-    >
-
-    {/* ---------- Consumers ---------- */}
+<figure class:list={['ae-df', className]}>
+  <ol class="ae-df-stages">
     {
-      consumers.map(({ x, title, role, detail, status }) => (
-        <g>
-          <path
-            d={`M ${x + 120} 297 L ${x + 120} 329`}
-            stroke="var(--ae-line-strong)"
-            stroke-width="1.5"
-            marker-end="url(#df-arrow)"
-          />
-          <rect
-            x={x}
-            y={335}
-            width="240"
-            height="70"
-            rx="9"
-            fill="var(--ae-surface-2)"
-            stroke="var(--ae-line-strong)"
-            stroke-width="1.25"
-          />
-          <text
-            x={x + 16}
-            y={360}
-            font-size="13.5"
-            font-weight="600"
-            fill="currentColor"
-            font-family="var(--font-mono)"
-          >
-            {title}
-          </text>
-          <text x={x + 224} y={360} font-size="11" text-anchor="end" fill="var(--ae-fg-muted)">
-            {role} · {statusMeta[status].label}
-          </text>
-          <text x={x + 16} y={382} font-size="11" fill="var(--ae-fg-muted)">
-            {detail}
-          </text>
-        </g>
+      stages.map((stage) => (
+        <li class="ae-df-stage">
+          <p class="ae-df-label">{stage.label}</p>
+          <div class:list={['ae-df-body', stage.boxed && 'ae-df-boxed']}>
+            {stage.boxed && <p class="ae-df-boxed-label">{stage.boxed}</p>}
+            <ul class:list={['ae-df-steps', stage.steps.length > 1 && 'ae-df-steps-many']}>
+              {stage.steps.map((step) => (
+                <li class="ae-df-step">
+                  <p class="ae-df-title">{step.title}</p>
+                  <p class="ae-df-text">{step.body}</p>
+                  {step.path ? (
+                    <a class="ae-df-what" href={repoHref(step.path)} target="_blank" rel="noopener noreferrer">
+                      {step.what}
+                      <span class="sr-only"> (source, opens in a new tab)</span>
+                    </a>
+                  ) : (
+                    <span class="ae-df-what">{step.what}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </li>
       ))
     }
+  </ol>
 
-    {/* ---------- The hole, drawn as a hole ---------- */}
-    <path
-      d="M 240 76 H 34 Q 28 76 28 82 V 196"
-      fill="none"
-      stroke="var(--ae-line-strong)"
-      stroke-width="1.25"
-      stroke-dasharray="4 5"></path>
-    <path
-      d="M 28 234 V 364 Q 28 370 34 370 H 54"
-      fill="none"
-      stroke="var(--ae-line-strong)"
-      stroke-width="1.25"
-      stroke-dasharray="4 5"
-      marker-end="url(#df-arrow)"></path>
+  {caption && <figcaption class="ae-df-caption">{caption}</figcaption>}
+</figure>
 
-    <circle cx="28" cy="215" r="10" fill="var(--ae-bg)" stroke="var(--ae-line-strong)"
-      stroke-width="1.25"></circle>
-    <path
-      d="M 23 210 L 33 220 M 33 210 L 23 220"
-      stroke="var(--ae-fg-muted)"
-      stroke-width="1.5"
-      stroke-linecap="round"></path>
+<style>
+  .ae-df {
+    margin: 0;
+  }
 
-    <text x="48" y="211" font-size="11.5" fill="var(--ae-fg-muted)"
-      >Meltano emits no OpenLineage.</text
-    >
-    <text x="48" y="227" font-size="11.5" fill="var(--ae-fg-muted)"
-      >The hole is drawn as a hole.</text
-    >
-  </svg>
-</div>
+  .ae-df-stages {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* The rail: a line down the left with a node at each stage. */
+  .ae-df-stage {
+    position: relative;
+    padding-left: 1.75rem;
+    padding-bottom: 1.75rem;
+  }
+
+  .ae-df-stage::before {
+    content: '';
+    position: absolute;
+    left: 0.3125rem;
+    top: 0.5rem;
+    bottom: -0.5rem;
+    border-left: 1.5px solid var(--ae-rule-strong);
+  }
+
+  .ae-df-stage:last-child::before {
+    display: none;
+  }
+
+  .ae-df-stage::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.3rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    border: 1.5px solid var(--ae-workshop);
+    background-color: var(--ae-paper);
+  }
+
+  .ae-df-label {
+    font-family: var(--ae-font-mono);
+    font-size: var(--ae-text-label);
+    letter-spacing: var(--ae-tracking-label);
+    text-transform: uppercase;
+    color: var(--ae-copper);
+  }
+
+  .ae-df-body {
+    margin-top: 0.625rem;
+  }
+
+  .ae-df-boxed {
+    border: 1.5px dashed var(--ae-workshop);
+    border-radius: var(--ae-radius);
+    padding: 0.75rem;
+  }
+
+  .ae-df-boxed-label {
+    margin-bottom: 0.625rem;
+    font-family: var(--ae-font-mono);
+    font-size: 0.75rem;
+    color: var(--ae-workshop);
+  }
+
+  .ae-df-steps {
+    display: grid;
+    gap: 0.625rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .ae-df-step {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--ae-rule);
+    border-radius: var(--ae-radius);
+    background-color: var(--ae-paper);
+    padding: 0.75rem 0.875rem;
+  }
+
+  .ae-df-title {
+    font-weight: 500;
+    color: var(--ae-ink);
+  }
+
+  .ae-df-text {
+    margin-top: 0.25rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: var(--ae-muted);
+  }
+
+  .ae-df-what {
+    margin-top: auto;
+    padding-top: 0.5rem;
+    font-family: var(--ae-font-mono);
+    font-size: 0.75rem;
+    color: var(--ae-blueprint);
+    overflow-wrap: anywhere;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 0.2em;
+  }
+
+  a.ae-df-what:hover {
+    color: var(--ae-ink);
+    text-decoration-color: currentColor;
+  }
+
+  .ae-df-caption {
+    max-width: var(--ae-measure);
+    font-size: var(--ae-text-small);
+    line-height: 1.55;
+    color: var(--ae-blueprint);
+  }
+
+  @media (min-width: 48rem) {
+    .ae-df-stage {
+      display: grid;
+      grid-template-columns: 7rem minmax(0, 1fr);
+      gap: 1.5rem;
+    }
+
+    .ae-df-body {
+      margin-top: 0;
+    }
+
+    .ae-df-steps-many {
+      grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    }
+
+    /* The transaction's four steps read as two pairs: write and lock, event and chain. */
+    .ae-df-boxed .ae-df-steps-many {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+</style>

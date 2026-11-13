@@ -67,20 +67,19 @@ end`,
     href: 'https://hexdocs.pm/ash/Ash.Policy.Authorizer.html',
     external: true,
     key: 'blueprint',
-    code: `policies do
-  # Non-human actors bypass the role model
-  # entirely -- named, narrow, still attributed.
-  bypass AshEnterprise.Security.Checks.SystemActor do
-    authorize_if always()
-  end
+    code: `# Non-human actors bypass the role model,
+# narrowed per action -- still attributed.
+bypass AshEnterprise.Security.Checks.SystemActor do
+  authorize_if AshEnterprise.Security.Checks.SystemActorReach
+end
 
-  # The union. Each clause is one grant path; any
-  # one succeeding is sufficient; none subtracts.
-  policy always() do
-    authorize_if AshEnterprise.Security.Checks.RoleGrant
-    authorize_if AshEnterprise.Security.Checks.SharedWithActor
-    authorize_if AshEnterprise.Security.Checks.HierarchyGrant
-  end
+# The union. Each clause is one grant path; any one
+# succeeding is sufficient; none of them ever subtracts.
+policy AshEnterprise.Security.Checks.GrantReach do
+  authorize_if AshEnterprise.Security.Checks.RoleGrant
+  authorize_if AshEnterprise.Security.Checks.SharedWithActor
+  authorize_if AshEnterprise.Security.Checks.HierarchyGrant
+  authorize_if AshEnterprise.Security.Checks.SelfService
 end`,
     sourcePath: 'lib/ash_enterprise/security/policies.ex',
     annotation: 'Not written on this resource — injected by the use line.',
@@ -88,6 +87,7 @@ end`,
       'Role grants, resolved per action',
       'Per-record shares, as rows',
       'The manager and position hierarchy',
+      'Self-service actions a resource declares',
       'Fail closed when no path authorizes',
     ],
   },
@@ -95,7 +95,7 @@ end`,
     id: 'strangler',
     label: '→ ash_strangler',
     extension: 'ash_strangler',
-    href: 'https://hexdocs.pm/ash_strangler/',
+    href: 'https://github.com/lukegalea/ash_strangler',
     external: true,
     key: 'copper',
     code: `strangler do

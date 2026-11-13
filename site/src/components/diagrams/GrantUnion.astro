@@ -1,188 +1,357 @@
 ---
 /**
- * Thesis 3, drawn: three independent grant paths, unioned. Any one succeeding
- * is sufficient, and nothing anywhere subtracts — which is why the diagram has
- * no arrow pointing back the other way.
+ * The grant union, drawn from `AshEnterprise.Security.Policies`: four grant
+ * paths in one policy, any one sufficient, none subtracting. Every name on it
+ * is a module in `lib/ash_enterprise/security/checks/`.
  *
- * Everything is painted from the theme tokens (`--ae-*`) or `currentColor`, so
- * it reads correctly in light and dark without a second copy.
+ * Built from HTML rather than one SVG so the text stays real text at every
+ * width: the paths sit in a column with a bus on their right on wide screens
+ * and on their left on a phone, and the whole thing reflows instead of
+ * shrinking. Every colour is a token, so it reads in both themes.
  */
+import { repoHref } from '../../lib/roadmap';
+
 interface Props {
+  /** Caption under the figure; pass `''` to leave it out. */
+  caption?: string;
   class?: string;
 }
-const { class: className = '' } = Astro.props;
+
+const {
+  caption = 'Fig. — The policy every platform resource inherits. Each path is one authorize_if; Ash stops at the first that succeeds, so their order changes nothing about who is let in.',
+  class: className = '',
+} = Astro.props;
+
+const CHECKS = 'lib/ash_enterprise/security/checks';
+
+const paths: { name: string; file: string; reads: string }[] = [
+  { name: 'RoleGrant', file: 'role_grant.ex', reads: 'role × privilege × depth, held by you or your team' },
+  { name: 'SharedWithActor', file: 'shared_with_actor.ex', reads: 'this record, shared with you or a team you are on' },
+  {
+    name: 'HierarchyGrant',
+    file: 'hierarchy_grant.ex',
+    reads: 'owned by someone you sit above; never delete, assign or share',
+  },
+  { name: 'SelfService', file: 'self_service.ex', reads: 'an action the resource declares self-service' },
+];
 ---
 
-<div class:list={['overflow-guard', className]}>
-  <svg
-    viewBox="0 0 760 300"
-    role="img"
-    aria-labelledby="grant-union-title grant-union-desc"
-    class="block w-full min-w-[680px] text-fg"
-    style="max-width:100%"
-  >
-    <title id="grant-union-title">Authorization as a pure union of three grant paths</title>
-    <desc id="grant-union-desc">
-      Three independent checks — a role grant of role by privilege by depth, an explicit sharing
-      ACL, and a manager or position hierarchy grant — each feed a union. Any one of them
-      succeeding authorizes the row. No path removes access granted by another.
-    </desc>
+<figure class:list={['ae-gu', className]} aria-labelledby="ae-gu-heading">
+  <p id="ae-gu-heading" class="sr-only">
+    Authorization as a union of four grant paths. Any one authorizes; none removes access another
+    granted.
+  </p>
 
-    <defs>
-      <marker
-        id="gu-arrow"
-        viewBox="0 0 10 10"
-        refX="9"
-        refY="5"
-        markerWidth="6"
-        markerHeight="6"
-        orient="auto-start-reverse"
-      >
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ae-line-strong)"></path>
-      </marker>
-      <marker
-        id="gu-arrow-brand"
-        viewBox="0 0 10 10"
-        refX="9"
-        refY="5"
-        markerWidth="6"
-        markerHeight="6"
-        orient="auto-start-reverse"
-      >
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ae-brand)"></path>
-      </marker>
-    </defs>
+  <div class="ae-gu-grid">
+    <ol class="ae-gu-paths">
+      {
+        paths.map((path, i) => (
+          <li class="ae-gu-path">
+            <span class="ae-gu-n" aria-hidden="true">
+              {i + 1}
+            </span>
+            <span class="min-w-0">
+              <a
+                class="ae-gu-name"
+                href={repoHref(`${CHECKS}/${path.file}`)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {path.name}
+                <span class="sr-only"> (source, opens in a new tab)</span>
+              </a>
+              <span class="ae-gu-reads">{path.reads}</span>
+            </span>
+          </li>
+        ))
+      }
+    </ol>
 
-    {/* --- The three grant paths --- */}
-    {
-      [
-        {
-          y: 16,
-          name: 'RoleGrant',
-          detail: 'role × privilege × depth',
-          note: 'rows in a table',
-        },
-        {
-          y: 118,
-          name: 'SharedWith',
-          detail: 'explicit per-record ACL',
-          note: 'principal → record → rights',
-        },
-        {
-          y: 220,
-          name: 'HierarchyGrant',
-          detail: 'manager / position chain',
-          note: 'bounded by depth',
-        },
-      ].map(({ y, name, detail, note }) => (
-        <g>
-          <rect
-            x="1"
-            y={y}
-            width="268"
-            height="66"
-            rx="10"
-            fill="var(--ae-surface)"
-            stroke="var(--ae-line-strong)"
-            stroke-width="1.25"
-          />
-          <text
-            x="20"
-            y={y + 27}
-            font-size="14.5"
-            font-weight="600"
-            fill="currentColor"
-            font-family="var(--font-mono)"
-          >
-            {name}
-          </text>
-          <text x="20" y={y + 46} font-size="12.5" fill="var(--ae-fg-muted)">
-            {detail}
-          </text>
-          <text x="252" y={y + 46} font-size="11" text-anchor="end" fill="var(--ae-fg-muted)">
-            {note}
-          </text>
-        </g>
-      ))
+    <div class="ae-gu-join" aria-hidden="true"></div>
+
+    <div class="ae-gu-union">
+      <span class="ae-gu-cup" aria-hidden="true">∪</span>
+      <span class="ae-gu-cup-label">any one suffices</span>
+    </div>
+
+    <div class="ae-gu-arrow" aria-hidden="true"></div>
+
+    <div class="ae-gu-out">
+      <p class="ae-gu-out-title">Authorized</p>
+      <p class="ae-gu-out-note">A read narrows to the rows some path reaches, instead of failing.</p>
+      <p class="ae-gu-none">
+        No path: forbidden. There is no <code>forbid_if</code> for row access, so nothing subtracts.
+      </p>
+    </div>
+  </div>
+
+  <p class="ae-gu-context">
+    Every path reads <code>ActorContext</code>, computed once per request. No check queries.
+  </p>
+
+  {caption && <figcaption class="ae-gu-caption">{caption}</figcaption>}
+</figure>
+
+<style>
+  .ae-gu {
+    --stroke: var(--ae-rule-strong);
+    --tick: 1.25rem;
+    --gap: 0.75rem;
+    margin: 0;
+  }
+
+  .ae-gu-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+  }
+
+  .ae-gu-paths {
+    display: grid;
+    gap: var(--gap);
+    width: 100%;
+    margin: 0;
+    padding: 0 0 0 calc(var(--tick) * 2);
+    list-style: none;
+  }
+
+  .ae-gu-path {
+    position: relative;
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    border: 1px solid var(--stroke);
+    border-radius: var(--ae-radius);
+    background-color: var(--ae-paper);
+    padding: 0.75rem 1rem;
+  }
+
+  /* The tick from each path to the bus. */
+  .ae-gu-path::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: calc(var(--tick) * -1);
+    width: var(--tick);
+    border-top: 1.5px solid var(--stroke);
+  }
+
+  /* The bus, one segment per path so it spans first tick to last at any height. */
+  .ae-gu-path::before {
+    content: '';
+    position: absolute;
+    left: calc(var(--tick) * -1);
+    top: 0;
+    bottom: calc(var(--gap) * -1);
+    border-left: 1.5px solid var(--stroke);
+  }
+
+  .ae-gu-path:first-child::before {
+    top: 50%;
+  }
+
+  /* On a phone the bus carries on down to the union below the last path. */
+  .ae-gu-path:last-child::before {
+    bottom: calc(var(--gap) * -2);
+  }
+
+  .ae-gu-n {
+    font-family: var(--ae-font-mono);
+    font-size: 0.75rem;
+    color: var(--ae-copper);
+  }
+
+  .ae-gu-name {
+    display: block;
+    font-family: var(--ae-font-mono);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ae-ink);
+    overflow-wrap: anywhere;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 0.2em;
+  }
+
+  .ae-gu-name:hover {
+    text-decoration-color: currentColor;
+  }
+
+  .ae-gu-reads {
+    display: block;
+    margin-top: 0.125rem;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--ae-muted);
+  }
+
+  .ae-gu-join {
+    height: calc(var(--gap) * 2);
+    margin-left: var(--tick);
+    border-left: 1.5px solid var(--stroke);
+  }
+
+  .ae-gu-union {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: calc(var(--tick) - 1.5rem);
+  }
+
+  .ae-gu-cup {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    border: 1.5px solid var(--ae-workshop);
+    border-radius: 50%;
+    background-color: color-mix(in oklab, var(--ae-workshop) 12%, var(--ae-paper));
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--ae-workshop);
+  }
+
+  .ae-gu-cup-label {
+    font-family: var(--ae-font-mono);
+    font-size: 0.75rem;
+    color: var(--ae-muted);
+  }
+
+  .ae-gu-arrow {
+    position: relative;
+    height: 1.75rem;
+    margin-left: var(--tick);
+    border-left: 1.5px solid var(--ae-workshop);
+  }
+
+  .ae-gu-arrow::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: -5.5px;
+    border: 5px solid transparent;
+    border-top: 7px solid var(--ae-workshop);
+    border-bottom: 0;
+  }
+
+  .ae-gu-out {
+    width: 100%;
+    margin-top: 0.25rem;
+    border: 1.5px solid var(--ae-workshop);
+    border-radius: var(--ae-radius);
+    background-color: var(--ae-paper);
+    padding: 0.875rem 1rem;
+  }
+
+  .ae-gu-out-title {
+    font-weight: 600;
+    color: var(--ae-ink);
+  }
+
+  .ae-gu-out-note,
+  .ae-gu-none,
+  .ae-gu-context {
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: var(--ae-muted);
+  }
+
+  .ae-gu-none {
+    margin-top: 0.625rem;
+    border-top: 1px dashed var(--ae-rule-strong);
+    padding-top: 0.625rem;
+  }
+
+  .ae-gu-context {
+    margin-top: 1rem;
+  }
+
+  .ae-gu code {
+    font-family: var(--ae-font-mono);
+    font-size: 0.92em;
+    color: var(--ae-ink);
+  }
+
+  .ae-gu-caption {
+    margin-top: 1rem;
+    max-width: var(--ae-measure);
+    font-size: var(--ae-text-small);
+    line-height: 1.55;
+    color: var(--ae-blueprint);
+  }
+
+  /* Wide: paths left, bus on their right, then union, arrow and outcome in a row. */
+  @media (min-width: 48rem) {
+    .ae-gu-grid {
+      grid-template-columns: minmax(0, 1.35fr) calc(var(--tick) * 2) auto 2.5rem minmax(0, 1fr);
+      align-items: center;
     }
 
-    {/* --- Edges into the union --- */}
-    <path
-      d="M 269 49 C 340 49 350 130 410 145"
-      fill="none"
-      stroke="var(--ae-line-strong)"
-      stroke-width="1.5"
-      marker-end="url(#gu-arrow)"></path>
-    <path
-      d="M 269 151 C 330 151 350 150 410 150"
-      fill="none"
-      stroke="var(--ae-line-strong)"
-      stroke-width="1.5"
-      marker-end="url(#gu-arrow)"></path>
-    <path
-      d="M 269 253 C 340 253 350 172 410 156"
-      fill="none"
-      stroke="var(--ae-line-strong)"
-      stroke-width="1.5"
-      marker-end="url(#gu-arrow)"></path>
+    .ae-gu-paths {
+      padding: 0;
+    }
 
-    {/* --- The union --- */}
-    <circle
-      cx="470"
-      cy="150"
-      r="46"
-      fill="var(--ae-brand-soft)"
-      stroke="var(--ae-brand)"
-      stroke-width="1.5"></circle>
-    <text
-      x="470"
-      y="147"
-      font-size="26"
-      text-anchor="middle"
-      fill="var(--ae-brand)"
-      font-weight="600">∪</text
-    >
-    <text x="470" y="169" font-size="10.5" text-anchor="middle" fill="var(--ae-fg-muted)"
-      >any one suffices</text
-    >
+    .ae-gu-path::after {
+      left: auto;
+      right: calc(var(--tick) * -1);
+    }
 
-    <path
-      d="M 518 150 L 588 150"
-      fill="none"
-      stroke="var(--ae-brand)"
-      stroke-width="1.75"
-      marker-end="url(#gu-arrow-brand)"></path>
+    .ae-gu-path::before {
+      left: auto;
+      right: calc(var(--tick) * -1);
+    }
 
-    <rect
-      x="596"
-      y="122"
-      width="162"
-      height="56"
-      rx="10"
-      fill="var(--ae-surface)"
-      stroke="var(--ae-brand)"
-      stroke-width="1.5"></rect>
-    <text x="677" y="147" font-size="14" text-anchor="middle" font-weight="600" fill="currentColor"
-      >Row authorized</text
-    >
-    <text x="677" y="164" font-size="11" text-anchor="middle" fill="var(--ae-fg-muted)"
-      >order cannot matter</text
-    >
+    .ae-gu-path:last-child::before {
+      bottom: 50%;
+    }
 
-    {/* --- The absent path, drawn as absent --- */}
-    <line
-      x1="596"
-      y1="222"
-      x2="758"
-      y2="222"
-      stroke="var(--ae-line)"
-      stroke-width="1.25"
-      stroke-dasharray="4 5"></line>
-    <text x="677" y="242" font-size="11" text-anchor="middle" fill="var(--ae-fg-muted)"
-      >no <tspan font-family="var(--font-mono)">forbid_if</tspan> for row access</text
-    >
-    <text x="677" y="258" font-size="11" text-anchor="middle" fill="var(--ae-fg-muted)"
-      >nothing subtracts</text
-    >
-  </svg>
-</div>
+    .ae-gu-join {
+      width: 100%;
+      height: 1.5px;
+      margin-left: 0;
+      border-left: 0;
+      align-self: center;
+      /* From the bus, one tick in, to the union. */
+      background: linear-gradient(var(--stroke), var(--stroke)) no-repeat right center / calc(100% - var(--tick)) 1.5px;
+    }
+
+    .ae-gu-union {
+      position: relative;
+      margin-left: 0;
+    }
+
+    /* Under the circle, out of the flow, so the circle sits on the row's centre line. */
+    .ae-gu-cup-label {
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      width: 6rem;
+      margin-top: 0.375rem;
+      transform: translateX(-50%);
+      text-align: center;
+    }
+
+    .ae-gu-arrow {
+      width: 100%;
+      height: 1.5px;
+      margin-left: 0;
+      border-left: 0;
+      background-color: var(--ae-workshop);
+      align-self: center;
+    }
+
+    .ae-gu-arrow::after {
+      bottom: auto;
+      left: auto;
+      right: -1px;
+      top: -5px;
+      border: 5.5px solid transparent;
+      border-left: 7px solid var(--ae-workshop);
+      border-right: 0;
+    }
+
+    .ae-gu-out {
+      margin-top: 0;
+    }
+  }
+</style>

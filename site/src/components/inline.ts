@@ -29,7 +29,7 @@ export function inlineMarkdown(text: string): string {
   return escapeHtml(text)
     .replace(
       /`([^`]+)`/g,
-      '<code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.85em] text-fg">$1</code>',
+      '<code class="ae-code">$1</code>',
     )
     .replace(/(?<![\w*])\*([^*\n]+)\*(?![\w*])/g, '<em>$1</em>')
     .replace(/(?<![\w_])_([^_\n]+)_(?![\w_])/g, '<em>$1</em>');

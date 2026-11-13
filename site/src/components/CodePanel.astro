@@ -1,37 +1,22 @@
 ---
 /**
- * A syntax-highlighted code sample with an optional filename bar.
+ * A code specimen on paper: the Atelier plate. Paper ground, hairline rule,
+ * square corners, IBM Plex Mono at 14px/1.75, coloured from the `--ae-*`
+ * tokens so it follows the theme. Elixir is tokenised; any other language is
+ * set in plain ink rather than half-right highlighting.
  *
- * Two themes:
- *
- * - `default` — the dark terminal panel. Dark in both site themes on purpose:
- *   a terminal and an editor look like a terminal and an editor, and a single
- *   Shiki theme means one set of tokens to check rather than two.
- * - `atelier` — the "Enterprise Atelier" paper plate (design handoff:
- *   docs/design_handoff_ash_enterprise_hero). A mounted specimen, not a
- *   terminal: paper background, 2px radius, hairline rule, IBM Plex Mono at
- *   14px/1.75. Tokenised to the `--ae-*` CSS variables, so it follows the
- *   `data-theme` dark-mode swap automatically. Elixir is tokenised here; other
- *   languages render plain ink rather than a half-right highlighting.
+ * For code shown as evidence (a real file, captioned, dark in both themes)
+ * use `Exhibit.astro` instead.
  */
-import { Code } from 'astro:components';
-
 interface Props {
   code: string;
   lang?: string;
   /** Shown in the title bar; usually a path or a shell prompt label. */
   filename?: string;
-  theme?: 'default' | 'atelier';
   class?: string;
 }
 
-const {
-  code,
-  lang = 'elixir',
-  filename,
-  theme: panelTheme = 'default',
-  class: className = '',
-} = Astro.props;
+const { code, lang = 'elixir', filename, class: className = '' } = Astro.props;
 
 /* --- Atelier token map --------------------------------------------------- */
 /*
@@ -87,59 +72,22 @@ function highlightAtelierElixir(source: string): string {
   return out + escapeHtml(source.slice(last));
 }
 
-const isAtelier = panelTheme === 'atelier';
-const atelierHtml = isAtelier
-  ? lang === 'elixir'
-    ? highlightAtelierElixir(code.trim())
-    : escapeHtml(code.trim())
-  : '';
+const html = lang === 'elixir' ? highlightAtelierElixir(code.trim()) : escapeHtml(code.trim());
 ---
 
-<div
-  class:list={[
-    'not-prose overflow-hidden',
-    isAtelier
-      ? 'rounded-[2px] border border-ae-rule bg-ae-paper'
-      : 'rounded-xl border border-line bg-[#0d1117] shadow-card',
-    className,
-  ]}
->
+<div class:list={['ae-codepanel min-w-0 overflow-hidden rounded-ae border border-ae-rule bg-ae-paper', className]}>
   {
     filename && (
-      <div
-        class:list={[
-          'flex items-center gap-2 border-b px-4 py-2.5',
-          isAtelier ? 'border-ae-rule' : 'border-white/10',
-        ]}
-      >
-        {isAtelier ? (
-          <span class="font-mono text-xs tracking-wide text-ae-copper">{filename}</span>
-        ) : (
-          <>
-            <span class="h-2 w-2 rounded-full bg-white/20" aria-hidden="true" />
-            <span class="font-mono text-xs tracking-wide text-white/55">{filename}</span>
-          </>
-        )}
+      <div class="flex items-center gap-2 border-b border-ae-rule px-4 py-2.5">
+        <span class="font-mono text-xs tracking-wide text-ae-copper">{filename}</span>
       </div>
     )
   }
-  {
-    isAtelier ? (
-      <div class="overflow-guard">
-        <pre
-          class="whitespace-pre px-[30px] py-[28px] font-mono text-[14px] leading-[1.75] text-ae-ink"
-          set:html={atelierHtml}
-        />
-      </div>
-    ) : (
-      <div class="overflow-guard">
-        <Code
-          code={code.trim()}
-          lang={lang as any}
-          theme="github-dark"
-          class="!bg-transparent px-4 py-4 text-[0.78125rem] leading-relaxed"
-        />
-      </div>
-    )
-  }
+  {/* Focusable so a keyboard can scroll a line wider than the column. */}
+  <div class="ae-overflow" tabindex="0" {...(filename ? { role: 'region', 'aria-label': `Code: ${filename}` } : {})}>
+    <pre
+      class="px-5 py-6 font-mono text-[13px] leading-[1.75] whitespace-pre text-ae-ink sm:px-[30px] sm:py-[28px] sm:text-[14px]"
+      set:html={html}
+    />
+  </div>
 </div>

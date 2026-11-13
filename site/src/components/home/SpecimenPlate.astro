@@ -15,14 +15,14 @@ const plateCaption =
   'mt-10 border-t border-ae-rule pt-5 font-mono text-[12px] text-ae-blueprint';
 ---
 
-<div id="specimen" class="specimen-root">
+<div id="ae-specimen">
   <div class="grid gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16">
     {/* The plate. */}
     <div class="flex flex-col gap-8">
       {
         specimenFragments.map((f) => (
           <article
-            class="spec-box min-w-0 border border-ae-rule border-l-2 p-6 sm:p-7"
+            class="ae-spec-box min-w-0 border border-ae-rule border-l-2 p-6 sm:p-7"
             data-fragment={f.id}
             style={`--key: ${keyVar[f.key]}; border-left-color: ${keyVar[f.key]};`}
           >
@@ -39,7 +39,7 @@ const plateCaption =
               <p class="font-mono text-[11px] text-ae-blueprint">{f.sourcePath}</p>
             </div>
 
-            <CodePanel code={f.code} lang="elixir" theme="atelier" />
+            <CodePanel code={f.code} lang="elixir" />
 
             <p class="mt-5 max-w-[60ch] text-[14px] leading-[1.55] text-ae-ink">
               {f.annotation}
@@ -59,7 +59,7 @@ const plateCaption =
         {
           specimenFragments.map((f) => (
             <a
-              class="spec-chip inline-flex items-center px-3 py-[7px] font-mono text-[13px] border border-ae-rule bg-ae-paper text-ae-ink transition-colors duration-150"
+              class="ae-spec-chip inline-flex items-center px-3 py-[7px] font-mono text-[13px] border border-ae-rule bg-ae-paper text-ae-ink transition-colors duration-150"
               data-fragment={f.id}
               style={`--key: ${keyVar[f.key]}`}
               href={f.href}
@@ -81,10 +81,10 @@ const plateCaption =
       <div class="mt-2">
         {
           specimenFragments.map((f) => (
-            <div class="spec-gives" data-fragment={f.id} style={`--key: ${keyVar[f.key]}`}>
+            <div class="ae-spec-gives" data-fragment={f.id} style={`--key: ${keyVar[f.key]}`}>
               <p class="flex items-center gap-2.5 border-t border-ae-rule pt-4 font-sans text-[15px] font-medium text-ae-ink">
                 <span
-                  class="gives-marker inline-block h-2 w-2 shrink-0"
+                  class="ae-spec-marker inline-block h-2 w-2 shrink-0"
                   style={`border: 1px solid ${keyVar[f.key]}`}
                   aria-hidden="true"
                 />
@@ -112,36 +112,36 @@ const plateCaption =
 
 <style>
   /* Keyed tints — color-mix over the paper token so dark mode follows along. */
-  .spec-box {
+  .ae-spec-box {
     background-color: color-mix(in oklab, var(--key) 5%, var(--ae-paper));
     transition: background-color 150ms ease;
   }
 
-  .spec-box.is-active {
+  .ae-spec-box.is-active {
     background-color: color-mix(in oklab, var(--key) 13%, var(--ae-paper));
   }
 
-  .spec-chip.is-active {
+  .ae-spec-chip.is-active {
     border-color: var(--key);
     color: var(--key);
     background-color: color-mix(in oklab, var(--key) 10%, var(--ae-paper));
   }
 
-  .spec-gives .gives-marker {
+  .ae-spec-gives .ae-spec-marker {
     transition: background-color 150ms ease;
   }
 
-  .spec-gives.is-active .gives-marker {
+  .ae-spec-gives.is-active .ae-spec-marker {
     background-color: var(--key);
   }
 
-  .spec-gives.is-active > p {
+  .ae-spec-gives.is-active > p {
     color: var(--key);
   }
 </style>
 
 <script>
-  const root = document.getElementById('specimen');
+  const root = document.getElementById('ae-specimen');
 
   if (root) {
     // fragment id -> the box, the chip and the outcome entry, together.
@@ -171,7 +171,7 @@ const plateCaption =
     root.addEventListener('mouseleave', () => setActive(null));
     root.addEventListener('focusout', (event) => {
       const next = event.relatedTarget as HTMLElement | null;
-      if (!next || !next.closest('#specimen')) setActive(null);
+      if (!next || !next.closest('#ae-specimen')) setActive(null);
     });
   }
 </script>

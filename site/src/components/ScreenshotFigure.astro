@@ -65,15 +65,15 @@ const full = src ? await getImage({ src, width: Math.min(src.width, 2400), forma
 
 {
   src ? (
-    <figure class:list={['not-prose group my-0', className]}>
-      <div class="overflow-hidden rounded-xl border border-line bg-surface shadow-card transition-shadow duration-300 group-hover:shadow-lg">
+    <figure class:list={['group my-0', className]}>
+      <div class="overflow-hidden rounded-ae border border-ae-rule bg-ae-paper shadow-ae transition-shadow duration-300 group-hover:shadow-lg">
         <div
-          class="flex items-center gap-1.5 border-b border-line bg-surface-2 px-3 py-2"
+          class="flex items-center gap-1.5 border-b border-ae-rule bg-ae-paper-2 px-3 py-2"
           aria-hidden="true"
         >
-          <span class="h-2.5 w-2.5 rounded-full bg-line-strong" />
-          <span class="h-2.5 w-2.5 rounded-full bg-line-strong" />
-          <span class="h-2.5 w-2.5 rounded-full bg-line-strong" />
+          <span class="h-2.5 w-2.5 rounded-full bg-ae-rule-strong" />
+          <span class="h-2.5 w-2.5 rounded-full bg-ae-rule-strong" />
+          <span class="h-2.5 w-2.5 rounded-full bg-ae-rule-strong" />
         </div>
         <a
           class="ae-zoom relative"
@@ -99,14 +99,14 @@ const full = src ? await getImage({ src, width: Math.min(src.width, 2400), forma
         </a>
       </div>
       {hasCaption && (
-        <figcaption class="mt-3 text-sm leading-relaxed text-muted">
+        <figcaption class="mt-3 text-sm leading-relaxed text-ae-muted">
           {caption}
           <slot />
         </figcaption>
       )}
     </figure>
   ) : fallback ? (
-    <p class="rounded-xl border border-dashed border-line px-4 py-3 text-sm text-muted">
+    <p class="rounded-ae border border-dashed border-ae-rule px-4 py-3 text-sm text-ae-muted">
       {caption ?? alt}
     </p>
   ) : null

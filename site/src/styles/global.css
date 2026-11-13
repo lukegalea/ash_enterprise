@@ -1,202 +1,258 @@
 @import "tailwindcss";
+@import "./tokens.css";
 
 /*
- * Dark mode follows Starlight.
- * -----------------------------------------------------------------------
- * Starlight owns the theme for `/docs/*`: it stamps `data-theme="light"` or
- * `data-theme="dark"` on <html> and persists the choice to the localStorage key
- * `starlight-theme`. The landing page uses the *same* attribute and the *same*
- * key (see `src/layouts/Base.astro`), so toggling on one side of the site and
- * navigating to the other keeps the reader's choice.
+ * The marketing pages' stylesheet: Tailwind, the shared tokens, and the
+ * handful of `ae-*` classes every page repeats. Starlight never loads this
+ * file; `/docs/` reads the same tokens through `starlight.css`.
  *
- * Consequence: Tailwind's `dark:` variant must key off that attribute rather
- * than the default `prefers-color-scheme` media query, or the utilities and the
- * tokens below would disagree the moment anyone touches the toggle.
+ * Naming. Every class this site defines starts `ae-`, and every colour utility
+ * is an `ae-*` token (`bg-ae-paper`, `text-ae-muted`, `border-ae-rule`). There
+ * is no second palette: a colour that is not in `tokens.css` does not exist.
+ *
+ * Dark mode follows Starlight's `data-theme` attribute, not the media query,
+ * so Tailwind's `dark:` variant is redefined to key off it.
  */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/* --- Tokens ------------------------------------------------------------- */
 /*
- * Light is the base definition, on bare `:root`, so no colour has its only
- * definition inside a media query. Dark is redefined twice: once for the system
- * preference (guarded so an explicit `light` choice still wins) and once for an
- * explicit `dark` choice (so the toggle wins in both directions).
- */
-:root {
-  --ae-bg: oklch(99% 0.004 260);
-  --ae-surface: oklch(100% 0 0);
-  --ae-surface-2: oklch(97% 0.006 260);
-  --ae-fg: oklch(21% 0.03 260);
-  --ae-fg-muted: oklch(48% 0.02 260);
-  --ae-line: oklch(90% 0.01 260);
-  --ae-line-strong: oklch(82% 0.015 260);
-  --ae-brand: oklch(55% 0.16 268);
-  --ae-brand-fg: oklch(99% 0.005 268);
-  --ae-brand-soft: oklch(95% 0.03 268);
-  --ae-code-bg: oklch(96% 0.008 260);
-  --ae-shadow: 0 1px 2px oklch(21% 0.03 260 / 0.06), 0 8px 24px oklch(21% 0.03 260 / 0.06);
-
-  /*
-   * "Enterprise Atelier" palette (design handoff:
-   * docs/design_handoff_ash_enterprise_hero). Warm flax paper steps, one ink,
-   * and four accent hues. Declared alongside — not replacing — the original
-   * tokens above, under the same light/dark scheme.
-   */
-  --ae-paper: #f3efe4;
-  --ae-paper-2: #ede9dc;
-  --ae-paper-3: #eae5d8;
-  --ae-paper-4: #e4dfd2;
-  --ae-ink: #20221f;
-  --ae-workshop: #35594a;
-  --ae-copper: #a5623b;
-  --ae-vermilion: #c94d34;
-  --ae-blueprint: #405b76;
-  --ae-rule: #cdc6b7;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --ae-bg: oklch(17% 0.02 264);
-    --ae-surface: oklch(21% 0.022 264);
-    --ae-surface-2: oklch(25% 0.024 264);
-    --ae-fg: oklch(95% 0.008 264);
-    --ae-fg-muted: oklch(72% 0.018 264);
-    --ae-line: oklch(30% 0.022 264);
-    --ae-line-strong: oklch(38% 0.026 264);
-    --ae-brand: oklch(72% 0.14 268);
-    --ae-brand-fg: oklch(18% 0.03 268);
-    --ae-brand-soft: oklch(28% 0.05 268);
-    --ae-code-bg: oklch(24% 0.022 264);
-    --ae-shadow: 0 1px 2px oklch(0% 0 0 / 0.3), 0 8px 24px oklch(0% 0 0 / 0.35);
-
-    /* Atelier, dark: a straight token swap except the hues are lifted for
-     * contrast on the dark paper (see the handoff's dark-theme table). */
-    --ae-paper: #1b1d1a;
-    --ae-paper-2: #232620;
-    --ae-paper-3: #2a2e27;
-    --ae-paper-4: #32362e;
-    --ae-ink: #e8e3d6;
-    --ae-workshop: #7fa894;
-    --ae-copper: #c98a5e;
-    --ae-vermilion: #e0664a;
-    --ae-blueprint: #8faac4;
-    --ae-rule: #3d423a;
-  }
-}
-
-:root[data-theme="dark"] {
-  --ae-bg: oklch(17% 0.02 264);
-  --ae-surface: oklch(21% 0.022 264);
-  --ae-surface-2: oklch(25% 0.024 264);
-  --ae-fg: oklch(95% 0.008 264);
-  --ae-fg-muted: oklch(72% 0.018 264);
-  --ae-line: oklch(30% 0.022 264);
-  --ae-line-strong: oklch(38% 0.026 264);
-  --ae-brand: oklch(72% 0.14 268);
-  --ae-brand-fg: oklch(18% 0.03 268);
-  --ae-brand-soft: oklch(28% 0.05 268);
-  --ae-code-bg: oklch(24% 0.022 264);
-  --ae-shadow: 0 1px 2px oklch(0% 0 0 / 0.3), 0 8px 24px oklch(0% 0 0 / 0.35);
-
-  /* Atelier, dark — must match the guarded media-query block above. */
-  --ae-paper: #1b1d1a;
-  --ae-paper-2: #232620;
-  --ae-paper-3: #2a2e27;
-  --ae-paper-4: #32362e;
-  --ae-ink: #e8e3d6;
-  --ae-workshop: #7fa894;
-  --ae-copper: #c98a5e;
-  --ae-vermilion: #e0664a;
-  --ae-blueprint: #8faac4;
-  --ae-rule: #3d423a;
-}
-
-/*
- * `@theme inline` publishes the tokens as Tailwind utilities without freezing
- * their values, so `bg-surface`, `text-muted`, `border-line`, `text-brand` and
- * friends re-resolve per theme instead of baking in the light palette.
+ * `@theme inline` publishes the tokens as utilities without freezing their
+ * values, so every utility re-resolves when the theme flips.
  */
 @theme inline {
-  --color-bg: var(--ae-bg);
-  --color-surface: var(--ae-surface);
-  --color-surface-2: var(--ae-surface-2);
-  --color-fg: var(--ae-fg);
-  --color-muted: var(--ae-fg-muted);
-  --color-line: var(--ae-line);
-  --color-line-strong: var(--ae-line-strong);
-  --color-brand: var(--ae-brand);
-  --color-brand-fg: var(--ae-brand-fg);
-  --color-brand-soft: var(--ae-brand-soft);
-  --color-code-bg: var(--ae-code-bg);
-
-  /* Atelier utilities: bg-ae-paper, text-ae-ink, border-ae-rule,
-   * text-ae-copper, bg-ae-workshop, … re-resolve per theme like the rest. */
   --color-ae-paper: var(--ae-paper);
   --color-ae-paper-2: var(--ae-paper-2);
   --color-ae-paper-3: var(--ae-paper-3);
   --color-ae-paper-4: var(--ae-paper-4);
   --color-ae-ink: var(--ae-ink);
+  --color-ae-muted: var(--ae-muted);
+  --color-ae-rule: var(--ae-rule);
+  --color-ae-rule-strong: var(--ae-rule-strong);
   --color-ae-workshop: var(--ae-workshop);
   --color-ae-copper: var(--ae-copper);
   --color-ae-vermilion: var(--ae-vermilion);
   --color-ae-blueprint: var(--ae-blueprint);
-  --color-ae-rule: var(--ae-rule);
+  --color-ae-on-accent: var(--ae-on-accent);
+  --color-ae-exhibit: var(--ae-exhibit);
+  --color-ae-exhibit-2: var(--ae-exhibit-2);
+  --color-ae-exhibit-ink: var(--ae-exhibit-ink);
+  --color-ae-exhibit-muted: var(--ae-exhibit-muted);
+  --color-ae-exhibit-rule: var(--ae-exhibit-rule);
 
-  --shadow-card: var(--ae-shadow);
+  --shadow-ae: var(--ae-shadow);
+  --radius-ae: var(--ae-radius);
 
-  /*
-   * Self-hosted via @fontsource (imported in `src/layouts/Base.astro`).
-   * System stacks stay as fallbacks for the brief moment before the fonts
-   * load — and for anything Starlight renders, which never imports them.
-   */
-  --font-display: "Newsreader", ui-serif, Georgia, Cambria, "Times New Roman", serif;
-  --font-sans:
-    "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    sans-serif;
-  --font-mono:
-    "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
-    monospace;
+  --font-display: var(--ae-font-display);
+  --font-sans: var(--ae-font-sans);
+  --font-mono: var(--ae-font-mono);
 }
 
 /* --- Base --------------------------------------------------------------- */
-
-html {
-  scroll-behavior: smooth;
-  /* The sticky header must not swallow the heading an anchor lands on. */
-  scroll-padding-top: 5rem;
-  -webkit-text-size-adjust: 100%;
-}
-
-@media (prefers-reduced-motion: reduce) {
+/*
+ * In the `base` layer so any utility on an element overrides it. Unlayered
+ * rules would beat every utility regardless of specificity.
+ */
+@layer base {
   html {
-    scroll-behavior: auto;
+    scroll-behavior: smooth;
+    /* The sticky header must not swallow the heading an anchor lands on. */
+    scroll-padding-top: 5rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  body {
+    /* Explicit: a transparent body would borrow the host's colours. */
+    background-color: var(--ae-paper);
+    color: var(--ae-ink);
+    font-family: var(--ae-font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /*
+   * A `grid` with no `grid-cols-*` at the narrowest width gets one column that
+   * may shrink below its content, so a long line of code scrolls inside its own
+   * box instead of widening the page. Any `grid-cols-*` utility replaces it.
+   */
+  :where(.grid) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* A path or an identifier with no spaces breaks rather than push the page wide. */
+  main :where(a, code) {
+    overflow-wrap: anywhere;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--ae-workshop) 22%, var(--ae-paper));
+    color: var(--ae-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ae-focus);
+    outline-offset: 2px;
   }
 }
 
-body {
-  /* Explicit, tokenised: a transparent body would borrow the host's colours. */
-  background-color: var(--ae-bg);
-  color: var(--ae-fg);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
+/* --- The ae-* classes --------------------------------------------------- */
+/*
+ * The strings every page used to repeat as Tailwind class lists. In the
+ * `components` layer so a utility on the same element still wins.
+ */
+@layer components {
+  /* The page column: the 16px+ side gutter lives here and nowhere else. */
+  .ae-container {
+    width: 100%;
+    max-width: var(--ae-container);
+    margin-inline: auto;
+    padding-inline: var(--ae-gutter);
+  }
 
-::selection {
-  background-color: var(--ae-brand-soft);
-  color: var(--ae-fg);
-}
+  .ae-container-narrow {
+    width: 100%;
+    max-width: var(--ae-container-narrow);
+    margin-inline: auto;
+    padding-inline: var(--ae-gutter);
+  }
 
-:focus-visible {
-  outline: 2px solid var(--ae-brand);
-  outline-offset: 2px;
-  border-radius: 2px;
-}
+  .ae-section {
+    padding-block: var(--ae-section-y);
+    border-top: 1px solid var(--ae-rule);
+    scroll-margin-top: 6rem;
+  }
 
-/* Wide content must scroll inside its own box; the page body never does. */
-.overflow-guard {
-  overflow-x: auto;
-  max-width: 100%;
+  /* 11px mono caps: the label above a heading, a column head, a plate label. */
+  .ae-eyebrow {
+    font-family: var(--ae-font-mono);
+    font-size: var(--ae-text-label);
+    letter-spacing: var(--ae-tracking-label);
+    text-transform: uppercase;
+    color: var(--ae-copper);
+  }
+
+  .ae-h1 {
+    font-family: var(--ae-font-display);
+    font-weight: 400;
+    font-size: var(--ae-text-h1);
+    line-height: 1.04;
+    letter-spacing: -0.025em;
+    color: var(--ae-ink);
+    text-wrap: balance;
+  }
+
+  .ae-h2 {
+    font-family: var(--ae-font-display);
+    font-weight: 400;
+    font-size: var(--ae-text-h2);
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    color: var(--ae-ink);
+    text-wrap: balance;
+  }
+
+  .ae-h3 {
+    font-family: var(--ae-font-sans);
+    font-weight: 500;
+    font-size: var(--ae-text-h3);
+    line-height: 1.3;
+    color: var(--ae-ink);
+  }
+
+  .ae-lead {
+    max-width: var(--ae-measure);
+    font-size: var(--ae-text-lead);
+    line-height: var(--ae-leading-body);
+    color: var(--ae-ink);
+    text-wrap: pretty;
+  }
+
+  /* Body copy one step quieter than the lead. */
+  .ae-body {
+    max-width: var(--ae-measure);
+    line-height: var(--ae-leading-body);
+    color: var(--ae-muted);
+    text-wrap: pretty;
+  }
+
+  /* The underlined text link: workshop, to vermilion on hover. */
+  .ae-link {
+    color: var(--ae-workshop);
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--ae-workshop) 45%, transparent);
+    text-underline-offset: 0.25em;
+    transition: color 150ms ease, text-decoration-color 150ms ease;
+  }
+
+  .ae-link:hover {
+    color: var(--ae-vermilion);
+    text-decoration-color: currentColor;
+  }
+
+  /* Buttons. One primary per page; the rest are outlined. */
+  .ae-btn,
+  .ae-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: var(--ae-radius);
+    font-family: var(--ae-font-sans);
+    font-size: var(--ae-text-small);
+    font-weight: 500;
+    transition: background-color 150ms ease, border-color 150ms ease, opacity 150ms ease;
+  }
+
+  .ae-btn {
+    border: 1px solid var(--ae-rule-strong);
+    background-color: var(--ae-paper);
+    color: var(--ae-ink);
+  }
+
+  .ae-btn:hover {
+    border-color: var(--ae-workshop);
+    background-color: var(--ae-paper-2);
+  }
+
+  .ae-btn-primary {
+    border: 1px solid var(--ae-vermilion);
+    background-color: var(--ae-vermilion);
+    color: var(--ae-on-accent);
+  }
+
+  .ae-btn-primary:hover {
+    opacity: 0.9;
+  }
+
+  /* A ruled panel on paper. */
+  .ae-card {
+    border: 1px solid var(--ae-rule);
+    border-radius: var(--ae-radius);
+    background-color: var(--ae-paper);
+  }
+
+  /* Inline code inside prose. */
+  .ae-code {
+    border-radius: var(--ae-radius);
+    background-color: var(--ae-paper-2);
+    padding: 0.1em 0.35em;
+    font-family: var(--ae-font-mono);
+    font-size: 0.85em;
+    color: var(--ae-ink);
+  }
+
+  /* Wide content scrolls inside its own box; the page body never does. */
+  .ae-overflow {
+    overflow-x: auto;
+    max-width: 100%;
+  }
 }
 
 /* --- Lightbox ----------------------------------------------------------- */
@@ -225,7 +281,7 @@ body {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--ae-fg);
+  color: var(--ae-ink);
 }
 
 .ae-lightbox::backdrop {
@@ -273,7 +329,7 @@ body {
   box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.6);
   /* A screenshot on a dark backdrop wants its own ground: a PNG with
    * transparency would otherwise composite onto the blur. */
-  background-color: var(--ae-surface);
+  background-color: var(--ae-paper);
 }
 
 .ae-lightbox-caption {

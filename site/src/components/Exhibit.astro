@@ -1,0 +1,218 @@
+---
+/**
+ * An exhibit: a captioned dark plate for something shown as evidence — a
+ * quoted source file, a terminal run, or a capture of the running application.
+ * Dark in both themes on purpose, so evidence reads as distinct from the
+ * paper argument around it.
+ *
+ * Give it exactly one of:
+ *
+ *   code     a snippet, highlighted by Shiki (`lang`, default elixir);
+ *   capture  the bare filename of a screenshot in `src/assets/screenshots/`.
+ *            When that file is not in this build the whole exhibit is left
+ *            out, so a page never shows a capture that was not taken from a
+ *            real run. The surrounding text must stand alone;
+ *   a default slot, for anything else.
+ *
+ * The caption is required: an exhibit says what the reader is looking at.
+ * `source` is a repository path; it is printed and linked to GitHub, so a
+ * snippet always shows where it was quoted from.
+ *
+ *   <Exhibit
+ *     label="Exhibit 1"
+ *     title="the policy every resource inherits"
+ *     source="lib/ash_enterprise/security/policies.ex"
+ *     code={snippet}
+ *     caption="Four grant paths in one policy. Any one authorizes; none subtracts."
+ *   />
+ */
+import { Code } from 'astro:components';
+import { Image, getImage } from 'astro:assets';
+import ZoomBadge from './ZoomBadge.astro';
+import { exhibitTheme } from './exhibit-theme';
+import { screenshot } from './screenshots';
+import { repoHref } from '../lib/roadmap';
+
+interface Props {
+  caption: string;
+  /** Short mono label in the bar, e.g. `Exhibit 2` or `Fig. 3`. */
+  label?: string;
+  /** What the plate holds: a file name, a command, a route. */
+  title?: string;
+  /** Repository-relative path the exhibit was taken from. */
+  source?: string;
+  /** Line range in `source`, e.g. `12-40`; added to the link as `#L12-L40`. */
+  lines?: string;
+  code?: string;
+  lang?: string;
+  capture?: string;
+  /** Required with `capture`. */
+  alt?: string;
+  id?: string;
+  class?: string;
+}
+
+const {
+  caption,
+  label,
+  title,
+  source,
+  lines,
+  code,
+  lang = 'elixir',
+  capture,
+  alt = '',
+  id,
+  class: className = '',
+} = Astro.props;
+
+const image = capture ? screenshot(capture) : undefined;
+const full = image
+  ? await getImage({ src: image, width: Math.min(image.width, 2400), format: 'webp' })
+  : undefined;
+
+// A capture that was asked for and is not in the build removes the exhibit.
+const render = !capture || Boolean(image);
+
+const anchor = lines ? `#L${lines.replace('-', '-L')}` : '';
+const sourceHref = source ? `${repoHref(source)}${anchor}` : undefined;
+const hasBar = Boolean(label || title || source);
+---
+
+{
+  render && (
+    <figure id={id} class:list={['ae-exhibit', className]}>
+      {hasBar && (
+        <div class="ae-exhibit-bar">
+          {label && <span class="ae-exhibit-label">{label}</span>}
+          {title && <span class="ae-exhibit-title">{title}</span>}
+          {source && (
+            <a
+              class="ae-exhibit-source"
+              href={sourceHref}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {source}
+              {lines && `:${lines}`}
+              <span class="sr-only"> (source on GitHub, opens in a new tab)</span>
+            </a>
+          )}
+        </div>
+      )}
+
+      {code && (
+        <div class="ae-exhibit-body">
+          {/* Shiki's <pre> scrolls sideways itself and is already focusable. */}
+          <Code code={code.trim()} lang={lang as any} theme={exhibitTheme as any} class="ae-exhibit-code" />
+        </div>
+      )}
+
+      {image && full && (
+        <a
+          class="ae-zoom group relative block"
+          href={full.src}
+          data-lightbox-src={full.src}
+          data-lightbox-alt={alt}
+          data-lightbox-caption={caption}
+          aria-label={`View larger: ${alt}`}
+        >
+          <Image
+            src={image}
+            alt={alt}
+            widths={[640, 960, 1440]}
+            sizes="(min-width: 1024px) 960px, 100vw"
+            loading="lazy"
+            decoding="async"
+            class="block w-full"
+          />
+          <ZoomBadge />
+        </a>
+      )}
+
+      {!code && !capture && (
+        <div class="ae-exhibit-body">
+          <slot />
+        </div>
+      )}
+
+      <figcaption class="ae-exhibit-caption">{caption}</figcaption>
+    </figure>
+  )
+}
+
+<style>
+  .ae-exhibit {
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--ae-exhibit-rule);
+    border-radius: var(--ae-radius);
+    background-color: var(--ae-exhibit);
+    color: var(--ae-exhibit-ink);
+    box-shadow: var(--ae-shadow);
+  }
+
+  .ae-exhibit-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 1rem;
+    border-bottom: 1px solid var(--ae-exhibit-rule);
+    background-color: var(--ae-exhibit-2);
+    padding: 0.625rem 1rem;
+    font-family: var(--ae-font-mono);
+    font-size: 0.75rem;
+  }
+
+  .ae-exhibit-label {
+    text-transform: uppercase;
+    letter-spacing: var(--ae-tracking-label);
+    font-size: var(--ae-text-label);
+    color: var(--ae-exhibit-accent);
+  }
+
+  .ae-exhibit-title {
+    color: var(--ae-exhibit-ink);
+  }
+
+  .ae-exhibit-source {
+    margin-left: auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--ae-exhibit-muted);
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 0.2em;
+    transition: color 150ms ease, text-decoration-color 150ms ease;
+  }
+
+  .ae-exhibit-source:hover {
+    color: var(--ae-exhibit-ink);
+    text-decoration-color: currentColor;
+  }
+
+  .ae-exhibit-body {
+    padding: 1.25rem 1.25rem;
+  }
+
+  .ae-exhibit-body :global(.ae-exhibit-code) {
+    margin: 0;
+    background-color: transparent !important;
+    font-family: var(--ae-font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.7;
+  }
+
+  .ae-exhibit-caption {
+    border-top: 1px solid var(--ae-exhibit-rule);
+    padding: 0.75rem 1rem 0.875rem;
+    font-size: var(--ae-text-small);
+    line-height: 1.55;
+    color: var(--ae-exhibit-muted);
+    text-wrap: pretty;
+  }
+
+  .ae-exhibit :focus-visible {
+    outline-color: var(--ae-exhibit-accent);
+  }
+</style>

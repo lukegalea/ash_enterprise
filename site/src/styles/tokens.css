@@ -1,0 +1,145 @@
+/*
+ * The design tokens, defined once for the whole site.
+ * -----------------------------------------------------------------------
+ * Two consumers read these and nothing else defines a colour, a font, a radius
+ * or a gutter:
+ *
+ *   - `global.css`, which publishes them as Tailwind utilities for the
+ *     marketing pages (`bg-ae-paper`, `text-ae-ink`, `border-ae-rule`, ...);
+ *   - `starlight.css`, which maps Starlight's `--sl-*` variables onto them so
+ *     `/docs/` wears the same palette and type.
+ *
+ * Theme. Starlight owns it: it stamps `data-theme="light" | "dark"` on <html>
+ * and stores the choice under the localStorage key `starlight-theme`.
+ * `layouts/Base.astro` uses the same attribute and key. Light is the base on
+ * bare `:root`; dark is redefined twice, once for the system preference
+ * (guarded so an explicit light choice wins) and once for an explicit dark
+ * choice (so the toggle wins in both directions).
+ *
+ * Contrast. Every text colour below is at least 4.5:1 on `--ae-paper` and
+ * `--ae-paper-2` in its theme; `--ae-rule-strong` is at least 3:1 for the
+ * strokes that carry meaning in a diagram. `--ae-rule` is decoration only.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Paper: the grounds, from page to deepest panel. */
+  --ae-paper: #f3efe4;
+  --ae-paper-2: #ede9dc;
+  --ae-paper-3: #eae5d8;
+  --ae-paper-4: #e4dfd2;
+
+  /* Ink: body text, and the quieter text beside it. */
+  --ae-ink: #20221f;
+  --ae-muted: #585b53;
+
+  /* Rules: hairlines (decoration) and strokes that carry meaning. */
+  --ae-rule: #cdc6b7;
+  --ae-rule-strong: #877f6f;
+
+  /* The four accents. Workshop is the primary; vermilion is for the one call
+   * to action on a page; blueprint is navigation and diagrams; copper labels. */
+  --ae-workshop: #35594a;
+  --ae-copper: #94552f;
+  --ae-vermilion: #b8432b;
+  --ae-blueprint: #405b76;
+
+  /* Text set on a filled accent (the vermilion button, the workshop chip). */
+  --ae-on-accent: #f7f4ec;
+
+  /* Status. Shapes and words carry the meaning; these only reinforce it. */
+  --ae-status-shipped: var(--ae-workshop);
+  --ae-status-partial: var(--ae-copper);
+  --ae-status-planned: var(--ae-blueprint);
+  --ae-status-open: var(--ae-muted);
+  --ae-status-owned: var(--ae-blueprint);
+  --ae-status-evidenced: var(--ae-workshop);
+  --ae-status-unknown: var(--ae-muted);
+
+  /* The exhibit: a dark plate for code and captures, dark in both themes. */
+  --ae-exhibit: #151714;
+  --ae-exhibit-2: #1e211c;
+  --ae-exhibit-ink: #e6e1d3;
+  --ae-exhibit-muted: #9c978a;
+  --ae-exhibit-rule: #343830;
+  --ae-exhibit-accent: #c98a5e;
+
+  --ae-shadow: 0 1px 2px rgb(32 34 31 / 0.06), 0 10px 28px rgb(32 34 31 / 0.08);
+  --ae-focus: var(--ae-blueprint);
+
+  /* Type. Self-hosted through @fontsource; the system stacks are fallbacks. */
+  --ae-font-display: "Newsreader", ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  --ae-font-sans:
+    "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --ae-font-mono:
+    "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+
+  /* Type scale (fluid where a heading spans phone to desktop). */
+  --ae-text-label: 0.6875rem; /* 11px mono caps: eyebrows, column heads */
+  --ae-text-small: 0.875rem;
+  --ae-text-body: 1rem;
+  --ae-text-lead: clamp(1.0625rem, 0.98rem + 0.4vw, 1.1875rem);
+  --ae-text-h3: 1.25rem;
+  --ae-text-h2: clamp(1.875rem, 1.4rem + 2vw, 3rem);
+  --ae-text-h1: clamp(2.5rem, 1.6rem + 4vw, 4.875rem);
+  --ae-tracking-label: 0.18em;
+  --ae-leading-body: 1.6;
+
+  /* Space and measure. */
+  --ae-gutter: clamp(1rem, 0.5rem + 2.5vw, 3.5rem);
+  --ae-container: 80rem;
+  --ae-container-narrow: 64rem;
+  --ae-measure: 62ch;
+  --ae-section-y: clamp(4rem, 3rem + 4vw, 7rem);
+
+  /* Radius: Atelier is square-cornered. */
+  --ae-radius: 2px;
+  --ae-radius-md: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ae-paper: #1b1d1a;
+    --ae-paper-2: #232620;
+    --ae-paper-3: #2a2e27;
+    --ae-paper-4: #32362e;
+    --ae-ink: #e8e3d6;
+    --ae-muted: #a9a497;
+    --ae-rule: #3d423a;
+    --ae-rule-strong: #6b7166;
+    --ae-workshop: #7fa894;
+    --ae-copper: #c98a5e;
+    --ae-vermilion: #e0664a;
+    --ae-blueprint: #8faac4;
+    --ae-on-accent: #14160f;
+    --ae-exhibit: #111310;
+    --ae-exhibit-2: #191b17;
+    --ae-exhibit-rule: #2e322b;
+    --ae-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px rgb(0 0 0 / 0.35);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ae-paper: #1b1d1a;
+  --ae-paper-2: #232620;
+  --ae-paper-3: #2a2e27;
+  --ae-paper-4: #32362e;
+  --ae-ink: #e8e3d6;
+  --ae-muted: #a9a497;
+  --ae-rule: #3d423a;
+  --ae-rule-strong: #6b7166;
+  --ae-workshop: #7fa894;
+  --ae-copper: #c98a5e;
+  --ae-vermilion: #e0664a;
+  --ae-blueprint: #8faac4;
+  --ae-on-accent: #14160f;
+  --ae-exhibit: #111310;
+  --ae-exhibit-2: #191b17;
+  --ae-exhibit-rule: #2e322b;
+  --ae-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px rgb(0 0 0 / 0.35);
+}

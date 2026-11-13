@@ -16,10 +16,10 @@ interface Chip {
   href: string;
 }
 
-/** Upstream Ash packages are published on Hex; their docs live on hexdocs. */
+/** The upstream packages wired in below are Hex dependencies in mix.exs; their docs are on hexdocs. */
 const hex = (pkg: string): string => `https://hexdocs.pm/${pkg}/`;
 
-/** First-party packages are git dependencies (mix.exs); nothing of ours is on Hex. */
+/** First-party packages are git dependencies in mix.exs; none of ours is on Hex. */
 const gh = (pkg: string): string => `https://github.com/lukegalea/${pkg}`;
 
 /** Stratum 05 — the first-party layer. One filled, the rest outlined. */
@@ -42,7 +42,7 @@ const outlinedChips: Chip[] = [
   },
 ];
 
-/** Stratum 04 — wired in (verified present in mix.exs). */
+/** Stratum 04 — the upstream packages the reference application depends on (mix.exs). */
 const wiredChips: Chip[] = [
   { label: 'AshPostgres', href: hex('ash_postgres') },
   { label: 'AshPhoenix', href: hex('ash_phoenix') },
@@ -59,17 +59,6 @@ const wiredChips: Chip[] = [
   { label: 'AshAuthentication', href: hex('ash_authentication') },
   { label: 'AshCloak', href: hex('ash_cloak') },
   { label: 'AshMoney', href: hex('ash_money') },
-];
-
-/** Stratum 04 — published upstream, not wired into the reference app (not in mix.exs). */
-const availableChips: Chip[] = [
-  { label: 'AshTypescript', href: hex('ash_typescript') },
-  { label: 'AshDoubleEntry', href: hex('ash_double_entry') },
-  { label: 'AshGeo', href: hex('ash_geo') },
-  {
-    label: 'AshSqlite · AshCsv · AshCubDB · AshAppSignal',
-    href: hex('ash_sqlite'),
-  },
 ];
 
 /** Band heading — the handoff's 12px / 0.14em mono caps. */
@@ -98,7 +87,7 @@ const strata: Stratum[] = [
     folio: '04',
     title: 'The Ash ecosystem',
     annotation:
-      'Persistence, APIs, admin, jobs, events, soft deletion and LLM tools — all reading the same resources. Ash Enterprise wires twelve of them together as one system.',
+      'Persistence, APIs, admin, jobs, events, soft deletion and LLM tools — all reading the same resources. Ash Enterprise wires the ones below together as one system.',
     bandClass: 'border border-ae-rule bg-ae-paper py-[22px]',
     headingClass: 'text-ae-ink',
   },
@@ -131,13 +120,13 @@ const strata: Stratum[] = [
 const chipBase = 'inline-flex items-center gap-1.5 px-3 py-[7px] font-mono text-[13px]';
 ---
 
-<figure id="fig1" class="overflow-guard">
+<figure id="ae-fig-stack">
   <div class="flex flex-col">
     {
       strata.map((s, i) => (
         <div
           class:list={[
-            'fig1-stratum grid grid-cols-1 lg:grid-cols-[96px_minmax(0,1fr)_300px] lg:items-stretch lg:gap-8',
+            'ae-stratum grid grid-cols-1 lg:grid-cols-[96px_minmax(0,1fr)_300px] lg:items-stretch lg:gap-8',
             i > 0 && 'mt-3',
           ]}
         >
@@ -150,17 +139,12 @@ const chipBase = 'inline-flex items-center gap-1.5 px-3 py-[7px] font-mono text-
           <div class:list={['min-w-0', s.bandClass]}>
             <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6">
               <h3 class:list={[bandHeading, s.headingClass]}>{s.title}</h3>
-              {s.folio === '04' && (
-                <span class="font-mono text-[11px] text-ae-blueprint">
-                  ● wired in · ○ available
-                </span>
-              )}
             </div>
 
             {s.folio === '05' && (
               <div class="flex flex-wrap gap-2 px-6 pt-3.5">
                 <a
-                  class:list={[chipBase, 'bg-ae-workshop text-ae-paper transition-colors duration-150 hover:opacity-90']}
+                  class:list={[chipBase, 'bg-ae-workshop text-ae-on-accent transition-colors duration-150 hover:opacity-90']}
                   href={filledChip.href}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -189,17 +173,7 @@ const chipBase = 'inline-flex items-center gap-1.5 px-3 py-[7px] font-mono text-
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <span aria-hidden="true">●</span> {chip.label}
-                  </a>
-                ))}
-                {availableChips.map((chip) => (
-                  <a
-                    class:list={[chipBase, 'border border-dashed border-ae-rule text-ae-blueprint transition-colors duration-150 hover:border-ae-workshop hover:text-ae-ink']}
-                    href={chip.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <span aria-hidden="true">○</span> {chip.label}
+                    {chip.label}
                   </a>
                 ))}
               </div>
@@ -225,35 +199,35 @@ const chipBase = 'inline-flex items-center gap-1.5 px-3 py-[7px] font-mono text-
 <style>
   /* The reveal is opt-in: the script sets data-animate only when it can run and
    * motion is allowed, so the static render is always the final state. */
-  #fig1[data-animate] .fig1-stratum {
+  #ae-fig-stack[data-animate] .ae-stratum {
     opacity: 0;
     transform: translateY(8px);
   }
 
-  .fig1-stratum {
+  .ae-stratum {
     transition:
       opacity 300ms ease,
       transform 300ms ease;
   }
 
-  #fig1[data-animate] .fig1-stratum.is-revealed {
+  #ae-fig-stack[data-animate] .ae-stratum.is-revealed {
     opacity: 1;
     transform: none;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .fig1-stratum {
+    .ae-stratum {
       transition: none;
     }
   }
 </style>
 
 <script>
-  const fig = document.getElementById('fig1');
+  const fig = document.getElementById('ae-fig-stack');
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   if (fig && !reduced && 'IntersectionObserver' in window) {
-    const rows = Array.from(fig.querySelectorAll<HTMLElement>('.fig1-stratum'));
+    const rows = Array.from(fig.querySelectorAll<HTMLElement>('.ae-stratum'));
     fig.dataset.animate = '';
 
     const io = new IntersectionObserver(

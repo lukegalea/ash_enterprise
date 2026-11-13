@@ -1,0 +1,102 @@
+@import "./tokens.css";
+
+/*
+ * Starlight, in the site's palette and type.
+ * -----------------------------------------------------------------------
+ * Loaded through `customCss` in `astro.config.mjs`. Starlight's own variables
+ * live in the `starlight.base` cascade layer; these rules are unlayered, so
+ * they win without needing a more specific selector.
+ *
+ * One definition serves both themes. Starlight's grey ramp is relative to the
+ * text, not absolute: in dark mode `--sl-color-gray-1` is the light end and
+ * `--sl-color-black` the dark one, and in light mode the ramp flips. The
+ * `--ae-*` tokens flip the same way (ink and paper swap), so each step is
+ * written as "this far from ink toward paper" and stays right in both.
+ */
+
+:root {
+  --sl-font: var(--ae-font-sans);
+  --sl-font-mono: var(--ae-font-mono);
+
+  --sl-color-white: var(--ae-ink);
+  --sl-color-gray-1: color-mix(in oklab, var(--ae-ink) 92%, var(--ae-paper));
+  --sl-color-gray-2: color-mix(in oklab, var(--ae-ink) 84%, var(--ae-paper));
+  --sl-color-gray-3: var(--ae-muted);
+  --sl-color-gray-4: var(--ae-rule-strong);
+  --sl-color-gray-5: var(--ae-rule);
+  --sl-color-gray-6: var(--ae-paper-2);
+  --sl-color-gray-7: var(--ae-paper-3);
+  --sl-color-black: var(--ae-paper);
+
+  --sl-color-accent-low: color-mix(in oklab, var(--ae-workshop) 18%, var(--ae-paper));
+  --sl-color-accent: var(--ae-workshop);
+  --sl-color-accent-high: color-mix(in oklab, var(--ae-workshop) 70%, var(--ae-ink));
+
+  /* Asides: note, tip, caution, danger. */
+  --sl-color-blue-low: color-mix(in oklab, var(--ae-blueprint) 16%, var(--ae-paper));
+  --sl-color-blue: var(--ae-blueprint);
+  --sl-color-blue-high: color-mix(in oklab, var(--ae-blueprint) 70%, var(--ae-ink));
+  --sl-color-green-low: color-mix(in oklab, var(--ae-workshop) 16%, var(--ae-paper));
+  --sl-color-green: var(--ae-workshop);
+  --sl-color-green-high: color-mix(in oklab, var(--ae-workshop) 70%, var(--ae-ink));
+  --sl-color-orange-low: color-mix(in oklab, var(--ae-copper) 16%, var(--ae-paper));
+  --sl-color-orange: var(--ae-copper);
+  --sl-color-orange-high: color-mix(in oklab, var(--ae-copper) 70%, var(--ae-ink));
+  --sl-color-red-low: color-mix(in oklab, var(--ae-vermilion) 16%, var(--ae-paper));
+  --sl-color-red: var(--ae-vermilion);
+  --sl-color-red-high: color-mix(in oklab, var(--ae-vermilion) 70%, var(--ae-ink));
+  --sl-color-purple-low: color-mix(in oklab, var(--ae-blueprint) 16%, var(--ae-paper));
+  --sl-color-purple: var(--ae-blueprint);
+  --sl-color-purple-high: color-mix(in oklab, var(--ae-blueprint) 70%, var(--ae-ink));
+
+  --sl-color-bg-nav: var(--ae-paper);
+  --sl-color-bg-sidebar: var(--ae-paper);
+  --sl-color-bg-inline-code: var(--ae-paper-2);
+  --sl-color-hairline-light: var(--ae-rule);
+  --sl-color-hairline: var(--ae-rule);
+  --sl-color-hairline-shade: var(--ae-rule);
+}
+
+body {
+  background-color: var(--ae-paper);
+}
+
+:focus-visible {
+  outline-color: var(--ae-focus);
+}
+
+/* Display type for the page title and the two top heading levels, as on the
+ * marketing pages. Deeper levels stay in the sans for scanning. */
+.content-panel h1#_top,
+.sl-markdown-content :is(h1, h2) {
+  font-family: var(--ae-font-display);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+}
+
+.sl-markdown-content :is(h3, h4, h5) {
+  font-weight: 500;
+}
+
+.site-title {
+  font-family: var(--ae-font-display);
+  font-weight: 400;
+  font-size: 1.25rem;
+  color: var(--ae-ink);
+}
+
+/* Square corners, hairline rules: the Atelier plate. */
+.sl-markdown-content :is(pre, .expressive-code .frame, table, blockquote),
+.starlight-aside,
+.sl-link-card,
+.card {
+  border-radius: var(--ae-radius);
+}
+
+.sl-markdown-content code:not(pre code) {
+  border-radius: var(--ae-radius);
+}
+
+.sl-markdown-content a:not(.sl-link-button) {
+  text-underline-offset: 0.2em;
+}

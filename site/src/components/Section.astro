@@ -1,23 +1,29 @@
 ---
 /**
- * One beat of the landing page's argument: a numbered eyebrow, a heading, an
- * optional lead, an optional row of status chips, and whatever the caller puts
- * in the body.
+ * One section of a page: an eyebrow (optionally numbered), a display heading,
+ * an optional lead, an optional row of status chips and an aside, then the
+ * body. The page's rhythm comes from here, so pages do not restate it.
  *
- * `tone="muted"` paints the band in `surface-2` so consecutive sections do not
- * read as one undifferentiated scroll; it is used sparingly, roughly every
- * third section.
+ *   <Section id="control" step="01" eyebrow="Control" title="Who may do what" lead="…">
+ *     <StatusChip slot="chips" status={…} label="…" />
+ *     …body…
+ *   </Section>
+ *
+ * `tone="muted"` paints the band in `paper-2` so consecutive sections do not
+ * read as one scroll; use it about every third section. `wide` widens the
+ * column for tables and diagrams.
  */
 interface Props {
   id: string;
-  /** Two-digit step number in the narrative, e.g. `04`. */
+  /** Two-digit step in the page's argument, e.g. `04`. */
   step?: string;
   eyebrow?: string;
   title: string;
   lead?: string;
   tone?: 'default' | 'muted';
-  /** Wider body for full-bleed tables and diagrams. */
   wide?: boolean;
+  /** Heading level for the title; 2 unless the page has no other h2 above. */
+  level?: 2 | 3;
   class?: string;
 }
 
@@ -29,45 +35,35 @@ const {
   lead,
   tone = 'default',
   wide = false,
+  level = 2,
   class: className = '',
 } = Astro.props;
 
+const Heading = level === 3 ? 'h3' : 'h2';
 const hasChips = Astro.slots.has('chips');
 const hasAside = Astro.slots.has('aside');
 ---
 
 <section
   id={id}
-  class:list={[
-    'scroll-mt-24 border-t border-line py-20 sm:py-28',
-    tone === 'muted' ? 'bg-surface-2/50' : '',
-    className,
-  ]}
+  class:list={['ae-section', tone === 'muted' && 'bg-ae-paper-2', className]}
 >
-  <div class:list={['mx-auto px-4 sm:px-6 lg:px-8', wide ? 'max-w-6xl' : 'max-w-5xl']}>
+  <div class={wide ? 'ae-container' : 'ae-container-narrow'}>
     <header class="max-w-3xl">
       {
         (step || eyebrow) && (
-          <p class="mb-4 flex items-center gap-3 font-mono text-xs tracking-widest text-muted uppercase">
+          <p class="ae-eyebrow mb-4 flex items-center gap-3">
             {step && (
-              <span class="rounded border border-line px-1.5 py-0.5 text-brand tabular-nums">
-                {step}
-              </span>
+              <span class="border border-ae-rule px-1.5 py-0.5 tabular-nums">{step}</span>
             )}
             {eyebrow && <span>{eyebrow}</span>}
           </p>
         )
       }
 
-      <h2 class="text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">
-        {title}
-      </h2>
+      <Heading class="ae-h2">{title}</Heading>
 
-      {
-        lead && (
-          <p class="mt-5 text-lg leading-relaxed text-pretty text-muted sm:text-xl">{lead}</p>
-        )
-      }
+      {lead && <p class="ae-lead mt-5">{lead}</p>}
 
       {
         hasChips && (
@@ -80,7 +76,7 @@ const hasAside = Astro.slots.has('aside');
 
     {
       hasAside && (
-        <div class="mt-6 max-w-3xl border-l-2 border-brand/40 pl-5 text-base leading-relaxed text-muted">
+        <div class="ae-body mt-6 border-l-2 border-ae-workshop/40 pl-5">
           <slot name="aside" />
         </div>
       )

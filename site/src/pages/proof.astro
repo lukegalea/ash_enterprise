@@ -17,13 +17,14 @@ import Scoreboard from '../components/Scoreboard.astro';
 import SectionScoreboard from '../components/SectionScoreboard.astro';
 import QuestionTable from '../components/QuestionTable.astro';
 import StatusChip from '../components/StatusChip.astro';
+import StatusIcon from '../components/StatusIcon.astro';
+import { statusLabel } from '../components/status';
 import { inlineMarkdown } from '../components/inline';
 import {
   frameworks,
   controlsInFramework,
   controlStatus,
   questionsFor,
-  statusMeta,
   withBase,
   repoHref,
 } from '../lib/roadmap';
@@ -38,9 +39,9 @@ const rows = frameworks.map((framework) => ({
 }));
 
 const sectionEyebrow = 'font-mono text-xs tracking-widest text-ae-copper uppercase';
-const cardRule = 'rounded-[2px] border border-ae-rule bg-ae-paper';
+const cardRule = 'rounded-ae border border-ae-rule bg-ae-paper';
 const btn =
-  'inline-flex items-center gap-2 rounded-[2px] border border-ae-rule bg-ae-paper px-4 py-2.5 text-sm font-medium text-ae-ink transition-colors hover:border-ae-copper';
+  'inline-flex items-center gap-2 rounded-ae border border-ae-rule bg-ae-paper px-4 py-2.5 text-sm font-medium text-ae-ink transition-colors hover:border-ae-copper';
 ---
 
 <Base
@@ -56,7 +57,7 @@ const btn =
       >
         Built answers. Named gaps. No architecture theatre.
       </h1>
-      <p class="mt-6 max-w-3xl text-lg leading-relaxed text-pretty text-muted">
+      <p class="mt-6 max-w-3xl text-lg leading-relaxed text-pretty text-ae-muted">
         Every status is generated from the same roadmap file used by the documentation and CI. Follow
         any answer to its evidence — or to the gap it still names.
       </p>
@@ -72,7 +73,7 @@ const btn =
       <h2 class="mt-3 font-display text-3xl font-medium tracking-tight text-balance text-ae-ink sm:text-4xl">
         Read the rows, not the total
       </h2>
-      <p class="mt-4 max-w-3xl leading-relaxed text-pretty text-muted">
+      <p class="mt-4 max-w-3xl leading-relaxed text-pretty text-ae-muted">
         One ratio across the whole checklist reports the project as uniformly half-finished, when in
         fact evidence is nearly done and assurance has barely started — and which of those a reader
         cares about depends entirely on why they came. The sections say which half.
@@ -102,7 +103,7 @@ const btn =
       {/* The disclaimer, first. */}
       <div class={cardRule + ' mt-10 p-6'}>
         <h3 class="font-mono text-xs tracking-widest text-ae-copper uppercase">What this is</h3>
-        <div class="mt-3 space-y-3 text-sm leading-relaxed text-muted">
+        <div class="mt-3 space-y-3 text-sm leading-relaxed text-ae-muted">
           <p>
             This is an engineering document describing what the code does, written in the vocabulary an
             auditor uses. It is <strong class="font-semibold text-ae-ink">not</strong> an assertion of
@@ -129,12 +130,12 @@ const btn =
               <h3 class="font-display text-2xl font-medium tracking-tight text-ae-ink">
                 {framework.name}
               </h3>
-              <p class="font-mono text-xs text-muted">{framework.revision}</p>
+              <p class="font-mono text-xs text-ae-muted">{framework.revision}</p>
             </div>
 
             <ul class="mt-6 space-y-4">
               {controls.map(({ control, status, questions }) => (
-                <li class="rounded-[2px] border border-ae-rule bg-ae-paper p-5">
+                <li class="rounded-ae border border-ae-rule bg-ae-paper p-5">
                   <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
                     <h4 class="text-base font-semibold text-balance">
                       <span class="font-mono text-ae-copper">{control.id}</span>{' '}
@@ -143,22 +144,23 @@ const btn =
                     <StatusChip status={status} />
                   </div>
 
-                  <p class="mt-3 text-sm leading-relaxed text-muted italic">{control.asks}</p>
+                  <p class="mt-3 text-sm leading-relaxed text-ae-muted italic">{control.asks}</p>
 
                   <p
-                    class="mt-3 text-sm leading-relaxed text-muted"
+                    class="mt-3 text-sm leading-relaxed text-ae-muted"
                     set:html={inlineMarkdown(control.note)}
                   />
 
                   <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-ae-rule pt-4">
-                    <span class="text-xs text-muted">Bearing on it:</span>
+                    <span class="text-xs text-ae-muted">Bearing on it:</span>
                     {questions.map((question) => (
                       <span
-                        class="inline-flex items-center gap-1.5 rounded-[2px] border border-ae-rule bg-ae-paper-2 px-2 py-1 text-xs"
+                        class="inline-flex items-center gap-1.5 rounded-ae border border-ae-rule bg-ae-paper-2 px-2 py-1 text-xs"
                         title={question.question}
                       >
-                        <span aria-hidden="true">{statusMeta[question.status].icon}</span>
-                        <span class="font-mono text-muted">{question.id}</span>
+                        <StatusIcon status={question.status} size={12} />
+                        <span class="sr-only">{statusLabel[question.status]}:</span>
+                        <span class="font-mono text-ae-muted">{question.id}</span>
                         {question.proof ? (
                           <a
                             class="text-ae-copper underline-offset-4 hover:underline"
@@ -181,7 +183,7 @@ const btn =
         <h3 class="font-display text-xl font-medium tracking-tight text-ae-ink">
           What writing this map found
         </h3>
-        <div class="mt-4 space-y-4 text-sm leading-relaxed text-muted">
+        <div class="mt-4 space-y-4 text-sm leading-relaxed text-ae-muted">
           <p>
             Mapping controls to questions is a search for holes, and it found two. <strong
               class="font-semibold text-ae-ink">Evidence of review</strong

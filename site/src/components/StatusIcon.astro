@@ -1,0 +1,125 @@
+---
+/**
+ * The glyph for a status, as inline SVG. Decorative: it is always
+ * `aria-hidden`, and whatever renders it must print the status word beside it
+ * (as `StatusChip` does). Shape carries the difference, colour reinforces it:
+ *
+ *   shipped    ● filled circle with a tick     evidenced  ■ filled square with a tick
+ *   partial    ◐ half-filled circle            owned      ▣ square with a filled core
+ *   planned    ◎ ring with a centre dot        unknown    ⬚ dashed square
+ *   open       ◌ dashed ring
+ */
+import { statusColor, type ChipStatus } from './status';
+
+interface Props {
+  status: ChipStatus;
+  /** Rendered size in px. */
+  size?: number;
+  class?: string;
+}
+
+const { status, size = 14, class: className = '' } = Astro.props;
+const color = statusColor[status];
+---
+
+<svg
+  class:list={['ae-status-icon shrink-0', className]}
+  width={size}
+  height={size}
+  viewBox="0 0 16 16"
+  aria-hidden="true"
+  focusable="false"
+  style={`color: ${color}`}
+>
+  {
+    status === 'shipped' && (
+      <>
+        <circle cx="8" cy="8" r="7" fill="currentColor" />
+        <path
+          d="M4.8 8.3l2.1 2.1 4.3-4.6"
+          fill="none"
+          stroke="var(--ae-paper)"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </>
+    )
+  }
+  {
+    status === 'partial' && (
+      <>
+        <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5" />
+        <path d="M8 1.75a6.25 6.25 0 0 0 0 12.5z" fill="currentColor" />
+      </>
+    )
+  }
+  {
+    status === 'planned' && (
+      <>
+        <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5" />
+        <circle cx="8" cy="8" r="2.25" fill="currentColor" />
+      </>
+    )
+  }
+  {
+    status === 'open' && (
+      <circle
+        cx="8"
+        cy="8"
+        r="6.25"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-dasharray="2.4 2.5"
+      />
+    )
+  }
+  {
+    status === 'evidenced' && (
+      <>
+        <rect x="1.25" y="1.25" width="13.5" height="13.5" rx="1" fill="currentColor" />
+        <path
+          d="M4.8 8.3l2.1 2.1 4.3-4.6"
+          fill="none"
+          stroke="var(--ae-paper)"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </>
+    )
+  }
+  {
+    status === 'owned' && (
+      <>
+        <rect
+          x="2"
+          y="2"
+          width="12"
+          height="12"
+          rx="1"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        />
+        <rect x="5.5" y="5.5" width="5" height="5" fill="currentColor" />
+      </>
+    )
+  }
+  {
+    status === 'unknown' && (
+      <rect
+        x="2"
+        y="2"
+        width="12"
+        height="12"
+        rx="1"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-dasharray="2.4 2.2"
+      />
+    )
+  }
+</svg>
