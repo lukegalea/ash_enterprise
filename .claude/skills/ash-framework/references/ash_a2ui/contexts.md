@@ -144,12 +144,12 @@ with `?ctx[<context>]=<id>`), its `:detail` cards and its related tables:
 
 - Head each section with `label` (`component :detail, :overview do label
   "Overview" ... end`); the default is the humanized component name, which
-  cannot say "Properties & pricing". Labels translate as metadata.
+  cannot say "Items & prices". Labels translate as metadata.
 - Group cards under a page section with `section "Overview"`: consecutive
   components naming the same section share one h2 heading inside a wrapper
   `Column` (`section_<first component's key>`, an anchor a section nav can
   target). A card in a section without a `label` draws no heading of its
-  own, so a one-card section ("Renewal terms") is not headed twice.
+  own, so a one-card section ("Shipping") is not headed twice.
 - A section's summary line ("12 items · 3 warehouses") is a
   `section_note :field` on one of its components: a field of the context's
   record (a calculation on the order), drawn muted under the section's
@@ -157,8 +157,8 @@ with `?ctx[<context>]=<id>`), its `:detail` cards and its related tables:
   It needs the component's `section` and one context: a `:detail`'s
   `context`, or a related table's single `context_filter` context.
 - `component_order :declared` (a surface option) lays the admin catalog's
-  sections out in declaration order — Overview, the lines, then Renewal
-  terms — instead of every table before the cards. The basic catalog always
+  sections out in declaration order — Overview, the items, then
+  Shipping — instead of every table before the cards. The basic catalog always
   uses declaration order.
 - A detail value that is a state reads as a badge: declare `badge_text`,
   `badge_tones` and `badge_help` on its `field`, the row layout's
@@ -172,7 +172,7 @@ with `?ctx[<context>]=<id>`), its `:detail` cards and its related tables:
   (admin catalog), saying how the value came to be.
 - A value the record does not state shows the field's `empty_text`
   ("Not stated") instead of a blank; a row that only makes sense when set
-  ("Terminated by") is listed in the card's `hide_empty` and left out while
+  ("Cancelled by") is listed in the card's `hide_empty` and left out while
   empty. Both are admin catalog only.
 - Values from related records are calculations on the context's resource:
   a detail field cannot take a `source` path.

@@ -27,7 +27,7 @@ actions) and `export` blocks (server-generated CSV via a
   the Run button dispatches the `"report"` client action. Blank params are
   unset; non-blank values are cast against the action's arguments;
   non-allowlisted keys are dropped before the cast.
-- `param_placeholders search: "Search vendors"` gives a param's input a
+- `param_placeholders search: "Search suppliers"` gives a param's input a
   placeholder (admin catalog; the label stays as its accessible name). Keys
   must be among `params`.
 - A `field` override may name a report param or row key

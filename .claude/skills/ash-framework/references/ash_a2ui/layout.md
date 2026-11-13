@@ -107,7 +107,7 @@ topics for the full contracts.
   `_badge_tone_<field>` and the admin dataGrid's badge column binds it as
   `tonePath`. Use tones for meaning (state), not decoration.
 - Explain each badge value in one line with `badge_help` (matched like
-  `badge_text`, e.g. `badge_help active: "Contract is currently active"`):
+  `badge_text`, e.g. `badge_help active: "Account is currently active"`):
   the admin grid draws it as the pill's tooltip. Translated as display
   metadata; rows carry it at `_badge_help_<field>` (`""` unmatched) and the
   badge column binds it as `helpPath` (catalog 1.11).
@@ -364,13 +364,13 @@ topics for the full contracts.
     `sortable`; the column carries `"sortField"`.
   - `width 320` — a fixed width in px (`"width"`); `primary_action` takes
     `width` too (`rowClick.width`).
-  - `more_values :field` (a `list` aggregate) and `more_noun "properties"`
+  - `more_values :field` (a `list` aggregate) and `more_noun "warehouses"`
     — every value behind "+N more", as strings at `_more_values_<column>`
     (`more.valuesPath`), and the noun for their caption (`"moreNoun"`).
     Needs `more`.
 - Catalog 1.11 adds, all optional and admin-only:
   - `caption :field` + `caption_text "Created {date}"` — a third line under
-    the value and its subtitle (a contract's created date under its vendor).
+    the value and its subtitle (an order's placed date under its customer).
     `{date}` is the field's value formatted as a date in the reader's locale,
     `{value}` the value as is; without `caption_text` the line is the value.
     The field is folded like `subtitle`; the column carries
