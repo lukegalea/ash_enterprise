@@ -2,7 +2,8 @@ defmodule AshEnterprise.Bpmn.AlertReviewTest do
   @moduledoc """
   The `security_alerts` pack (q38: alerts on declared audited events, and a record that a
   person reviewed each one). Its recipes open a review when an Administrator or a Platform
-  Operator is made, a break-glass session is approved, an API key is issued, a known
+  Operator is made, directly or through a team (the role assigned to a team, a person
+  joining a team that holds it, such a team restored), a break-glass session is approved, an API key is issued, a known
   person's sign-in is refused a third time in a row, or an inbound alert labelled security
   fires. Every other audited write is only logged.
 
@@ -27,7 +28,7 @@ defmodule AshEnterprise.Bpmn.AlertReviewTest do
   require Ash.Query
   require OpenTelemetry.Tracer, as: Tracer
 
-  alias AshEnterprise.Accounts.{ApiKey, User}
+  alias AshEnterprise.Accounts.{ApiKey, Team, TeamMembership, User}
   alias AshEnterprise.Automation.{Occurrence, Occurrences}
 
   alias AshEnterprise.Bpmn.{
@@ -40,7 +41,7 @@ defmodule AshEnterprise.Bpmn.AlertReviewTest do
   }
 
   alias AshEnterprise.Platform.SystemActor
-  alias AshEnterprise.Security.{BreakGlassSession, Role, UserRole}
+  alias AshEnterprise.Security.{ActorContext, BreakGlassSession, Role, TeamRole, UserRole}
   alias AshEnterprise.Telemetry.TraceSink
   alias AshEnterprise.Test.DailyFixtures
 
@@ -119,6 +120,44 @@ defmodule AshEnterprise.Bpmn.AlertReviewTest do
       tenant: ctx.tenant
     )
     |> Ash.create!()
+  end
+
+  defp owner_team!(ctx) do
+    Team
+    |> Ash.Changeset.for_create(
+      :create,
+      %{
+        name: "Platform team #{unique()}",
+        team_type: :owner,
+        owning_business_unit_id: ctx.admin.business_unit.id
+      },
+      actor: ctx.admin.actor,
+      tenant: ctx.tenant
+    )
+    |> Ash.create!()
+  end
+
+  defp assign_to_team!(ctx, team, role) do
+    TeamRole
+    |> Ash.Changeset.for_create(:assign, %{team_id: team.id, role_id: role.id},
+      actor: ctx.admin.actor,
+      tenant: ctx.tenant
+    )
+    |> Ash.create!()
+  end
+
+  defp join!(ctx, team, user) do
+    TeamMembership
+    |> Ash.Changeset.for_create(:create, %{team_id: team.id, user_id: user.id},
+      actor: ctx.admin.actor,
+      tenant: ctx.tenant
+    )
+    |> Ash.create!()
+  end
+
+  defp administrator_of?(ctx, user) do
+    context = ActorContext.build(user, tenant: ctx.tenant)
+    ActorContext.grant(context, Role, :write).global?
   end
 
   # A member who may open and approve break-glass sessions.
@@ -317,6 +356,32 @@ defmodule AshEnterprise.Bpmn.AlertReviewTest do
       nothing!(ctx.tenant)
     end
 
+    test "for a team given a role that is not privileged, and a person joining it" do
+      ctx = installed!() |> publish!()
+      team = owner_team!(ctx)
+
+      assign_to_team!(ctx, team, role!(ctx, "Report Reader #{unique()}"))
+      join!(ctx, team, ctx.newcomer.user)
+
+      sweep!(ctx.tenant)
+      nothing!(ctx.tenant)
+    end
+
+    test "for a person added again to a team holding Administrator they are already in" do
+      ctx = installed!()
+      team = owner_team!(ctx)
+      assign_to_team!(ctx, team, administrator_role!(ctx))
+      join!(ctx, team, ctx.newcomer.user)
+      publish!(ctx)
+
+      # Directory sync adds people again routinely: the same membership, nothing granted.
+      join!(ctx, team, ctx.newcomer.user)
+      assign_to_team!(ctx, team, administrator_role!(ctx))
+
+      sweep!(ctx.tenant)
+      nothing!(ctx.tenant)
+    end
+
     test "for a break-glass session opened but not approved" do
       ctx = installed!() |> publish!()
       operator = break_glass_member!(ctx, "Operator")
@@ -402,6 +467,67 @@ defmodule AshEnterprise.Bpmn.AlertReviewTest do
       sweep!(ctx.tenant)
 
       one_review!(ctx, "security_alerts.privileged_role_assigned", [ctx.admin, ctx.newcomer])
+    end
+
+    test "when Administrator is assigned to a team, offered to neither the granter nor its members" do
+      ctx = installed!()
+      team = owner_team!(ctx)
+      # A member who is already an administrator: leaving them out is the exclusion's doing.
+      member = colleague!(ctx.admin, admin?: true)
+      join!(ctx, team, member.user)
+      join!(ctx, team, ctx.newcomer.user)
+      publish!(ctx)
+
+      assignment = assign_to_team!(ctx, team, administrator_role!(ctx))
+      assert administrator_of?(ctx, ctx.newcomer.user)
+      sweep!(ctx.tenant)
+
+      one_review!(ctx, "security_alerts.privileged_role_assigned_to_team", [
+        ctx.admin,
+        member,
+        ctx.newcomer
+      ])
+
+      assert [%{instance_id: instance_id}] = started(ctx.tenant)
+
+      assert Ash.get!(Instance, instance_id, authorize?: false, tenant: ctx.tenant).subject_id ==
+               assignment.id
+    end
+
+    test "when a person joins a team holding Administrator, offered to neither the adder nor them" do
+      ctx = installed!()
+      team = owner_team!(ctx)
+      assign_to_team!(ctx, team, administrator_role!(ctx))
+      publish!(ctx)
+
+      refute administrator_of?(ctx, ctx.newcomer.user)
+      join!(ctx, team, ctx.newcomer.user)
+      assert administrator_of?(ctx, ctx.newcomer.user)
+
+      sweep!(ctx.tenant)
+      one_review!(ctx, "security_alerts.privileged_team_joined", [ctx.admin, ctx.newcomer])
+    end
+
+    test "when a deleted team holding Administrator is restored" do
+      ctx = installed!()
+      team = owner_team!(ctx)
+      assign_to_team!(ctx, team, administrator_role!(ctx))
+      join!(ctx, team, ctx.newcomer.user)
+      Ash.destroy!(team, actor: ctx.admin.actor, tenant: ctx.tenant)
+      refute administrator_of?(ctx, ctx.newcomer.user)
+      publish!(ctx)
+
+      archived =
+        AshEnterprise.Accounts.get_archived_team!(team.id,
+          actor: ctx.admin.actor,
+          tenant: ctx.tenant
+        )
+
+      AshEnterprise.Accounts.restore_team!(archived, actor: ctx.admin.actor, tenant: ctx.tenant)
+      assert administrator_of?(ctx, ctx.newcomer.user)
+      sweep!(ctx.tenant)
+
+      one_review!(ctx, "security_alerts.privileged_team_restored", [ctx.admin, ctx.newcomer])
     end
 
     test "when a break-glass session is approved, offered to anyone but its operator" do

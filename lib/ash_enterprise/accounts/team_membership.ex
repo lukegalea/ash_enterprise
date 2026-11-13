@@ -96,6 +96,10 @@ defmodule AshEnterprise.Accounts.TeamMembership do
       an error -- it is the same intent expressed twice, and directory sync and
       agent-driven flows both do it routinely.
       """
+
+      # `metadata.role_names`: the roles the person gains through the team, for the
+      # security_alerts pack's review of a privileged role reaching them.
+      change {AshEnterprise.Security.Changes.StampTeamGrant, as: :membership}
     end
   end
 

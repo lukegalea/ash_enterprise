@@ -100,6 +100,9 @@ defmodule AshEnterprise.Security.TeamRole do
 
       validate AshEnterprise.Security.Validations.TeamCanHoldRoles
       change AshEnterprise.Security.Changes.DefaultTeamScopingBusinessUnit
+      # `metadata.role_name`, for the security_alerts pack's review of a privileged role
+      # reaching people through a team.
+      change {AshEnterprise.Security.Changes.StampTeamGrant, as: :team_role}
     end
   end
 

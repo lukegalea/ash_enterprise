@@ -10,16 +10,19 @@
   <!--
     Review a security alert (SOC 2 CC7.2 and CC7.3: anomalies are detected and evaluated).
     Started by one of the security_alerts pack's recipes: an Administrator or Platform
-    Operator role assigned, a break-glass session approved, an API key issued, a third
+    Operator role assigned to a person or to a team, a person joining a team that holds one,
+    such a team restored, a break-glass session approved, an API key issued, a third
     refused sign-in in a row, or an inbound alert labelled security.
 
     One review by an administrator who is none of the people involved. The exclusions are
     subtracted from the candidates before the task is written:
       instance.started_by_id  the person whose write caused the event (who assigned the role)
       subject.created_by_id   the subject row's creator
-      subject.user_id         the person a role was assigned to
+      subject.user_id         the person a role was assigned to, or who joined the team
       subject.subject         the person an occurrence is about (the break-glass operator,
                               the API key's owner, the person whose sign-in was refused)
+      team_grantees           the members of the team a role was assigned to, or of the team
+                              restored: everyone the grant reaches
 
     Human tasks only: nothing here acts on its own. An alert judged unexpected is recorded,
     not acted on; revoking, ending or locking stays a person's act.
@@ -41,6 +44,7 @@
             <ash:exclusion who="subject.created_by_id"/>
             <ash:exclusion who="subject.user_id"/>
             <ash:exclusion who="subject.subject"/>
+            <ash:exclusion who="team_grantees"/>
           </ash:exclusions>
           <ash:outcomes>
             <ash:outcome name="approved"/>

@@ -1,8 +1,8 @@
 {
   "name": "security_alerts",
-  "version": 1,
+  "version": 2,
   "title": "High-risk security events are reviewed",
-  "description": "When an Administrator or a Platform Operator is made, a break-glass session is approved, an API key is issued, a known person's sign-in is refused a third time in a row, or an inbound alert labelled security fires, an administrator other than the people involved reviews it and records whether it was expected. Installed as drafts: nothing runs until a person publishes the process and the recipes. Every other audited write is only logged.",
+  "description": "When an Administrator or a Platform Operator is made, directly or through a team (the role assigned to a team, a person added to a team that holds it, or such a team restored), a break-glass session is approved, an API key is issued, a known person's sign-in is refused a third time in a row, or an inbound alert labelled security fires, an administrator other than the people involved reviews it and records whether it was expected. Installed as drafts: nothing runs until a person publishes the process and the recipes. Every other audited write is only logged.",
   "controls": ["CC7.2", "CC7.3", "CC6.3"],
   "processes": [
     {
@@ -17,6 +17,31 @@
       "match_resource": "AshEnterprise.Security.UserRole",
       "match_action_type": "create",
       "guard_feel": "metadata.role_name = \"Administrator\" or metadata.role_name = \"Platform Operator\"",
+      "process_key": "security.review_alert",
+      "authority": "human_tasks_only"
+    },
+    {
+      "key": "security_alerts.privileged_role_assigned_to_team",
+      "match_resource": "AshEnterprise.Security.TeamRole",
+      "match_action_type": "create",
+      "guard_feel": "metadata.role_name = \"Administrator\" or metadata.role_name = \"Platform Operator\"",
+      "process_key": "security.review_alert",
+      "authority": "human_tasks_only"
+    },
+    {
+      "key": "security_alerts.privileged_team_joined",
+      "match_resource": "AshEnterprise.Accounts.TeamMembership",
+      "match_action_type": "create",
+      "guard_feel": "list contains(metadata.role_names, \"Administrator\") or list contains(metadata.role_names, \"Platform Operator\")",
+      "process_key": "security.review_alert",
+      "authority": "human_tasks_only"
+    },
+    {
+      "key": "security_alerts.privileged_team_restored",
+      "match_resource": "AshEnterprise.Accounts.Team",
+      "match_action": "restore",
+      "match_action_type": "update",
+      "guard_feel": "list contains(metadata.role_names, \"Administrator\") or list contains(metadata.role_names, \"Platform Operator\")",
       "process_key": "security.review_alert",
       "authority": "human_tasks_only"
     },

@@ -198,6 +198,19 @@ defmodule AshEnterprise.Process.AssignmentResolver do
 
   # Maker-checker. Applied by `ash_bpmn` as a subtraction from the candidate set, which is why
   # no deny rule ever reaches the policy engine.
+  #
+  # `"team_grantees"`: the people the subject hands a role to through a team -- every member
+  # of the team a `TeamRole` assigns to, or of a `Team` restored. A review of such a grant is
+  # offered to none of them, as a review of a person's own role is not offered to that person.
+  # Any other subject has none.
+  defp resolve_exclusion(%{"who" => "team_grantees"}, ctx) do
+    case Map.get(ctx, :subject) do
+      %AshEnterprise.Security.TeamRole{team_id: team_id} -> team_member_ids(team_id, ctx)
+      %AshEnterprise.Accounts.Team{id: team_id} -> team_member_ids(team_id, ctx)
+      _other -> []
+    end
+  end
+
   defp resolve_exclusion(%{"who" => path}, ctx) do
     case principal_from_path(path, ctx) do
       nil -> []
@@ -250,6 +263,17 @@ defmodule AshEnterprise.Process.AssignmentResolver do
 
   defp id_of(%{id: id}), do: id
   defp id_of(_), do: nil
+
+  defp team_member_ids(nil, _ctx), do: []
+
+  defp team_member_ids(team_id, ctx) do
+    AshEnterprise.Accounts.TeamMembership
+    |> Ash.Query.for_read(:read)
+    |> Ash.Query.filter(team_id == ^team_id)
+    |> Ash.Query.select([:user_id])
+    |> Ash.read!(read_opts(ctx))
+    |> Enum.map(& &1.user_id)
+  end
 
   defp load_user(id, ctx) do
     User

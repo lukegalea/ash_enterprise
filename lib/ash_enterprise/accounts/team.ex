@@ -156,6 +156,8 @@ defmodule AshEnterprise.Accounts.Team do
 
       validate AshEnterprise.Platform.Validations.WithinRestoreWindow
       change set_attribute(:archived_at, nil)
+      # `metadata.role_names`: the roles the team's members hold through it again.
+      change {AshEnterprise.Security.Changes.StampTeamGrant, as: :restore}
     end
 
     create :create do

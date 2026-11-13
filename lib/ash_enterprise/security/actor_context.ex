@@ -420,9 +420,11 @@ defmodule AshEnterprise.Security.ActorContext do
 
   defp load_team_ids(nil, _tenant), do: []
 
+  # A deleted team is archived and keeps its memberships and role rows, so that a restore
+  # brings it back whole; while it is archived it is no team of anyone's, and grants nothing.
   defp load_team_ids(user_id, tenant) do
     AshEnterprise.Accounts.TeamMembership
-    |> Ash.Query.filter(user_id == ^user_id)
+    |> Ash.Query.filter(user_id == ^user_id and exists(team, is_nil(archived_at)))
     |> Ash.Query.select([:team_id])
     |> read_all(tenant)
     |> Enum.map(& &1.team_id)

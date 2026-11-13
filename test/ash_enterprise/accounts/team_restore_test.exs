@@ -13,6 +13,8 @@ defmodule AshEnterprise.Accounts.TeamRestoreTest do
 
   alias AshEnterprise.Accounts
   alias AshEnterprise.Accounts.Team
+
+  require Ash.Query
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Repo
   alias AshEnterprise.Security.ActionReach
@@ -105,6 +107,63 @@ defmodule AshEnterprise.Accounts.TeamRestoreTest do
       assert {:error, _} =
                Accounts.get_archived_team(team.id, actor: admin.actor, tenant: admin.tenant)
     end
+  end
+
+  describe "a deleted team" do
+    test "grants its members nothing while it is deleted, and its roles again once restored",
+         %{admin: admin} do
+      member = member!(admin, "Nothing of their own", [])
+
+      role =
+        Ash.get!(AshEnterprise.Security.Role, admin_role_id(admin),
+          authorize?: false,
+          tenant: admin.tenant
+        )
+
+      owners =
+        Team
+        |> Ash.Changeset.for_create(
+          :create,
+          %{
+            name: "Owners #{System.unique_integer([:positive])}",
+            team_type: :owner,
+            owning_business_unit_id: admin.user.owning_business_unit_id
+          },
+          actor: admin.actor,
+          tenant: admin.tenant
+        )
+        |> Ash.create!()
+
+      AshEnterprise.Security.TeamRole.assign!(%{team_id: owners.id, role_id: role.id},
+        actor: admin.actor,
+        tenant: admin.tenant
+      )
+
+      Accounts.TeamMembership.create!(%{team_id: owners.id, user_id: member.user.id},
+        actor: admin.actor,
+        tenant: admin.tenant
+      )
+
+      assert global_on_teams?(member, admin)
+
+      delete!(owners, admin)
+      refute global_on_teams?(member, admin)
+
+      Accounts.restore_team!(archived!(owners, admin), actor: admin.actor, tenant: admin.tenant)
+      assert global_on_teams?(member, admin)
+    end
+  end
+
+  defp admin_role_id(admin) do
+    AshEnterprise.Security.Role
+    |> Ash.Query.filter(name == "Administrator")
+    |> Ash.read_one!(authorize?: false, tenant: admin.tenant)
+    |> Map.fetch!(:id)
+  end
+
+  defp global_on_teams?(person, admin) do
+    context = AshEnterprise.Security.ActorContext.build(person.user, tenant: admin.tenant)
+    AshEnterprise.Security.ActorContext.grant(context, Team, :write).global?
   end
 
   describe "restore" do
