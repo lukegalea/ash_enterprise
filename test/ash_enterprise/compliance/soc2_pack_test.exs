@@ -342,10 +342,53 @@ defmodule AshEnterprise.Compliance.Soc2PackTest do
       recipe.attrs |> Subscription.create!(opts) |> Subscription.publish!(opts)
     end
 
+    defp sweep!(tenant) do
+      AshBpmn.Triggers.SweepWorker.perform(%Oban.Job{args: %{"tenant" => tenant}})
+      AshBpmn.Triggers.SweepWorker.perform(%Oban.Job{args: %{"tenant" => tenant}})
+    end
+
+    defp started(tenant) do
+      Instance
+      |> Ash.Query.for_read(:read)
+      |> Ash.read!(actor: SystemActor.process(), tenant: tenant, load: [:definition])
+      |> Enum.map(& &1.definition.key)
+      |> Enum.sort()
+    end
+
     test "a tenant with no published recipe collects nothing" do
       quiet = tenant!()
       assert {:ok, _} = ScheduledReviewWorker.perform(%Oban.Job{})
       assert occurrences(quiet.tenant) == []
+    end
+
+    test "a template whose recipe is not published collects nothing, though another's is" do
+      listening = tenant!()
+      publish!(listening.tenant, "soc2.vendor_review")
+
+      assert {:ok, _} = ScheduledReviewWorker.perform(%Oban.Job{})
+
+      assert listening.tenant |> occurrences() |> Enum.map(& &1.data["template"]) ==
+               ["vendor_review"]
+    end
+
+    test "a recipe published after its period's first run still opens that period's review" do
+      listening = tenant!()
+
+      # Another recipe makes the tenant one the engine sweeps, and the day's run records.
+      publish!(listening.tenant, "soc2.vendor_review")
+      assert {:ok, _} = ScheduledReviewWorker.perform(%Oban.Job{})
+      sweep!(listening.tenant)
+
+      # Later in the same period, the policy review's recipe is published.
+      publish!(listening.tenant, "soc2.policy_review_acknowledgement")
+      assert {:ok, _} = ScheduledReviewWorker.perform(%Oban.Job{})
+      sweep!(listening.tenant)
+
+      assert started(listening.tenant) ==
+               ["soc2.policy_review_acknowledgement", "soc2.vendor_review"]
+
+      assert listening.tenant |> occurrences() |> Enum.map(& &1.data["template"]) |> Enum.sort() ==
+               ["policy_review_acknowledgement", "vendor_review"]
     end
 
     test "a period opens one review, in the tenant that published its recipe only" do
@@ -358,9 +401,7 @@ defmodule AshEnterprise.Compliance.Soc2PackTest do
 
       rows = occurrences(listening.tenant)
       assert Enum.all?(rows, &(&1.type == "compliance.review_due"))
-
-      assert rows |> Enum.map(& &1.data["template"]) |> Enum.sort() ==
-               ScheduledReviewWorker.scheduled() |> Enum.map(& &1.key) |> Enum.sort()
+      assert rows |> Enum.map(& &1.data["template"]) == ["log_alert_review"]
 
       assert occurrences(quiet.tenant) == []
 
