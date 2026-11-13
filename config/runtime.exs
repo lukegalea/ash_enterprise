@@ -42,6 +42,18 @@ case System.get_env("SHOWCASE_FAULT_CONTROLS") do
     :ok
 end
 
+# Self-registration at /register (`AshEnterprise.Accounts.Changes.RefuseSelfRegistration`) is
+# on in dev and off in a release. `SELF_REGISTRATION=false` turns it off on an instance that
+# runs the dev config but is shown to people; `true` turns it on. Not read under test: the
+# suite registers its users, and a developer's shell must not change that.
+if config_env() != :test do
+  case System.get_env("SELF_REGISTRATION") do
+    value when value in ~w(true 1) -> config :ash_enterprise, self_registration?: true
+    value when value in ~w(false 0) -> config :ash_enterprise, self_registration?: false
+    _ -> :ok
+  end
+end
+
 # Dev's :debug level logs every query with its parameters, and on an instance holding real
 # data those parameters are names and addresses. `LOG_LEVEL=info` keeps them out of the log.
 case System.get_env("LOG_LEVEL") do

@@ -191,6 +191,11 @@ config :ash_enterprise, AshEnterpriseWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :ash_enterprise, dev_routes: true, token_signing_secret: "qaZQqvCZKqxY3RCtI+Ofq4CLfBwXHI+r"
 
+# Anyone may register at /register (`AshEnterprise.Accounts.Changes.RefuseSelfRegistration`).
+# An instance running this configuration for other people turns it off with
+# `SELF_REGISTRATION=false` (config/runtime.exs).
+config :ash_enterprise, self_registration?: true
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 

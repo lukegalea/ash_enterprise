@@ -738,6 +738,11 @@ config :ex_money, auto_start_exchange_rate_service: false
 # and live means the in-zone generative profile only.
 config :ash_enterprise, AshEnterprise.Showcase, fault_controls?: false, model_mode: :recorded
 
+# Self-registration at /register: off, so a release refuses it and accounts are provisioned
+# (`AshEnterprise.Accounts.Changes.RefuseSelfRegistration`). config/dev.exs and
+# config/test.exs turn it on; config/runtime.exs reads SELF_REGISTRATION.
+config :ash_enterprise, self_registration?: false
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

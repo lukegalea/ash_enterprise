@@ -429,7 +429,9 @@ defmodule AshEnterpriseWeb.Router do
       on_mount: [AshEnterpriseWeb.LiveLocale],
       gettext_backend: {AshEnterpriseWeb.Gettext, "auth"}
 
-    # Remove these if you'd like to use your own authentication views
+    # The register page renders in every environment: the sign-in LiveView needs
+    # its path configured to build its links. Registration itself is refused at the
+    # action unless self-registration is on (`Changes.RefuseSelfRegistration`).
     sign_in_route register_path: "/register",
                   reset_path: "/reset",
                   auth_routes_prefix: "/auth",

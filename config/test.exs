@@ -26,6 +26,11 @@ config :ash_enterprise, AshEnterprise.Integration.Nango,
 
 config :ash_enterprise, token_signing_secret: "2W7xIBrAeWb/GPoe4MBvPxA6NFwqqjl0"
 
+# The suite registers its users through `:register_with_password`, the way a developer does
+# (`AshEnterprise.Accounts.Changes.RefuseSelfRegistration`); a test that needs registration
+# refused turns this off.
+config :ash_enterprise, self_registration?: true
+
 # A fresh crypto-shredding master key every run (ADR 0024). Nothing sealed in
 # a test outlives the sandbox transaction, so nothing needs a stable key.
 config :ash_enterprise, AshEnterprise.Erasure,

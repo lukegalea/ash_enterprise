@@ -244,6 +244,10 @@ defmodule AshEnterprise.Accounts.User do
         sensitive? true
       end
 
+      # The register form renders everywhere, but a deployment provisions its
+      # accounts: unless self-registration is on, the submission fails here.
+      change AshEnterprise.Accounts.Changes.RefuseSelfRegistration
+
       # Sets the email from the argument
       change set_attribute(:email, arg(:email))
 
