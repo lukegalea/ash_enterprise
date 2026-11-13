@@ -15,6 +15,7 @@ import Hero from '../components/home/Hero.astro';
 import StackElevation from '../components/home/StackElevation.astro';
 import SpecimenPlate from '../components/home/SpecimenPlate.astro';
 import { withBase } from '../lib/roadmap';
+import { facts, numberWord } from '../lib/facts';
 
 const GITHUB = 'https://github.com/lukegalea/ash_enterprise';
 
@@ -162,8 +163,8 @@ const doctrines: { title: string; body: string; href: string }[] = [
           </div>
           <p class={`${lead} lg:pt-14`}>
             Every layer below is someone else’s solved problem. Ash Enterprise is
-            the top stratum: a chosen subset of the Ash ecosystem, seventeen
-            first-party packages for the parts Ash leaves to the application, and
+            the top stratum: a chosen subset of the Ash ecosystem,
+            {numberWord(facts.packages.runtimeDirect)} first-party packages for the parts Ash leaves to the application, and
             the conventions that hold them together.
           </p>
         </div>

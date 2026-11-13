@@ -26,6 +26,12 @@ existing, partial, missing or refused, with the test that shows it. `capability_
 when a grade names no test, a cited test has been renamed or is skipped by default, or a dependency the
 grades were read against has moved in `mix.lock`.
 
+The public site renders three more files and never types their facts by hand. `packages.json` lists the
+first-party packages, forks and overrides, each with the commit `mix.lock` pins, its maturity and what you
+would carry. `failures.json` is the credentialing tour's F1 to F12 with the tests that show each.
+`routes.json` is generated from the router by `MIX_ENV=test mix ash_enterprise.site_routes`.
+`site_data_test.exs` fails when any of them disagrees with `mix.exs`, `mix.lock`, the router or the tour.
+
 `screenshots/` holds real captures of the running application. Nothing in there is a mockup.
 
 ## Capturing screenshots

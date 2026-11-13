@@ -1,0 +1,192 @@
+{
+  "$comment": [
+    "The twelve failures the credentialing tour shows, F1 to F12, and what the",
+    "application does about each. The tour is /app/showcase/credentialing on a",
+    "local build seeded with `mix ash_enterprise.demo --history`; its walkthrough is",
+    "docs/showcase/credentialing-walkthrough.md. The site's /run-it/ page renders",
+    "this file.",
+    "",
+    "`title`, `beat` and `beat_id` are the tour's own: test/ash_enterprise/site_data_test.exs",
+    "compares them with AshEnterpriseWeb.ShowcaseLive.TourIndex.failures/0, and",
+    "site/scripts/site-data.test.mjs compares titles and beats with the walkthrough's",
+    "table. `seeded` is true when `--history` records the failure; the others are made",
+    "by clicking their beat. Each `tests` entry is {file, test}, with `test` the exact",
+    "name in a `test \"...\"` line of that file."
+  ],
+  "tour": "/app/showcase/credentialing",
+  "walkthrough": "docs/showcase/credentialing-walkthrough.md",
+  "failures": [
+    {
+      "id": "F1",
+      "title": "The model times out mid-run",
+      "beat": 7,
+      "beat_id": "beat-timeout",
+      "seeded": true,
+      "what_happens": "The first model call succeeds and the second times out. Every tool lookup ran once. When the run's lease runs out, the recover sweep picks the run up from the step it had reached; it is not started again from the top.",
+      "tests": [
+        {
+          "file": "test/ash_enterprise/showcase/licence_reader_test.exs",
+          "test": "F1: the model times out after the lookups; the run resumes and looks nothing up again"
+        }
+      ]
+    },
+    {
+      "id": "F2",
+      "title": "The registry's answer is lost",
+      "beat": 5,
+      "beat_id": "beat-reconciled",
+      "seeded": true,
+      "what_happens": "The registry accepted the activation but its answer never came back. The request's outcome is unknown and a person settles it on the recovery surface by asking the registry; it is never retried blind.",
+      "tests": [
+        {
+          "file": "test/ash_enterprise/showcase/history_test.exs",
+          "test": "every beat ends in its failure, in the demo tenant only, and leaves nothing armed or held"
+        }
+      ]
+    },
+    {
+      "id": "F3",
+      "title": "A deploy changes the approved tool",
+      "beat": 19,
+      "beat_id": "beat-deploy",
+      "seeded": true,
+      "what_happens": "A request approved against one release goes stale with manifest_changed when a deploy replaces the tool it would run.",
+      "tests": [
+        {
+          "file": "test/ash_enterprise/showcase/release_slice_test.exs",
+          "test": "a deploy that changes what covers activate_credential leaves the approval stale (F3)"
+        }
+      ]
+    },
+    {
+      "id": "F4",
+      "title": "The record changes during approval",
+      "beat": 3,
+      "beat_id": "beat-stale",
+      "seeded": true,
+      "what_happens": "The credential is corrected after the request was made. The approval goes stale with subject_changed instead of activating a credential nobody looked at.",
+      "tests": [
+        {
+          "file": "test/ash_enterprise_web/live/showcase_credentialing_live_test.exs",
+          "test": "the tour's beats in recorded mode: ask, approve, a correction, a revoked grant"
+        }
+      ]
+    },
+    {
+      "id": "F5",
+      "title": "The requester's grant is revoked",
+      "beat": 4,
+      "beat_id": "beat-revoked",
+      "seeded": true,
+      "what_happens": "The coordinator's grant is withdrawn between asking and acting, and the request fails as denied.",
+      "tests": [
+        {
+          "file": "test/ash_enterprise_web/live/showcase_credentialing_live_test.exs",
+          "test": "the tour's beats in recorded mode: ask, approve, a correction, a revoked grant"
+        }
+      ]
+    },
+    {
+      "id": "F6",
+      "title": "A webhook arrives twice, or early",
+      "beat": 12,
+      "beat_id": "beat-webhook",
+      "seeded": true,
+      "what_happens": "The first delivery of the document webhook is received, the second is a duplicate, and the case moves on once. A delivery that arrives before the case waits for it is found when it does.",
+      "tests": [
+        {
+          "file": "test/ash_enterprise/showcase/credentialing_case_test.exs",
+          "test": "a webhook delivered twice moves the case on once (F6)"
+        },
+        {
+          "file": "test/ash_enterprise/showcase/credentialing_case_test.exs",
+          "test": "a webhook that arrives before the case waits for it is found when it does (F6)"
+        }
+      ]
+    },
+    {
+      "id": "F7",
+      "title": "One parallel check is refused",
+      "beat": 11,
+      "beat_id": "beat-checks",
+      "seeded": true,
+      "what_happens": "One check is refused for a missing licence document, the others succeed, and the case waits for the document.",
+      "tests": [
+        {
+          "file": "test/ash_enterprise/showcase/credentialing_case_test.exs",
+          "test": "a refused check takes its boundary while the other completes, and the case waits for the document (F7)"
+        }
+      ]
+    },
+    {
+      "id": "F8",
+      "title": "The token budget runs out",
+      "beat": 8,
+      "beat_id": "beat-budget",
+      "seeded": false,
+      "what_happens": "A reading runs under a small budget, stops with its reason, and goes on once a person extends the budget.",
+      "tests": [
+        {
+          "file": "test/ash_enterprise/showcase/licence_reader_test.exs",
+          "test": "F8: a long bundle runs out of budget, says why, and goes on once extended"
+        }
+      ]
+    },
+    {
+      "id": "F9",
+      "title": "A candidate fails its injection case",
+      "beat": 16,
+      "beat_id": "beat-candidate",
+      "seeded": false,
+      "what_happens": "A candidate release is measured; the gate refuses it and names the case it failed.",
+      "tests": [
+        {
+          "file": "test/ash_enterprise/showcase/release_slice_test.exs",
+          "test": "the candidate fails its injection case and the gate refuses it (F9)"
+        }
+      ]
+    },
+    {
+      "id": "F10",
+      "title": "A routing table changes under a case",
+      "beat": 17,
+      "beat_id": "beat-routing",
+      "seeded": true,
+      "what_happens": "A newer case runs on the new routing table while the older one keeps the version its release pinned.",
+      "tests": [
+        {
+          "file": "test/ash_enterprise/showcase/release_slice_test.exs",
+          "test": "a case keeps the routing table version it started under (F10)"
+        }
+      ]
+    },
+    {
+      "id": "F11",
+      "title": "A person asks to be erased",
+      "beat": 9,
+      "beat_id": "beat-erase",
+      "seeded": false,
+      "what_happens": "Erasing the clinician erases the run's journal and tool-call arguments. The rows and the audit chain stay, and the trace says the content was erased.",
+      "tests": [
+        {
+          "file": "test/ash_enterprise/showcase/licence_reader_test.exs",
+          "test": "F11: erasing the clinician erases the run's journal and tool-call arguments; the rows and the audit chain stay"
+        }
+      ]
+    },
+    {
+      "id": "F12",
+      "title": "A shadow rerun must touch nothing",
+      "beat": 18,
+      "beat_id": "beat-shadow",
+      "seeded": false,
+      "what_happens": "A shadow rerun runs the same cases with every tool call simulated, and activates nobody.",
+      "tests": [
+        {
+          "file": "test/ash_enterprise/showcase/release_slice_test.exs",
+          "test": "a shadow rerun runs the same cases with no effect and activates nobody (F12)"
+        }
+      ]
+    }
+  ]
+}

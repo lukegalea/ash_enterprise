@@ -241,7 +241,8 @@ defmodule AshEnterprise.MixProject do
       preferred_envs: [
         precommit: :test,
         "test.durability": :test,
-        "ash_enterprise.assistant.eval": :test
+        "ash_enterprise.assistant.eval": :test,
+        "ash_enterprise.site_routes": :test
       ]
     ]
   end

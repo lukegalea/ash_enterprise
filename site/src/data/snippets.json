@@ -1,0 +1,81 @@
+{
+  "$comment": [
+    "Code the site shows, cut from the repository at build time by scripts/site-data.mjs",
+    "into src/data/generated/snippets.json. Pages read it through snippet(name) in",
+    "src/lib/facts.ts. Never paste code into a page: add an entry here.",
+    "",
+    "Each entry names a repo-relative `file` and one of: nothing (the whole file);",
+    "`start` and `end` (substrings of the first and last lines, `endAfter` more lines);",
+    "`start` and `block: true` (to the next `end` at the start line's indentation); or",
+    "`json: {array, id}` (one object of a top-level array). `start` must be unique in",
+    "the file. `mustContain` and `mustNotContain` hold what the page says about the",
+    "code. The build and scripts/site-data.test.mjs fail when an anchor is gone, a",
+    "snippet comes out empty, longer than `maxLines` (default 30), or breaks a must."
+  ],
+  "snippets": [
+    {
+      "name": "platform-resource",
+      "title": "A resource on the platform base",
+      "caption": "One use line gives the resource audit, ownership, tenancy, soft delete and the policy set.",
+      "file": "lib/ash_enterprise/credentialing/credential.ex",
+      "start": "  use AshEnterprise.Platform.Resource,",
+      "end": "    repo AshEnterprise.Repo",
+      "endAfter": 1,
+      "mustContain": ["use AshEnterprise.Platform.Resource", "ownership: :user_owned"]
+    },
+    {
+      "name": "grant-union",
+      "title": "The grant union every platform resource inherits",
+      "caption": "Each authorize_if is one grant path. None subtracts: there is no forbid_if for row access.",
+      "file": "lib/ash_enterprise/security/policies.ex",
+      "start": "        # The union. Each clause is one grant path;",
+      "end": "          authorize_if AshEnterprise.Security.Checks.SelfService",
+      "mustContain": ["authorize_if AshEnterprise.Security.Checks.RoleGrant", "authorize_if AshEnterprise.Security.Checks.SharedWithActor"],
+      "mustNotContain": ["forbid_if"]
+    },
+    {
+      "name": "governed-effect",
+      "title": "An action that needs a second person's approval",
+      "caption": "The effects declaration ash_agent reads: an edit that reaches outside the application, approved by a committee member other than the requester, settled by asking when its answer is lost.",
+      "file": "lib/ash_enterprise/credentialing/credential.ex",
+      "start": "    action :activate_credential,",
+      "end": "      reconcile_with: :lookup_activation",
+      "mustContain": ["approval: :four_eyes", "open_world?: true", "reconcile_with:"]
+    },
+    {
+      "name": "process-start",
+      "title": "Starting a BPMN process from an action",
+      "caption": "ash_bpmn starts the instance as the process actor, with the person who asked recorded as its starter and the request's correlation id.",
+      "file": "lib/ash_enterprise/credentialing/actions/open_case.ex",
+      "start": "  defp open(credential, actor) do",
+      "block": true,
+      "mustContain": ["AshBpmn.start_instance(", "started_by_id: actor.id", "correlation_id:"]
+    },
+    {
+      "name": "recipe-pack",
+      "title": "A pack: a process and the recipe that starts it",
+      "caption": "Installed as drafts. Nothing runs until a person publishes the process and then the recipe.",
+      "file": "priv/packs/offboarding/pack.json",
+      "lang": "json",
+      "mustContain": ["\"recipes\"", "\"process_key\"", "\"controls\""]
+    },
+    {
+      "name": "compliance-rule",
+      "title": "A compliance rule over facts",
+      "caption": "An ash_rules rule filed under a gap that ash_compliance maps to a control. Missing evidence is unknown, never a pass.",
+      "file": "lib/ash_enterprise/compliance/kyc_rules.ex",
+      "start": "  rule \"sanctions screening must clear\",",
+      "block": true,
+      "mustContain": ["fails_when(", "outcome(:noncompliant"]
+    },
+    {
+      "name": "control-evidence",
+      "title": "A criterion with its owner, evidence producer and test",
+      "caption": "From docs/controls.json. It names who owns the criterion, what produces its evidence and the test that proves it; it carries no status.",
+      "file": "docs/controls.json",
+      "json": { "array": "criteria", "id": "CC2.1" },
+      "mustContain": ["\"evidence_producer\"", "\"test_ref\"", "\"owner_role\""],
+      "mustNotContain": ["\"status\""]
+    }
+  ]
+}

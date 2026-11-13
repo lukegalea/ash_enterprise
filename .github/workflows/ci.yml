@@ -886,7 +886,7 @@ jobs:
 
       - run: npm ci
 
-      - name: Site script tests (moat gate, package count)
+      - name: Site script tests (moat gate, site data, snippets, links)
         run: node --test scripts/*.test.mjs
 
       - name: Build (docs sync, link check, Astro)
