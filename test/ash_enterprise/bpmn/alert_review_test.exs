@@ -431,6 +431,61 @@ defmodule AshEnterprise.Bpmn.AlertReviewTest do
     end
   end
 
+  # ── a review nobody else can take ───────────────────────────────────────
+
+  describe "a review nobody but the people involved could take" do
+    # A small tenant's only administrator is involved in every review: the exclusions leave
+    # nobody. The review is still written, falls back to the tenant's Platform Operator
+    # when it has one (`AssignmentResolver.no_eligible_candidate/2`), and a finding against
+    # the pack's controls says nobody could take it.
+
+    test "the sole administrator's own API key: the review has nobody, and a finding says so" do
+      admin = tenant!()
+      {:ok, _} = Subscription.install_pack(@pack, actor: admin.actor, tenant: admin.tenant)
+      ctx = publish!(%{admin: admin, tenant: admin.tenant})
+
+      issue_key!(admin.user)
+      sweep!(ctx.tenant)
+
+      assert [task] = reviews(ctx.tenant)
+      assert candidates(task, ctx.tenant) == []
+      assert admin.user.id in task.excluded_principal_ids
+
+      findings = unassignable_findings(ctx.tenant)
+      assert findings != []
+      assert Enum.all?(findings, &(&1.subject_id == task.id and &1.severity == :high))
+      assert findings |> Enum.map(& &1.control_id) |> Enum.all?(&(&1 in pack_controls()))
+    end
+
+    test "another tenant's unroutable review files nothing here" do
+      quiet = installed!() |> publish!()
+
+      admin = tenant!()
+      {:ok, _} = Subscription.install_pack(@pack, actor: admin.actor, tenant: admin.tenant)
+      ctx = publish!(%{admin: admin, tenant: admin.tenant})
+      issue_key!(admin.user)
+      sweep!(ctx.tenant)
+      sweep!(quiet.tenant)
+
+      assert unassignable_findings(ctx.tenant) != []
+      assert unassignable_findings(quiet.tenant) == []
+    end
+  end
+
+  defp unassignable_findings(tenant) do
+    {:ok, findings} = AshCompliance.Domain.findings_for_organization(tenant, authorize?: false)
+
+    Enum.filter(
+      findings,
+      &(&1.subject_type == AshEnterprise.Bpmn.Changes.RecordUnassignableFinding.subject_type())
+    )
+  end
+
+  defp pack_controls do
+    {:ok, manifest} = AshEnterprise.Compliance.TemplateMap.manifest(@pack)
+    manifest["controls"]
+  end
+
   # ── each alarm opens one review ──────────────────────────────────────────
 
   describe "a review opens" do

@@ -228,6 +228,35 @@ defmodule AshEnterprise.Bpmn.IncidentTriagePackTest do
     assert [%{key: "signoz:rule-a", status: :open}] = incidents(ctx.tenant)
   end
 
+  test "with nobody on call, the triage task has nobody, and a finding says so" do
+    admin = tenant!()
+    {:ok, _} = Subscription.install_pack(@pack, actor: admin.actor, tenant: admin.tenant)
+    ctx = %{admin: admin, tenant: admin.tenant}
+    publish!(ctx)
+
+    firing!(ctx.tenant)
+    sweep!(ctx.tenant)
+
+    assert [task] = open_tasks(ctx.tenant)
+
+    assert TaskCandidate
+           |> Ash.Query.filter(task_id == ^task.id)
+           |> Ash.read!(authorize?: false, tenant: ctx.tenant) == []
+
+    {:ok, findings} =
+      AshCompliance.Domain.findings_for_organization(ctx.tenant, authorize?: false)
+
+    assert [_ | _] =
+             unassignable =
+             Enum.filter(
+               findings,
+               &(&1.subject_type ==
+                   AshEnterprise.Bpmn.Changes.RecordUnassignableFinding.subject_type())
+             )
+
+    assert Enum.all?(unassignable, &(&1.subject_id == task.id and &1.severity == :high))
+  end
+
   test "no person may write an incident, not even an administrator" do
     ctx = installed_tenant!()
     firing!(ctx.tenant)
