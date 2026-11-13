@@ -47,6 +47,8 @@ defmodule AshEnterprise.Bpmn.Subscription.Authority do
         standing_grant_review_days: 365
   """
 
+  alias AshEnterprise.Execution.Identity
+
   @values [:human_tasks_only, :causing_person, :standing_grant]
 
   @grant_prefix "recipe:"
@@ -69,6 +71,28 @@ defmodule AshEnterprise.Bpmn.Subscription.Authority do
   """
   @spec grant_key(map()) :: String.t()
   def grant_key(%{key: key, version: version}), do: @grant_prefix <> "#{key}:#{version}"
+
+  @doc """
+  Whether `subscription`'s authority holds in `tenant` now: `:ok`, or `{:error, reason}`.
+
+  Only a `:standing_grant` version's can lapse: its publisher must still be an active member
+  holding the version's grant (`AshEnterprise.Execution.Identity.recipe_requester/3`), the
+  check every step makes. The `authority:` callback of `AshEnterprise.Bpmn.Redrive`, so a
+  re-drive never borrows the authority the version had when its event happened.
+  """
+  @spec holds_now(map(), Ash.UUID.t()) :: :ok | {:error, term()}
+  def holds_now(%{authority: :standing_grant} = subscription, tenant) do
+    case Identity.recipe_requester(
+           subscription.accountable_person_id,
+           grant_key(subscription),
+           tenant
+         ) do
+      {:ok, _requester} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def holds_now(_subscription, _tenant), do: :ok
 
   @doc """
   Whether `agent_key` names a recipe version's start grant. Only `publish_granted` writes

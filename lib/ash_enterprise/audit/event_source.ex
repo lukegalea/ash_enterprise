@@ -4,7 +4,7 @@ defmodule AshEnterprise.Audit.EventSource do
   module that couples the bpmn trigger engine to this application's audit chain.
 
   The engine never sees `ash_events` types; everything it knows about the log it
-  learns through the six callbacks here. Configured in `config/config.exs`:
+  learns through the callbacks here. Configured in `config/config.exs`:
 
       config :ash_bpmn, event_source: AshEnterprise.Audit.EventSource
 
@@ -121,6 +121,20 @@ defmodule AshEnterprise.Audit.EventSource do
     |> case do
       [%{sequence: sequence}] -> sequence
       [] -> 0
+    end
+  end
+
+  # The one event a re-drive drives again (`AshBpmn.Triggers.Redrive`), by its primary key.
+  @impl true
+  def event(tenant, id) do
+    AshEnterprise.Audit.EventLog
+    |> Ash.Query.for_read(:read)
+    |> Ash.Query.filter(id == ^id)
+    |> maybe_null_chain(is_nil(tenant))
+    |> Ash.read_one(actor: SystemActor.process(), tenant: tenant)
+    |> case do
+      {:ok, %AshEnterprise.Audit.EventLog{} = event} -> {:ok, event}
+      _missing -> {:error, :not_found}
     end
   end
 

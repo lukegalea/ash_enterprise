@@ -4,7 +4,7 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Redrive do
   @moduledoc """
   Drives again every failed trigger dispatch whose event lies in a range of one tenant's
   log, each under the subscription version on its row, as the person named by `--as`
-  (`AshEnterprise.Bpmn.Redrive.redrive_failed`).
+  (`AshEnterprise.Bpmn.Redrive.redrive_failed`, the `AshBpmn.Resources.Redrive` action).
 
       mix ash_enterprise.bpmn.redrive --tenant acme --as ops@example.com --from-sequence 1200 --to-sequence 1350
       mix ash_enterprise.bpmn.redrive --tenant acme --as ops@example.com --since 2026-11-12T00:00:00Z

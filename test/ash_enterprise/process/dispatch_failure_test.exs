@@ -17,8 +17,8 @@ defmodule AshEnterprise.Process.DispatchFailureTest do
 
   require Ash.Query
 
-  alias AshBpmn.Triggers.Correlator
-  alias AshEnterprise.Audit.{EventLog, EventSource}
+  alias AshBpmn.Triggers.{Correlator, SweepWorker}
+  alias AshEnterprise.Audit.EventLog
   alias AshEnterprise.Bpmn.{Dispatch, Instance, Subscription}
   alias AshEnterprise.Platform.{Seeder, SystemActor}
   alias AshEnterprise.Process.Resolver
@@ -79,7 +79,7 @@ defmodule AshEnterprise.Process.DispatchFailureTest do
 
   test "a funnel error is a :failed row and a re-drive turns it into one start", ctx do
     event = submitted_event(ctx)
-    sweep = sweep_context(ctx.tenant)
+    sweep = SweepWorker.context(AshEnterprise.Bpmn, ctx.tenant)
 
     # What the sweep does when the funnel raised: a row in a transaction of its own.
     {:ok, :ok} =
@@ -142,20 +142,6 @@ defmodule AshEnterprise.Process.DispatchFailureTest do
       resource == ^AccessRequest and record_id == ^ctx.request.id and action == :submit
     )
     |> Ash.read_one!(actor: SystemActor.process(), tenant: ctx.tenant)
-  end
-
-  # The context the sweep builds for one tenant (`AshBpmn.Triggers.SweepWorker.perform/1`).
-  defp sweep_context(tenant) do
-    {domain, resources} = AshBpmn.Triggers.Resources.resolve!(nil)
-    scope = %AshBpmn.Scope{AshBpmn.Scope.from_job(%{"tenant" => tenant}, :sweep) | domain: domain}
-
-    %{
-      scope: scope,
-      tenant: tenant,
-      domain: domain,
-      resources: resources,
-      event_source: EventSource
-    }
   end
 
   defp redrive!(event, subscription, sweep, redrive?) do

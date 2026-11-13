@@ -17,10 +17,9 @@ defmodule AshEnterprise.Process.RedriveTest do
 
   require Ash.Query
 
-  alias AshBpmn.Triggers.Correlator
-  alias AshEnterprise.Audit.EventLog
+  alias AshBpmn.Triggers.{Correlator, SweepWorker}
+  alias AshEnterprise.Audit.{EventLog, EventSource}
   alias AshEnterprise.Bpmn.{Definition, Dispatch, Instance, Redrive, Subscription}
-  alias AshEnterprise.Bpmn.Redrive.Changes.Drive
   alias AshEnterprise.Bpmn.Subscription.Authority
   alias AshEnterprise.Credentialing
   alias AshEnterprise.Credentialing.Credential
@@ -132,7 +131,12 @@ defmodule AshEnterprise.Process.RedriveTest do
 
     {:ok, :ok} =
       AshEnterprise.Repo.transaction(fn ->
-        Correlator.record_aborted(event, [ctx.recipe], Drive.sweep_context(ctx.tenant), "boom")
+        Correlator.record_aborted(
+          event,
+          [ctx.recipe],
+          SweepWorker.context(AshEnterprise.Bpmn, ctx.tenant),
+          "boom"
+        )
       end)
 
     event
@@ -281,6 +285,19 @@ defmodule AshEnterprise.Process.RedriveTest do
       assert started(other.tenant) == []
     end
 
+    test "the re-drive is ash_bpmn's, fetching the one event from this tenant's log", ctx do
+      assert Redrive.ash_bpmn_kind() == :redrive
+
+      event = failure!(ctx)
+      assert {:ok, %EventLog{id: id}} = EventSource.event(ctx.tenant, event.id)
+      assert id == event.id
+      assert {:error, :not_found} = EventSource.event(Ecto.UUID.generate(), event.id)
+
+      assert {:ok, [redrive]} = redrive(event, ctx.operator.actor, ctx.tenant)
+      assert redrive.outcome == :started
+      assert %DateTime{} = redrive.inserted_at
+    end
+
     test "a range is required", ctx do
       assert {:error, error} =
                Redrive.redrive_failed(%{}, actor: ctx.operator.actor, tenant: ctx.tenant)
@@ -375,7 +392,7 @@ defmodule AshEnterprise.Process.RedriveTest do
 
     test "the sweep reports how far behind the tenant's log it is", ctx do
       without_inline_jobs(fn ->
-        AshBpmn.Triggers.SweepWorker.perform(%Oban.Job{args: %{"tenant" => ctx.tenant}})
+        SweepWorker.perform(%Oban.Job{args: %{"tenant" => ctx.tenant}})
       end)
 
       tenant = ctx.tenant
