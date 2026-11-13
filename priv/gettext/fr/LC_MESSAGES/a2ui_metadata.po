@@ -2507,7 +2507,7 @@ msgstr "Privilège de rôle"
 msgid "Roles"
 msgstr "Rôles"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 msgid "Routing"
 msgstr "Acheminement"
 
