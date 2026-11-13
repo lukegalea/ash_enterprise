@@ -373,14 +373,14 @@ defmodule AshEnterprise.Process.RedriveTest do
     end
   end
 
-  describe "lag telemetry" do
+  describe "the sweep's metrics are ash_bpmn's" do
     setup do
       test_pid = self()
       handler = "redrive-test-#{unique()}"
 
       :telemetry.attach_many(
         handler,
-        [[:ash_enterprise, :bpmn, :sweep], [:ash_enterprise, :bpmn, :dispatch, :start]],
+        [[:ash_bpmn, :triggers, :sweep], [:ash_bpmn, :triggers, :dispatch, :start]],
         fn event, measurements, metadata, _ ->
           send(test_pid, {event, measurements, metadata})
         end,
@@ -390,25 +390,20 @@ defmodule AshEnterprise.Process.RedriveTest do
       on_exit(fn -> :telemetry.detach(handler) end)
     end
 
-    test "the sweep reports how far behind the tenant's log it is", ctx do
+    test "the sweep reports how far behind the tenant's audit log it is", ctx do
       without_inline_jobs(fn ->
         SweepWorker.perform(%Oban.Job{args: %{"tenant" => ctx.tenant}})
       end)
 
       tenant = ctx.tenant
-      assert_received {[:ash_enterprise, :bpmn, :sweep], %{lag: 0}, %{tenant: ^tenant}}
+      assert_received {[:ash_bpmn, :triggers, :sweep], %{lag: 0}, %{tenant: ^tenant}}
 
-      # A cursor three events behind the newest reports three.
-      newest = AshEnterprise.Audit.EventSource.latest_sequence(tenant)
+      # The lag is read from this application's log: a cursor three events behind the
+      # newest reports three.
+      newest = EventSource.latest_sequence(tenant)
+      AshBpmn.Triggers.Telemetry.sweep(tenant, newest - 3, 0, 0, EventSource)
 
-      AshEnterprise.Bpmn.Telemetry.handle_sweep(
-        [:ash_bpmn, :triggers, :sweep],
-        %{},
-        %{tenant: tenant, last_sequence: newest - 3},
-        nil
-      )
-
-      assert_received {[:ash_enterprise, :bpmn, :sweep], %{lag: 3}, %{tenant: ^tenant}}
+      assert_received {[:ash_bpmn, :triggers, :sweep], %{lag: 3}, %{tenant: ^tenant}}
     end
 
     test "a dispatch that starts a process reports how long its event waited", ctx do
@@ -416,13 +411,21 @@ defmodule AshEnterprise.Process.RedriveTest do
       assert {:ok, [%{outcome: :started}]} = redrive(event, ctx.operator.actor, ctx.tenant)
 
       tenant = ctx.tenant
+      recipe_id = ctx.recipe.id
 
-      assert_received {[:ash_enterprise, :bpmn, :dispatch, :start], %{latency: latency},
-                       %{tenant: ^tenant, kind: :start}}
+      assert_received {[:ash_bpmn, :triggers, :dispatch, :start], %{latency: latency},
+                       %{tenant: ^tenant, kind: :start, subscription_id: ^recipe_id}}
 
       waited = DateTime.diff(DateTime.utc_now(), event.occurred_at, :microsecond)
       assert latency >= 0
       assert System.convert_time_unit(latency, :native, :microsecond) <= waited
+    end
+
+    test "the dashboard's metrics are declared over the package's events" do
+      names = Enum.map(AshEnterpriseWeb.Telemetry.bpmn_metrics(), & &1.event_name)
+
+      assert AshBpmn.Triggers.Telemetry.sweep_event() in names
+      assert AshBpmn.Triggers.Telemetry.dispatch_start_event() in names
     end
   end
 end

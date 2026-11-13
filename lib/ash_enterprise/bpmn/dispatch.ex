@@ -35,6 +35,12 @@ defmodule AshEnterprise.Bpmn.Dispatch do
   person could write naming their own instance would run that instance's steps as a
   publisher's recipe runner.
 
+  ## Telemetry
+
+  The package's `create` reports how long an event waited for the process it started
+  (`[:ash_bpmn, :triggers, :dispatch, :start]`, `AshBpmn.Triggers.Telemetry`); the metric
+  is declared in `AshEnterpriseWeb.Telemetry.bpmn_metrics/0`.
+
   ## The cause, which is never authority
 
   `caused_by_id` names the person whose write caused the event, copied from the started
@@ -75,7 +81,5 @@ defmodule AshEnterprise.Bpmn.Dispatch do
 
   changes do
     change {AshEnterprise.Bpmn.Dispatch.RecordCause, []}, on: [:create]
-    # How long the event waited to start its process (`AshEnterprise.Bpmn.Telemetry`).
-    change {AshEnterprise.Bpmn.Dispatch.ReportLatency, []}, on: [:create]
   end
 end

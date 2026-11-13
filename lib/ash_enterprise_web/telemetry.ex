@@ -141,16 +141,17 @@ defmodule AshEnterpriseWeb.Telemetry do
     ]
   end
 
-  # The trigger sweep (`AshEnterprise.Bpmn.Telemetry`). Lag is per tenant: one series per
-  # organization with a sweep, which the reporter's series cap bounds.
+  # The trigger sweep's own events (`AshBpmn.Triggers.Telemetry`). Lag is per tenant: one
+  # series per organization with a sweep, which the reporter's series cap bounds. It is
+  # reported because `AshEnterprise.Audit.EventSource` implements `latest_sequence/1`.
   @doc "The metrics the BPMN trigger sweep and its dispatches feed."
   def bpmn_metrics do
     [
-      last_value("ash_enterprise.bpmn.sweep.lag",
+      last_value("ash_bpmn.triggers.sweep.lag",
         tags: [:tenant],
         description: "Audit events a tenant's trigger sweep has not read yet"
       ),
-      summary("ash_enterprise.bpmn.dispatch.start.latency",
+      summary("ash_bpmn.triggers.dispatch.start.latency",
         unit: {:native, :millisecond},
         tags: [:kind],
         description: "From an event happening to the dispatch that started its process"
