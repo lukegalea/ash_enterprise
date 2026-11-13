@@ -22,7 +22,10 @@ defmodule AshEnterprise.SystemOne.FactReplay do
   recomputed" (§6.1) means the audit log IS the decision sequence:
 
     * a `:materialise` CREATE carries the full fact payload in `data` —
-      one `:admitted` decision at the event's `occurred_at`;
+      one `:admitted` decision at the event's `as_of`, the instant the
+      write took effect (see `decisions_from_event_log/1`);
+    * a `:revise` UPDATE splits the period — another `:admitted` decision;
+    * a `:truncate` DESTROY ends it — an `:omitted` decision;
     * a `:supersede` UPDATE ends a fact's currency — one `:omitted`
       decision (omission supersedes, §7.2 n.4). The legacy path revised by
       supersede-then-create: the supersede truncates at t, the replacement
@@ -88,9 +91,23 @@ defmodule AshEnterprise.SystemOne.FactReplay do
 
   @doc """
   Extracts the recorded decision sequence from the audit event log: every
-  `:materialise` create and `:supersede` update ever written to the facts
-  table, converted to the materialiser's decision shape with each event's
-  `occurred_at` as `effective_at`. Sorted; ready for `replay/2`.
+  write the facts table records a decision with, converted to the
+  materialiser's decision shape. Sorted by `effective_at`; ready for
+  `replay/2`.
+
+    * `:materialise` (create) and `:revise` (update) are `:admitted`
+      decisions. A revise event's `data` holds only the revised fields,
+      so it is laid over the record's last payload.
+    * `:truncate` (destroy) and the legacy `:supersede` (update) are
+      `:omitted` decisions.
+
+  Each decision's `effective_at` is the instant the write took effect: the
+  event's `as_of`, which `record_as_of?` captures from the write. A
+  back-dated admission is written now but takes effect earlier, so its
+  `occurred_at` (the wall clock at the write) is not that instant. Events
+  recorded before the log captured `as_of` have none; for those the fork
+  that wrote them set `occurred_at` from the write's `as_of`, so it is the
+  instant.
   """
   def decisions_from_event_log(opts \\ []) do
     # The event log's :atom columns deserialize only when the resources
@@ -99,63 +116,82 @@ defmodule AshEnterprise.SystemOne.FactReplay do
 
     events =
       EventLog
-      |> Ash.Query.filter(resource == ^Fact and action in [:materialise, :supersede])
+      |> Ash.Query.filter(
+        resource == ^Fact and action in [:materialise, :revise, :truncate, :supersede]
+      )
       |> Ash.Query.sort([:occurred_at, :id])
       |> Ash.read!(authorize?: Keyword.get(opts, :authorize?, false))
 
-    # Fold in time order, carrying each record's last create payload so a
-    # :supersede (whose event data is only the superseder reference) can
-    # name the subject/predicate/scope it ends.
-    {decisions, _final} =
-      Enum.map_reduce(events, %{}, fn event, payload_by_record ->
-        case {event.action_type, event.action} do
-          {:create, :materialise} ->
-            # `data` is the action's input params (JSON round-tripped:
-            # string keys); the event's occurred_at is the write's own
-            # create timestamp (recorded_at), so the decision's
-            # effective_at is the instant the fact actually took effect.
-            payload = event.data || %{}
+    # Fold in the order the writes were recorded, carrying each record's
+    # last payload so a revise (only the revised fields) or an omission
+    # (no fields) can name the subject/predicate/scope it applies to. The
+    # decisions are then put in the order they took effect, which differs
+    # when a write was back-dated.
+    {decisions, _final} = Enum.map_reduce(events, %{}, &decision/2)
 
-            decision =
-              %{
-                result: :admitted,
-                subject: payload["subject"],
-                predicate: payload["predicate"],
-                value: payload["value"],
-                holds: payload["holds"],
-                scope: payload["scope"],
-                subject_state_digest: payload["subject_state_digest"],
-                valid_until: parse_dt(payload["valid_until"]),
-                admission_grade: grade(payload["admission_grade"]),
-                admission_id: payload["admission_id"],
-                effective_at: event.occurred_at
-              }
+    {:ok,
+     decisions
+     |> Enum.reject(&is_nil(&1.subject))
+     |> Enum.with_index()
+     |> Enum.sort_by(fn {decision, index} ->
+       {DateTime.to_unix(decision.effective_at, :microsecond), index}
+     end)
+     |> Enum.map(&elem(&1, 0))}
+  end
 
-            {decision, Map.put(payload_by_record, event.record_id, payload)}
+  defp decision(event, payload_by_record) do
+    effective_at = event.as_of || event.occurred_at
+    prior = Map.get(payload_by_record, event.record_id, %{})
 
-          {:update, :supersede} ->
-            payload = Map.get(payload_by_record, event.record_id, %{})
+    case {event.action_type, event.action} do
+      {:create, :materialise} ->
+        # `data` is the action's input params (JSON round-tripped: string keys).
+        payload = event.data || %{}
+        {admitted(payload, effective_at), Map.put(payload_by_record, event.record_id, payload)}
 
-            decision = %{
-              result: :omitted,
-              subject: payload["subject"],
-              predicate: payload["predicate"],
-              scope: payload["scope"],
-              effective_at: event.occurred_at
-            }
+      {:update, :revise} ->
+        payload = Map.merge(prior, event.data || %{})
+        {admitted(payload, effective_at), Map.put(payload_by_record, event.record_id, payload)}
 
-            {decision, payload_by_record}
+      {:destroy, :truncate} ->
+        {omitted(prior, effective_at), payload_by_record}
 
-          _other ->
-            # A recorded write the decision vocabulary does not name — the
-            # honest answer is to refuse loudly, not to guess.
-            raise ArgumentError,
-                  "unreplayable facts event: #{inspect(event.action_type)}/#{inspect(event.action)} " <>
-                    "(record #{event.record_id} at #{event.occurred_at})"
-        end
-      end)
+      {:update, :supersede} ->
+        {omitted(prior, effective_at), payload_by_record}
 
-    {:ok, Enum.reject(decisions, &is_nil(&1.subject))}
+      _other ->
+        # A recorded write the decision vocabulary does not name — the honest
+        # answer is to refuse loudly, not to guess.
+        raise ArgumentError,
+              "unreplayable facts event: #{inspect(event.action_type)}/#{inspect(event.action)} " <>
+                "(record #{event.record_id} at #{event.occurred_at})"
+    end
+  end
+
+  defp admitted(payload, effective_at) do
+    %{
+      result: :admitted,
+      subject: payload["subject"],
+      predicate: payload["predicate"],
+      value: payload["value"],
+      holds: payload["holds"],
+      scope: payload["scope"],
+      subject_state_digest: payload["subject_state_digest"],
+      valid_until: parse_dt(payload["valid_until"]),
+      admission_grade: grade(payload["admission_grade"]),
+      admission_id: payload["admission_id"],
+      effective_at: effective_at
+    }
+  end
+
+  defp omitted(payload, effective_at) do
+    %{
+      result: :omitted,
+      subject: payload["subject"],
+      predicate: payload["predicate"],
+      scope: payload["scope"],
+      effective_at: effective_at
+    }
   end
 
   @doc """
