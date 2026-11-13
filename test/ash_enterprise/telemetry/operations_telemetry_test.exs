@@ -1,8 +1,9 @@
 defmodule AshEnterprise.Telemetry.OperationsTelemetryTest do
   @moduledoc """
-  What this host does with `ash_operations` telemetry (ADR 0063): the metrics it declares and
-  the span attributes it sets are structural only. The events and their hygiene belong to the
-  package's own suite; this pins the host's use of them.
+  What this host does with `ash_operations` telemetry (ADR 0063): the metrics it declares are
+  structural only, and the span handler from the telemetry package is attached to the events
+  this application's operations emit. The handler's own hygiene is pinned in the telemetry
+  package's suite; this pins the host's use of it.
   """
 
   use ExUnit.Case, async: true
@@ -32,51 +33,41 @@ defmodule AshEnterprise.Telemetry.OperationsTelemetryTest do
            )
   end
 
-  test "the span handler sets no path, id or body attribute" do
-    # What a careless event could carry, beside what the package emits.
-    metadata = %{
-      provider: :credential_registry,
-      operation: :activate,
-      effect: :write,
-      attempts: 2,
-      status: 503,
-      reason: :server_error,
-      path: "/v1/activations/stub-registry:abc",
-      query: [{"subjectReference", "org:cred"}],
-      body: %{"licenceNumber" => "L-1"},
-      headers: %{"authorization" => ["Bearer secret"]},
-      id: "act-1"
-    }
+  test "the span handler is attached to the events this application's operations emit" do
+    handler = &Operations.on_event/4
 
-    attributes = Operations.attributes([:operations, :request, :stop], metadata)
+    for event <- [[:operations, :request, :stop], [:operations, :webhook, :received]] do
+      assert Enum.any?(
+               :telemetry.list_handlers(event),
+               &(&1.event_name == event and &1.function == handler)
+             ),
+             "no span handler on #{inspect(event)}"
+    end
+  end
+
+  test "the span attributes are structural only" do
+    attributes =
+      Operations.attributes(:request, %{
+        provider: :credential_registry,
+        operation: :activate,
+        status: 503,
+        path: "/v1/activations/stub-registry:abc",
+        id: "act-1"
+      })
 
     assert Map.new(attributes) == %{
              "operations.provider" => :credential_registry,
              "operations.operation" => :activate,
-             "operations.effect" => :write,
-             "operations.attempts" => 2,
-             "operations.status" => 503,
-             "operations.reason" => :server_error
+             "operations.status" => 503
            }
-
-    webhook =
-      Operations.attributes(
-        [:operations, :webhook, :received],
-        %{provider: "credential-registry", outcome: :enqueued, status: 204, delivery: "d-1"}
-      )
-
-    assert Map.new(webhook) == %{
-             "operations.webhook.provider" => "credential-registry",
-             "operations.webhook.outcome" => :enqueued,
-             "operations.webhook.status" => 204
-           }
-
-    assert Operations.attributes([:other, :event], metadata) == []
   end
 
   test "attaching is idempotent, and a handled event does not raise" do
-    assert :ok = Operations.attach()
-    assert :ok = Operations.attach()
+    assert :ok =
+             Operations.attach(request: [:operations, :request], webhook: [:operations, :webhook])
+
+    assert :ok =
+             Operations.attach(request: [:operations, :request], webhook: [:operations, :webhook])
 
     :telemetry.execute(
       [:operations, :request, :stop],

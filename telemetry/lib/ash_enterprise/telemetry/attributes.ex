@@ -67,6 +67,19 @@ defmodule AshEnterprise.Telemetry.Attributes do
   `url.scheme`, `http.response.status_code`, `error.type` and, on a retry,
   `http.request.resend_count`.
 
+  ## Provider operations
+
+  Set by `AshEnterprise.Telemetry.Operations` on the span current when an `ash_operations`
+  call or webhook delivery finishes. Names, statuses and counts only: never a path, a
+  query, an id, a header or a body.
+
+  | Attribute | Value |
+  |---|---|
+  | `operations.provider`, `operations.operation`, `operations.effect` | The declared provider, operation and effect. |
+  | `operations.attempts` | How many attempts the call took. |
+  | `operations.status`, `operations.reason` | The HTTP status, and the error reason when it failed. |
+  | `operations.webhook.provider`, `operations.webhook.outcome`, `operations.webhook.status` | A webhook delivery's provider, what became of it, and the status answered. |
+
   ## Reserved
 
   `ash.*`, `audit.*` and anything naming a correlation id are written only by the

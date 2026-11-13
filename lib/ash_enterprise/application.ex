@@ -10,7 +10,13 @@ defmodule AshEnterprise.Application do
   @impl true
   def start(_type, _args) do
     setup_opentelemetry()
-    AshEnterprise.Telemetry.Operations.attach()
+    # ash_operations' default event prefixes, which this application's
+    # declarations and webhook ingress keep (ADR 0063).
+    AshEnterprise.Telemetry.Operations.attach(
+      request: [:operations, :request],
+      webhook: [:operations, :webhook]
+    )
+
     check_external_binaries()
     configure_acp_agent_info()
 

@@ -84,6 +84,7 @@ or passes `{module, function, args}` to decide per request.
 | Trace on a Postgres session | `Repo.on_transaction_begin/1` | `Postgres` |
 | Trace on outbound HTTP | nothing: `setup/1` adds it to Req's default plugins (`req: false` to opt out) | `AshEnterprise.Telemetry.Req` |
 | Naming the action on a span | `setup(event_attributes: ...)`; `declared:` for actions not in the UI module | `A2uiEventAttributes` |
+| `ash_operations` calls and webhook deliveries on the current span | `Application.start/2`, with the host's event prefixes | `Operations` |
 
 Attribute names are a documented contract: `AshEnterprise.Telemetry.Attributes`.
 
