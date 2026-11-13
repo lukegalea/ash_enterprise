@@ -120,7 +120,7 @@ msgstr ""
 msgid "Decision definition"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts/differs/decision.ex:27
+#: lib/ash_enterprise/artifacts/differs/decision.ex:22
 #, elixir-autogen, elixir-format
 msgid "Decisions"
 msgstr ""
@@ -166,12 +166,12 @@ msgstr ""
 msgid "In use"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts/differs/decision.ex:31
+#: lib/ash_enterprise/artifacts/differs/decision.ex:26
 #, elixir-autogen, elixir-format
 msgid "Input data"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts/differs/decision.ex:28
+#: lib/ash_enterprise/artifacts/differs/decision.ex:23
 #, elixir-autogen, elixir-format
 msgid "Inputs"
 msgstr ""
@@ -306,7 +306,7 @@ msgstr ""
 msgid "Output"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts/differs/decision.ex:29
+#: lib/ash_enterprise/artifacts/differs/decision.ex:24
 #, elixir-autogen, elixir-format
 msgid "Outputs"
 msgstr ""
@@ -362,7 +362,7 @@ msgstr ""
 msgid "Rule set"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts/differs/decision.ex:30
+#: lib/ash_enterprise/artifacts/differs/decision.ex:25
 #: lib/ash_enterprise/artifacts/differs/release_manifest.ex:46
 #: lib/ash_enterprise/artifacts/differs/rule_set.ex:25
 #, elixir-autogen, elixir-format

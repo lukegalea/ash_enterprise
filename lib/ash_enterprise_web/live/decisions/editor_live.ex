@@ -26,5 +26,6 @@ defmodule AshEnterpriseWeb.Decisions.EditorLive do
     domain: AshEnterprise.Decisions,
     actor: {AshEnterpriseWeb.Bpmn.Helpers, :current_actor, []},
     baseline: {AshEnterpriseWeb.Bpmn.Baselines, :decision_baseline, []},
-    customize: {AshEnterpriseWeb.Bpmn.Baselines, :customize_decision, []}
+    customize: {AshEnterpriseWeb.Bpmn.Baselines, :customize_decision, []},
+    gettext: AshEnterpriseWeb.Gettext
 end

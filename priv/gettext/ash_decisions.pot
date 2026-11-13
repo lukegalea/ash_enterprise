@@ -1,0 +1,149 @@
+## The words ash_decisions' LiveViews write for a reader (AshDecisions.Web.EditorLive
+## and AshDecisions.Web.TryLive). Copy this template into the host's priv/gettext/
+## and run `mix gettext.merge priv/gettext`; see AshDecisions.Web.L10n.
+msgid ""
+msgstr ""
+
+msgid "Choose which decision to evaluate."
+msgstr ""
+
+msgid "Could not customize %{key}: %{reason}"
+msgstr ""
+
+msgid "Customize"
+msgstr ""
+
+msgid "Decision"
+msgstr ""
+
+msgid "Decision %{decision}, version %{version}"
+msgstr ""
+
+msgid "Discard draft"
+msgstr ""
+
+msgid "Discard this draft? Unpublished changes are lost."
+msgstr ""
+
+msgid "Draft created from the baseline. Publish it to switch over."
+msgstr ""
+
+msgid "Draft discarded."
+msgstr ""
+
+msgid "Enter a date as YYYY-MM-DD."
+msgstr ""
+
+msgid "Enter a number, like 42 or 3.5."
+msgstr ""
+
+msgid "Enter a value."
+msgstr ""
+
+msgid "Enter true or false."
+msgstr ""
+
+msgid "Fit"
+msgstr ""
+
+msgid "No rule matched."
+msgstr ""
+
+msgid "Publish"
+msgstr ""
+
+msgid "Published v%{version}"
+msgstr ""
+
+msgid "Result"
+msgstr ""
+
+msgid "Revert"
+msgstr ""
+
+msgid "Rule %{position}"
+msgstr ""
+
+msgid "Rules that matched"
+msgstr ""
+
+msgid "Run a version against sample inputs. Nothing is recorded: a trial is not a decision about a case."
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Saved"
+msgstr ""
+
+msgid "The decision could not be evaluated: %{reason}"
+msgstr ""
+
+msgid "The decision took too long to evaluate."
+msgstr ""
+
+msgid "There is no draft to discard."
+msgstr ""
+
+msgid "There is no version of this decision that you can try."
+msgstr ""
+
+msgid "This baseline cannot be customized from here."
+msgstr ""
+
+msgid "This decision declares no inputs."
+msgstr ""
+
+msgid "This is a baseline and is read-only. Customize it to edit a copy of your own."
+msgstr ""
+
+msgid "This version could not be loaded. Fix it in the editor first."
+msgstr ""
+
+msgid "This version has errors and cannot be tried until they are fixed in the editor."
+msgstr ""
+
+msgid "This version has no decision to evaluate. Fix it in the editor first."
+msgstr ""
+
+msgid "Try %{key}"
+msgstr ""
+
+msgid "Try it"
+msgstr ""
+
+msgid "Version"
+msgstr ""
+
+msgid "baseline v%{version} · read-only"
+msgstr ""
+
+msgid "baseline · read-only"
+msgstr ""
+
+msgid "draft"
+msgstr ""
+
+msgid "draft v%{version}"
+msgstr ""
+
+msgid "hit policy %{policy}"
+msgstr ""
+
+msgid "new · nothing is stored until you save"
+msgstr ""
+
+msgid "published"
+msgstr ""
+
+msgid "published v%{version}"
+msgstr ""
+
+msgid "retired"
+msgstr ""
+
+msgid "unsaved changes"
+msgstr ""
+
+msgid "v%{version} (%{status})"
+msgstr ""

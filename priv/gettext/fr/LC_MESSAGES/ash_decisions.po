@@ -1,0 +1,156 @@
+## "msgid"s in this file come from POT (.pot) files.
+###
+### Do not add, change, or remove "msgid"s manually here as
+### they're tied to the ones in the corresponding POT file
+### (with the same domain).
+###
+### Use "mix gettext.extract --merge" or "mix gettext.merge"
+### to merge POT files into PO files.
+msgid ""
+msgstr ""
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n>1);\n"
+
+msgid "Choose which decision to evaluate."
+msgstr "Choisissez la décision à évaluer."
+
+msgid "Could not customize %{key}: %{reason}"
+msgstr "Impossible de personnaliser %{key} : %{reason}"
+
+msgid "Customize"
+msgstr "Personnaliser"
+
+msgid "Decision"
+msgstr "Décision"
+
+msgid "Decision %{decision}, version %{version}"
+msgstr "Décision %{decision}, version %{version}"
+
+msgid "Discard draft"
+msgstr "Abandonner le brouillon"
+
+msgid "Discard this draft? Unpublished changes are lost."
+msgstr "Abandonner ce brouillon ? Les modifications non publiées seront perdues."
+
+msgid "Draft created from the baseline. Publish it to switch over."
+msgstr "Brouillon créé à partir du modèle de base. Publiez-le pour l’adopter."
+
+msgid "Draft discarded."
+msgstr "Brouillon abandonné."
+
+msgid "Enter a date as YYYY-MM-DD."
+msgstr "Saisissez une date au format AAAA-MM-JJ."
+
+msgid "Enter a number, like 42 or 3.5."
+msgstr "Saisissez un nombre, par exemple 42 ou 3,5."
+
+msgid "Enter a value."
+msgstr "Saisissez une valeur."
+
+msgid "Enter true or false."
+msgstr "Saisissez true ou false."
+
+msgid "Fit"
+msgstr "Ajuster"
+
+msgid "No rule matched."
+msgstr "Aucune règle ne correspond."
+
+msgid "Publish"
+msgstr "Publier"
+
+msgid "Published v%{version}"
+msgstr "v%{version} publiée"
+
+msgid "Result"
+msgstr "Résultat"
+
+msgid "Revert"
+msgstr "Rétablir"
+
+msgid "Rule %{position}"
+msgstr "Règle %{position}"
+
+msgid "Rules that matched"
+msgstr "Règles qui correspondent"
+
+msgid "Run a version against sample inputs. Nothing is recorded: a trial is not a decision about a case."
+msgstr "Exécutez une version sur des entrées d’exemple. Rien n’est enregistré : un essai n’est pas une décision sur un dossier."
+
+msgid "Save"
+msgstr "Enregistrer"
+
+msgid "Saved"
+msgstr "Enregistré"
+
+msgid "The decision could not be evaluated: %{reason}"
+msgstr "La décision n’a pas pu être évaluée : %{reason}"
+
+msgid "The decision took too long to evaluate."
+msgstr "L’évaluation de la décision a pris trop de temps."
+
+msgid "There is no draft to discard."
+msgstr "Il n’y a aucun brouillon à abandonner."
+
+msgid "There is no version of this decision that you can try."
+msgstr "Aucune version de cette décision ne peut être essayée par vous."
+
+msgid "This baseline cannot be customized from here."
+msgstr "Ce modèle de base ne peut pas être personnalisé ici."
+
+msgid "This decision declares no inputs."
+msgstr "Cette décision ne déclare aucune entrée."
+
+msgid "This is a baseline and is read-only. Customize it to edit a copy of your own."
+msgstr "Ceci est un modèle de base, en lecture seule. Personnalisez-le pour modifier votre propre copie."
+
+msgid "This version could not be loaded. Fix it in the editor first."
+msgstr "Cette version n’a pas pu être chargée. Corrigez-la d’abord dans l’éditeur."
+
+msgid "This version has errors and cannot be tried until they are fixed in the editor."
+msgstr "Cette version comporte des erreurs et ne peut pas être essayée avant leur correction dans l’éditeur."
+
+msgid "This version has no decision to evaluate. Fix it in the editor first."
+msgstr "Cette version n’a aucune décision à évaluer. Corrigez-la d’abord dans l’éditeur."
+
+msgid "Try %{key}"
+msgstr "Essayer %{key}"
+
+msgid "Try it"
+msgstr "Essayer"
+
+msgid "Version"
+msgstr "Version"
+
+msgid "baseline v%{version} · read-only"
+msgstr "modèle de base v%{version} · lecture seule"
+
+msgid "baseline · read-only"
+msgstr "modèle de base · lecture seule"
+
+msgid "draft"
+msgstr "brouillon"
+
+msgid "draft v%{version}"
+msgstr "brouillon v%{version}"
+
+msgid "hit policy %{policy}"
+msgstr "politique de résultat %{policy}"
+
+msgid "new · nothing is stored until you save"
+msgstr "nouveau · rien n’est enregistré avant la première sauvegarde"
+
+msgid "published"
+msgstr "publiée"
+
+msgid "published v%{version}"
+msgstr "publiée v%{version}"
+
+msgid "retired"
+msgstr "retirée"
+
+msgid "unsaved changes"
+msgstr "modifications non enregistrées"
+
+msgid "v%{version} (%{status})"
+msgstr "v%{version} (%{status})"

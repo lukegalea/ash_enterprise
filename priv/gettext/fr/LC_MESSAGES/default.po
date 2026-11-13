@@ -968,7 +968,6 @@ msgstr "Impossible de lire %{source}"
 msgid "Decided by"
 msgstr "Décidé par"
 
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:216
 #: lib/ash_enterprise_web/live/explorer_live.ex:736
 #: lib/ash_enterprise_web/live/explorer_live.ex:809
 #, elixir-autogen, elixir-format
@@ -1199,7 +1198,6 @@ msgstr "Travaux récents à consulter"
 msgid "Record"
 msgstr "Enregistrement"
 
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:280
 #: lib/ash_enterprise_web/live/explorer_live.ex:770
 #, elixir-autogen, elixir-format
 msgid "Result"
@@ -1550,137 +1548,15 @@ msgstr "Reçu le"
 msgid "Sender"
 msgstr "Expéditeur"
 
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:146
-#, elixir-autogen, elixir-format
-msgid "Choose which decision to evaluate."
-msgstr "Choisissez la décision à évaluer."
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:283
-#, elixir-autogen, elixir-format
-msgid "Decision %{decision}, version %{version}"
-msgstr "Décision %{decision}, version %{version}"
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:136
-#, elixir-autogen, elixir-format
-msgid "Enter a date as YYYY-MM-DD."
-msgstr "Saisissez une date au format AAAA-MM-JJ."
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:134
-#, elixir-autogen, elixir-format
-msgid "Enter a number, like 42 or 3.5."
-msgstr "Saisissez un nombre, par exemple 42 ou 3,5."
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:133
-#, elixir-autogen, elixir-format
-msgid "Enter a value."
-msgstr "Saisissez une valeur."
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:135
-#, elixir-autogen, elixir-format
-msgid "Enter true or false."
-msgstr "Saisissez true ou false."
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:317
+#: lib/ash_enterprise_web/live/decisions/try_live.ex:45
 #, elixir-autogen, elixir-format
 msgid "Every decision"
 msgstr "Toutes les décisions"
 
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:297
-#, elixir-autogen, elixir-format
-msgid "No rule matched."
-msgstr "Aucune règle ne correspond."
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:301
-#, elixir-autogen, elixir-format
-msgid "Rule %{position}"
-msgstr "Règle %{position}"
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:291
-#, elixir-autogen, elixir-format
-msgid "Rules that matched"
-msgstr "Règles qui correspondent"
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:174
-#, elixir-autogen, elixir-format
-msgid "Run a version against sample inputs. Nothing is recorded: a trial is not a decision about a case."
-msgstr "Exécutez une version sur des entrées d’exemple. Rien n’est enregistré : un essai n’est pas une décision sur un dossier."
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:153
-#, elixir-autogen, elixir-format
-msgid "The decision could not be evaluated: %{reason}"
-msgstr "La décision n’a pas pu être évaluée : %{reason}"
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:139
-#, elixir-autogen, elixir-format
-msgid "The decision took too long to evaluate."
-msgstr "L’évaluation de la décision a pris trop de temps."
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:186
-#, elixir-autogen, elixir-format
-msgid "There is no version of this decision that you can try."
-msgstr "Aucune version de cette décision ne peut être essayée par vous."
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:245
-#, elixir-autogen, elixir-format
-msgid "This decision declares no inputs."
-msgstr "Cette décision ne déclare aucune entrée."
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:149
-#, elixir-autogen, elixir-format
-msgid "This version could not be loaded. Fix it in the editor first."
-msgstr "Cette version n’a pas pu être chargée. Corrigez-la d’abord dans l’éditeur."
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:234
-#, elixir-autogen, elixir-format
-msgid "This version has errors and cannot be tried until they are fixed in the editor."
-msgstr "Cette version comporte des erreurs et ne peut pas être essayée avant leur correction dans l’éditeur."
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:143
-#, elixir-autogen, elixir-format
-msgid "This version has no decision to evaluate. Fix it in the editor first."
-msgstr "Cette version n’a aucune décision à évaluer. Corrigez-la d’abord dans l’éditeur."
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:24
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:172
-#, elixir-autogen, elixir-format
-msgid "Try %{key}"
-msgstr "Essayer %{key}"
-
 #: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:414
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:270
 #, elixir-autogen, elixir-format
 msgid "Try it"
 msgstr "Essayer"
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:192
-#, elixir-autogen, elixir-format
-msgid "Version"
-msgstr "Version"
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:128
-#, elixir-autogen, elixir-format
-msgid "draft"
-msgstr "brouillon"
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:288
-#, elixir-autogen, elixir-format
-msgid "hit policy %{policy}"
-msgstr "politique de résultat %{policy}"
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:129
-#, elixir-autogen, elixir-format
-msgid "published"
-msgstr "publiée"
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:130
-#, elixir-autogen, elixir-format
-msgid "retired"
-msgstr "retirée"
-
-#: lib/ash_enterprise_web/live/decisions/try_live.ex:122
-#, elixir-autogen, elixir-format
-msgid "v%{version} (%{status})"
-msgstr "v%{version} (%{status})"
 
 #: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:310
 #, elixir-autogen, elixir-format

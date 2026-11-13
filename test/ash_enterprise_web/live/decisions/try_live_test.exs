@@ -172,6 +172,37 @@ defmodule AshEnterpriseWeb.Decisions.TryLiveTest do
     end
   end
 
+  describe "this application's wiring of the package page" do
+    test "it sits in the application layout, with the link back to the catalogue", %{
+      admin: admin
+    } do
+      {:ok, view, _html} = live(sign_in(admin.user), path())
+
+      assert has_element?(view, "#decision-try")
+      assert has_element?(view, "#decision-try-back[href='/app/decisions']")
+    end
+
+    test "the page and its errors are in the reader's language", %{admin: admin, draft: draft} do
+      {:ok, view, _html} =
+        admin.user
+        |> sign_in()
+        |> put_req_header("accept-language", "fr")
+        |> live(path())
+
+      assert has_element?(view, "#decision-try h1", "Essayer #{@key}")
+      assert has_element?(view, "#decision-try-submit", "Essayer")
+      assert has_element?(view, "#decision-try-back", "Toutes les décisions")
+
+      try_it(view, draft, "privileged", "lots")
+
+      assert has_element?(
+               view,
+               "#decision-try-error-justificationLength",
+               "Saisissez un nombre, par exemple 42 ou 3,5."
+             )
+    end
+  end
+
   test "the catalogue links a tenant's own decision to its panel", %{admin: admin} do
     {:ok, view, _html} = live(sign_in(admin.user), "/app/decisions")
 

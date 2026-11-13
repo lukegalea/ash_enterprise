@@ -239,6 +239,25 @@ defmodule AshEnterprise.Artifacts.RegistryTest do
       assert {:unchanged, :compared} =
                Artifacts.diff(entry(:process), old, %{old | xml: "<moved-shapes/>"}, [])
     end
+
+    test "a decision diff is the package's, by the aspects the package names" do
+      {old, new} = pair(:decision)
+
+      assert {:changes, [%Change{} = change]} = Artifacts.diff(entry(:decision), old, new, [])
+
+      assert Map.take(change, [:aspect, :kind, :subject, :option, :from, :to]) ==
+               %{
+                 aspect: :rules,
+                 kind: :changed,
+                 subject: "D R",
+                 option: "output_entries",
+                 from: ["\"high\""],
+                 to: ["\"low\""]
+               }
+
+      assert Keyword.keys(entry(:decision).differ.aspects()) ==
+               Keyword.keys(AshDecisions.Diff.aspects())
+    end
   end
 
   describe "a release manifest's diff (UX-14)" do
