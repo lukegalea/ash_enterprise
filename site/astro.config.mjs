@@ -171,7 +171,6 @@ export default defineConfig({
             { label: 'Roadmap', link: '/docs/roadmap/' },
             { label: 'Dependencies not on Hex', link: '/docs/bleeding-edge/' },
             { label: 'House style', link: '/docs/house-style/' },
-            { label: 'Handoff notes', link: '/docs/handoff/' },
           ],
         },
         { label: 'Decision records', items: adrSidebar() },

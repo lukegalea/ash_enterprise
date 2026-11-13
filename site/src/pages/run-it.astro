@@ -1,7 +1,7 @@
 ---
 /**
- * Run it: the local recipe, the people the demo seeds, and the twelve failures
- * the credentialing tour shows.
+ * Run it: the local recipe, the people the demo seeds, and the failures the
+ * credentialing tour shows (`docs/failures.json`).
  *
  * The commands are cut from README.md and the walkthrough (`snippet()`); the
  * failures come from `docs/failures.json`, which
@@ -36,16 +36,17 @@ const history = snippet('demo-history');
 
 const places: { path: string; what: string }[] = [
   { path: '/app', what: 'The launcher: every surface, grouped. Signing in lands here.' },
-  { path: tourPath, what: 'The credentialing tour: twelve failures, F1 to F12, and what the application does about each.' },
+  {
+    path: tourPath,
+    what: `The credentialing tour: ${numberWord(facts.failures.total)} failures, F1 to F${facts.failures.total}, and what the application does about each.`,
+  },
   { path: '/app/tasks', what: 'Every process task waiting on you, as a board: claim, complete, delegate.' },
   { path: '/app/approvals', what: 'Approvals waiting on you, with what is being approved.' },
-  { path: '/app/explorer', what: 'The execution explorer: the record behind each beat of the tour.' },
+  { path: '/app/explorer', what: 'The execution explorer: one piece of work followed across its process, agent runs, decisions, approvals and invocations.' },
   { path: '/app/recovery', what: 'The recovery surface, where a request whose outcome is unknown is settled.' },
   { path: '/app/mdm/import', what: 'Import a customer CSV, review the proposed mapping, and run it.' },
   { path: '/app/legacy-users', what: 'Users read from a legacy schema through a compatibility view.' },
-  { path: '/agent', what: 'The helper console. It proposes changes for your approval, and needs a model key.' },
-  { path: '/api/json/swaggerui', what: 'The JSON:API, with its OpenAPI description.' },
-  { path: '/gql/playground', what: 'The GraphQL API.' },
+  { path: '/agent', what: 'The helper console. It proposes changes for your approval, and needs a model to interpret a request.' },
 ];
 const missingRoutes = places.filter((p) => !hasRoute(p.path)).map((p) => p.path);
 if (missingRoutes.length) {
@@ -112,7 +113,7 @@ const personas: { who: string[]; role: string; may: string; source: string }[] =
   {
     who: ['ines@example.com', 'omar@example.com'],
     role: 'The clinic’s directors, as Administrators',
-    may: 'Publish an agent, which takes both of them: one asks and the other approves.',
+    may: 'Publish an agent. Under the default (:standard) approval posture that takes both of them: one asks and the other approves.',
     source: 'lib/ash_enterprise/credentialing/licence_demo_data.ex',
   },
 ];
@@ -123,13 +124,15 @@ for (const p of personas) {
   }
 }
 
+const failureCount = facts.failures.total;
+const lastFailure = `F${failureCount}`;
 const seededCount = facts.failures.seeded;
 const clickedCount = facts.failures.total - facts.failures.seeded;
 ---
 
 <Base
   title="Run it"
-  description="Run the reference application locally: the commands, the synthetic people the demo seeds, and the twelve failures the credentialing tour makes happen."
+  description={`Run the reference application locally: the commands, the synthetic people the demo seeds, and the ${numberWord(failureCount)} failures the credentialing tour makes happen.`}
   active="run-it"
 >
   <header class="ae-container-narrow pt-16 pb-4 sm:pt-20">
@@ -160,15 +163,16 @@ const clickedCount = facts.failures.total - facts.failures.seeded;
 
     <div class="ae-body mt-10 space-y-4">
       <p>
-        Sign in with the credentials the seeder prints. Every demo person signs in with the fixed password{' '}
-        <code class="ae-code">password1234</code>, which is for a local database only. On an instance other people can
-        reach, run <code class="ae-code">mix ash_enterprise.demo --password-file PATH</code> instead: a random password
-        is written to that file and never printed.
+        Sign in with the credentials the seeder prints. By default every demo person signs in with the fixed password{' '}
+        <code class="ae-code">password1234</code>, which is for a local database only.
       </p>
       <p>
-        <code class="ae-code">mix ash_enterprise.demo</code> writes to its own tenant, <code class="ae-code">clinic-demo</code>,
-        and to no other, so it is safe on a database that already holds real tenants. It creates everything through the
-        application's own actions, and running it twice changes nothing.
+        <code class="ae-code">mix ash_enterprise.demo</code> writes to its own tenant, <code class="ae-code">clinic-demo</code>.
+        It never reads or writes another tenant's rows. On any database other people can reach, always pass{' '}
+        <code class="ae-code">--password-file PATH</code>; without it every demo person, the administrator included, gets
+        the public password above. When the file does not exist, a random password is written to it and never printed;
+        when it does, the password in it is used. The demo creates everything through the application's own actions, and
+        running it twice changes nothing.
       </p>
     </div>
 
@@ -189,8 +193,9 @@ const clickedCount = facts.failures.total - facts.failures.seeded;
       </li>
     </ul>
     <p class="ae-body mt-6">
-      The helper console at <code class="ae-code">/agent</code> needs <code class="ae-code">ANTHROPIC_API_KEY</code> or{' '}
-      <code class="ae-code">OPENAI_API_KEY</code> in <code class="ae-code">.env</code>, and says so when neither is set.{' '}
+      To interpret a request, the helper console at <code class="ae-code">/agent</code> needs the key for the configured
+      model's provider in <code class="ae-code">.env</code> (<code class="ae-code">ANTHROPIC_API_KEY</code> by default),
+      and names the variable when it is not set; a model running inside the data's zone needs none.{' '}
       <code class="ae-code">scripts/pre-ci</code> runs CI's static checks in CI's order, without the
       test suite.
     </p>
@@ -278,9 +283,9 @@ const clickedCount = facts.failures.total - facts.failures.seeded;
   <Section
     id="failures"
     step="04"
-    eyebrow="F1 to F12"
-    title="Twelve failures, and what the application does about each"
-    lead={`The credentialing tour at ${tourPath} walks a coordinator from asking for a licence to be activated to a new release of the agent that reads licence documents, and makes these happen on the way. ${cap(numberWord(seededCount))} are recorded by --history; the other ${numberWord(clickedCount)} are made by clicking their beat.`}
+    eyebrow={`F1 to ${lastFailure}`}
+    title={`${cap(numberWord(failureCount))} failures, and what the application does about each`}
+    lead={`The credentialing tour at ${tourPath} walks a coordinator from asking for a licence to be activated to a new release of the agent that reads licence documents, and makes these happen on the way. ${cap(numberWord(seededCount))} are recorded by --history; the other ${numberWord(clickedCount)} happen when you click their step of the tour.`}
     tone="muted"
     wide
   >
@@ -303,7 +308,7 @@ const clickedCount = facts.failures.total - facts.failures.seeded;
                 <span class="font-mono text-ae-copper">{f.id}</span> {f.title}
               </h3>
               <p class="font-mono text-xs text-ae-muted">
-                beat {f.beat} · {f.seeded ? 'recorded by --history' : 'click the beat'}
+                step {f.beat} · {f.seeded ? 'recorded by --history' : 'click the step'}
               </p>
             </div>
             <p class="mt-3 text-sm leading-relaxed text-ae-muted">{f.what_happens}</p>
@@ -323,7 +328,7 @@ const clickedCount = facts.failures.total - facts.failures.seeded;
     </ol>
 
     <div class="mt-10 flex flex-wrap gap-3">
-      <a class="ae-btn" href={repoHref(walkthroughPath)}>The walkthrough, beat by beat</a>
+      <a class="ae-btn" href={repoHref(walkthroughPath)}>The walkthrough, step by step</a>
       <a class="ae-btn" href={withBase('/proof/')}>What is built, and what tests it</a>
     </div>
   </Section>

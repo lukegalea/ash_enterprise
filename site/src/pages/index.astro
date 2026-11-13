@@ -21,6 +21,7 @@ import {
   question,
   capability,
   capabilityStatus,
+  capabilityWord,
   packs,
   pageHref,
   checklistHref,
@@ -61,11 +62,12 @@ const selfHosted = capability('self-hosted-operation');
 const gitOnly = packages.every((p) => p.distribution.startsWith('git only'));
 const caps = facts.capabilities.byStatus;
 const q = facts.roadmap.questions;
+const optOut = facts.resources.optOut;
 ---
 
 <Base
-  title="Ash Enterprise: declare the resource, inherit the controls"
-  description="First-party Ash packages and a reference application. A resource on the platform base inherits audit, ownership, tenancy, soft delete, lineage and a policy set that is a union of grants."
+  title="Ash Enterprise: declare the resource, inherit audit, tenancy and authorization"
+  description="First-party Ash packages and a reference application. A resource on the platform base inherits, by default, audit, ownership, tenancy, soft delete, lineage and a policy set whose row access is a union of grants."
   bare={true}
   active="home"
 >
@@ -88,8 +90,10 @@ const q = facts.roadmap.questions;
             <div>
               <dt class="ae-h3">Authorization</dt>
               <dd class="mt-1">
-                The policy set every resource inherits is a union of grants: a role, a share, a place
-                in the hierarchy or a self-service action. Any one is enough and none subtracts.
+                Row access in the policy set every resource inherits is a union of grants: a role, a
+                share, a place in the hierarchy or a self-service action. Any one is enough and none
+                subtracts. Ahead of the union, tenant isolation is checked on its own, and a closed list
+                of bypasses serves the process engines and system actors.
                 Checks read what they need from a context computed once per request, and a policy
                 check that issues a query is treated as a bug.
               </dd>
@@ -97,7 +101,8 @@ const q = facts.roadmap.questions;
             <div>
               <dt class="ae-h3">Ownership, tenancy and concurrency</dt>
               <dd class="mt-1">
-                User-or-team ownership, an <code class="ae-code">organization_id</code> on every row,
+                User-or-team ownership, an <code class="ae-code">organization_id</code> on every
+                tenant-scoped row,
                 who created and last changed it, and a version number that makes a write from a stale
                 copy fail instead of overwriting.
               </dd>
@@ -105,15 +110,20 @@ const q = facts.roadmap.questions;
             <div>
               <dt class="ae-h3">Audit, soft delete and lineage</dt>
               <dd class="mt-1">
-                Every write goes to one central event log, hash-chained so an edit behind it is found.
-                A destroy archives the row. A successful write emits an OpenLineage run event.
+                By default every write goes to one central event log, hash-chained so an edit made
+                outside the application shows up when the chain is verified. A destroy archives the
+                row, and a successful write emits an OpenLineage run event.
               </dd>
             </div>
             <div>
               <dt class="ae-h3">Opting out is written down</dt>
               <dd class="mt-1">
-                <code class="ae-code">audit?: false</code> or <code class="ae-code">archival?: false</code>
-                sits in the resource's own file, where a reviewer sees it. A JSON:API and GraphQL
+                <code class="ae-code">audit?: false</code>, <code class="ae-code">archival?: false</code>{' '}
+                or <code class="ae-code">tenant?: false</code> sits in the resource's own file, where a
+                reviewer sees it. Of the {facts.resources.declaredOnBase} resources that declare the base,{' '}
+                {optOut.audit} turn audit off, {optOut.archival} soft delete and {optOut.tenant} tenant
+                scoping, among them logs, read-only lookups, sync cursors and records no tenant owns. A
+                JSON:API and GraphQL
                 surface appears only when the resource names an <code class="ae-code">api_type</code>.
               </dd>
             </div>
@@ -137,14 +147,14 @@ const q = facts.roadmap.questions;
       id="governed-agents"
       step="03"
       eyebrow="Governed agents"
-      title="An agent calls the actions its person could, and waits where a person would."
+      title="An agent calls the actions the person who asked could call, and waits where a person would."
       tone="muted"
       wide
     >
       <Fragment slot="chips">
         {
           agentCapabilities.map((id) => (
-            <StatusChip status={capabilityStatus(id)} label={capability(id).capability} />
+            <StatusChip status={capabilityStatus(id)} label={capability(id).capability} word={capabilityWord(id)} />
           ))
         }
       </Fragment>
@@ -168,8 +178,8 @@ const q = facts.roadmap.questions;
           </p>
           <p>
             The credentialing tour in the reference application makes{' '}
-            {numberWord(facts.failures.total)} of these go wrong on purpose, from a model timing out to a deploy changing an approved
-            tool, and shows what happens to each.
+            {numberWord(facts.failures.total)} things go wrong on purpose, from a model timing out to a deploy changing an
+            approved tool, and shows what happens to each.
           </p>
           <p class="flex flex-wrap gap-x-5 gap-y-2">
             <a class="ae-link" href={withBase('/docs/manifesto/05-agents-are-users/')}>Agents are users</a>
@@ -205,10 +215,13 @@ const q = facts.roadmap.questions;
           </p>
           <p>
             A pack bundles processes and the recipes that start them, and names the controls it
-            bears on. It installs as drafts. The person who publishes a recipe is recorded as
+            bears on. It installs as drafts. A person can give a recipe's steps authority by
+            publishing it with <code class="ae-code">publish_granted</code>. They are then recorded as
             accountable, and its steps run on the intersection of that person's grants and the
             recipe runner's, rebuilt at every step. If the publisher has left or the grant has
-            lapsed, the step records <code class="ae-code">no_authority</code> and runs nothing.
+            lapsed, the step records <code class="ae-code">no_authority</code> and runs nothing. By
+            default, a recipe published without one may start only processes whose steps are human
+            tasks.
           </p>
           <p>
             A compliance rule is an <code class="ae-code">ash_rules</code> rule over facts, filed under
@@ -241,7 +254,7 @@ const q = facts.roadmap.questions;
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    {pack.title}
+                    {pack.title}<span class="sr-only"> (opens in a new tab)</span>
                   </a>
                   <p class="mt-1 font-mono text-xs text-ae-muted">
                     {pack.name} · {pack.processes.length}{' '}
@@ -302,11 +315,11 @@ const q = facts.roadmap.questions;
           <p class="flex flex-wrap gap-x-5 gap-y-2">
             <a class="ae-link" href={runItHref}>How to run it</a>
             <a class="ae-link" href={repoHref(walkthroughPath)} target="_blank" rel="noopener noreferrer">
-              The tour, walked through
+              The tour, walked through<span class="sr-only"> (opens in a new tab)</span>
             </a>
           </p>
         </div>
-        <SnippetExhibit name="getting-started" label="Exhibit 7" />
+        <SnippetExhibit name="local-recipe" label="Exhibit 7" />
       </div>
     </Section>
 
@@ -387,7 +400,7 @@ const q = facts.roadmap.questions;
           <a class="ae-btn" href={withBase('/docs/manifesto/')}>Read the manifesto</a>
           <a class="ae-btn" href={platformHref}>See the platform</a>
           <a class="ae-link text-sm" href={GITHUB} target="_blank" rel="noopener noreferrer">
-            Source on GitHub
+            Source on GitHub<span class="sr-only"> (opens in a new tab)</span>
           </a>
         </div>
       </div>

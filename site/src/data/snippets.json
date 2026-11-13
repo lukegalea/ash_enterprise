@@ -36,7 +36,7 @@
     {
       "name": "governed-effect",
       "title": "An action that needs a second person's approval",
-      "caption": "The effects declaration ash_agent reads: an edit that reaches outside the application, approved by a committee member other than the requester, settled by asking when its answer is lost.",
+      "caption": "The effects declaration ash_agent reads: an edit that reaches outside the application, approved, under the default (:standard) approval posture, by a committee member other than the requester, settled by asking when its answer is lost.",
       "file": "lib/ash_enterprise/credentialing/credential.ex",
       "start": "    action :activate_credential,",
       "end": "      reconcile_with: :lookup_activation",
@@ -83,16 +83,6 @@
         "AshJsonApi.Resource",
         "AshGraphql.Resource"
       ]
-    },
-    {
-      "name": "getting-started",
-      "title": "The first run",
-      "caption": "From the README. Everything runs inside devenv, and nothing needs configuring for dev or test.",
-      "file": "README.md",
-      "lang": "bash",
-      "start": "devenv up -d                            # Postgres",
-      "end": "devenv shell -- iex-server",
-      "mustContain": ["devenv up -d", "mix setup", "mix ash_enterprise.seed", "mix ash_enterprise.demo", "iex-server"]
     },
     {
       "name": "provider-operation",

@@ -442,10 +442,15 @@
       "id": "unified-execution-explorer",
       "area": "enterprise",
       "capability": "Unified execution explorer",
-      "status": "missing",
-      "summary": "The pieces exist separately (a per-run process view, decision evaluations, model-call records, a lineage graph), but nothing joins one execution's records into one view.",
+      "status": "partial",
+      "summary": "`/app/explorer` follows one piece of work, by a record or a correlation id, across its process run, agent runs and their journals, model calls, invocations, approvals and tasks, decision evaluations and judgments, as one timeline, a BPMN diagram and a detail panel sharing one selection, read as the signed-in person.",
+      "gap": "The lineage graph is not one of the trace's sources, so where the data in a run came from is still a separate view (`/app/lineage`).",
       "deps": [],
-      "tests": []
+      "tests": [
+        {"file": "test/ash_enterprise_web/live/explorer_live_test.exs", "test": "from the activation's effect to its approval, the matched rule, the judgment and the evidence"},
+        {"file": "test/ash_enterprise_web/live/explorer_live_test.exs", "test": "the timeline, the diagram and the detail share one selection, and the timeline keeps it without the canvas"},
+        {"file": "test/ash_enterprise_web/live/explorer_live_test.exs", "test": "a viewer who may read none of it sees nothing of it"}
+      ]
     },
     {
       "id": "explain-what-happened",

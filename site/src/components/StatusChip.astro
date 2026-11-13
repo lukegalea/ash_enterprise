@@ -19,10 +19,16 @@ interface Props {
   label?: string;
   size?: 'sm' | 'md';
   class?: string;
+  /**
+   * The word to print instead of the status's own, for a ledger with its own
+   * scale drawn with a borrowed glyph (the capability inventory's Existing /
+   * Partial / Missing).
+   */
+  word?: string;
 }
 
-const { status, label, size = 'md', class: className = '' } = Astro.props;
-const word = statusLabel[status];
+const { status, label, size = 'md', class: className = '', word: wordOverride } = Astro.props;
+const word = wordOverride ?? statusLabel[status];
 ---
 
 <span

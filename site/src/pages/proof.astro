@@ -93,7 +93,7 @@ const capabilityAreas = capabilitiesData.areas.map((area) => ({
 // ---------------------------------------------------------------------------
 
 const gates = describe<string>({
-  test: 'Everything except the suite: compile with warnings as errors, lint, check that generated code and catalogs are committed, scan for security problems and audit the dependencies.',
+  test: 'Everything except the suite: compile with warnings as errors, lint, check that generated code and catalogs are committed, scan for security problems and check for retired Hex packages.',
   'test-shards': 'The main suite, split by file across runners, each shard on a database of its own.',
   tests: 'One result for the whole suite. It fails when any shard failed or was cancelled.',
   durability:
@@ -116,6 +116,8 @@ const isSetup = (s: CiStep): boolean =>
   (s.name === null && /^(mix deps\.(get|compile)|npm ci|mkdir)\b/.test(s.run ?? ''));
 
 const blockingCount = gates.filter((g) => g.job.blocking).length;
+/** The branches CI runs on, less `master`, which ci.yml lists but this repository does not have. */
+const pushBranches = ciPushBranches.filter((b) => b !== 'master');
 const advisory = gates.filter((g) => !g.job.blocking);
 
 // ---------------------------------------------------------------------------
@@ -193,7 +195,7 @@ const rows = frameworks.map((framework) => ({
 
 const securityChecks = [
   { label: 'Security scan', step: ciStep('test', 'Security scan') },
-  { label: 'Retired and vulnerable dependencies', step: ciStep('test', 'Retired and vulnerable dependencies') },
+  { label: 'Retired Hex packages', step: ciStep('test', 'Retired Hex packages') },
   { label: 'Iron laws judge', step: ciStep('test', 'Iron laws judge') },
   { label: 'Fetch dependencies with no credentials', step: ciStep('cold-clone', 'Fetch dependencies with no credentials') },
 ];
@@ -309,8 +311,8 @@ const cap = (s: string): string => s.replace(/^./, (c) => c.toUpperCase());
     <p class="ae-body" slot="aside">
       Existing means a test named in the row would fail if it regressed. Partial means part works and is tested, and
       the row says what is missing. Missing names no tests. Refused is deliberately not built, with the reason.{' '}
-      <code class="ae-code">test/ash_enterprise/capability_inventory_test.exs</code> fails when a row claims more than
-      its tests show.
+      <code class="ae-code">test/ash_enterprise/capability_inventory_test.exs</code> fails when a row cites a test that
+      does not exist, or an existing or partial row cites none.
     </p>
 
     <div class="space-y-14">
@@ -386,7 +388,7 @@ const cap = (s: string): string => s.replace(/^./, (c) => c.toUpperCase());
     step="04"
     eyebrow="Verification gates"
     title="What CI runs"
-    lead={`${cap(numberWord(gates.length))} jobs run on every push to ${ciPushBranches.map((b) => b).join(', ')}${ciOnPullRequests ? ' and on every pull request' : ''}. ${cap(numberWord(blockingCount))} of them fail the run when they fail.`}
+    lead={`${cap(numberWord(gates.length))} jobs run on every push to ${pushBranches.join(', ')}${ciOnPullRequests ? ' and on every pull request' : ''}. ${cap(numberWord(blockingCount))} of them fail the run when they fail.`}
     tone="muted"
     wide
   >
@@ -396,7 +398,8 @@ const cap = (s: string): string => s.replace(/^./, (c) => c.toUpperCase());
         advisory.length > 0 && (
           <span>
             {' '}
-            The one that does not gate is {advisory.map((g) => jobTitle(g.job)).join(', ')}, which sets{' '}
+            {advisory.length === 1 ? 'The one that does not gate is' : 'The ones that do not gate are'}{' '}
+            {advisory.map((g) => jobTitle(g.job)).join(', ')}, which {advisory.length === 1 ? 'sets' : 'set'}{' '}
             <code class="ae-code">continue-on-error</code>.
           </span>
         )
@@ -518,8 +521,8 @@ const cap = (s: string): string => s.replace(/^./, (c) => c.toUpperCase());
           class of owner, the accountable role, and the evidence producer, operating process and test where one exists.
           It never carries a status: <code class="ae-code">ash_compliance</code> derives one each time it is asked, and
           the only answers are <strong class="text-ae-ink">owned</strong>,{' '}
-          <strong class="text-ae-ink">evidenced</strong> and <strong class="text-ae-ink">unknown</strong>. None of
-          them means compliant.
+          <strong class="text-ae-ink">evidenced</strong> and <strong class="text-ae-ink">unknown</strong> (or not
+          applicable, with a stated rationale). None of them means compliant.
         </p>
         <p>
           Evidenced needs a dated artifact from every source a row declares, inside the row's window. Artifacts are
@@ -634,8 +637,9 @@ const cap = (s: string): string => s.replace(/^./, (c) => c.toUpperCase());
         and Phoenix provide. Everywhere else SHA-256 is a content fingerprint, not a secret.
       </p>
       <p>
-        Encryption at rest and in transit, and custody of the master key, belong to the deployment. This repository
-        says nothing about them, and the control map counts that as a gap.
+        TLS termination, disk encryption and storage of the erasure master key are the deployment's. The application
+        forces HTTPS in production and refuses to boot without the key. No written key-management rule exists here,
+        and the control map counts that as a gap.
       </p>
     </div>
 

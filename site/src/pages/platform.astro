@@ -22,6 +22,7 @@ import {
   question,
   capability,
   capabilityStatus,
+  capabilityWord,
   packs,
   pageHref,
   checklistHref,
@@ -35,8 +36,13 @@ type Row = { q: string; label: string } | { cap: string };
 function chips(rows: Row[]) {
   return rows.map((row) =>
     'q' in row
-      ? { status: question(row.q).status, label: row.label, key: row.q }
-      : { status: capabilityStatus(row.cap), label: capability(row.cap).capability, key: row.cap },
+      ? { status: question(row.q).status, label: row.label, key: row.q, word: undefined }
+      : {
+          status: capabilityStatus(row.cap),
+          label: capability(row.cap).capability,
+          key: row.cap,
+          word: capabilityWord(row.cap),
+        },
   );
 }
 
@@ -130,8 +136,15 @@ const operate = chips([
 
 const delegation = capability('multi-agent-delegation');
 
-/** The surfaces mounted beside the LiveView screens, from the router. */
-const mounted = routes.filter((r) => r.kind === 'forward');
+/**
+ * The surfaces mounted beside the LiveView screens, from the router. The two
+ * interactive API explorers are left out: they are not something to point a
+ * reader at.
+ */
+const EXPLORERS = ['/gql/playground', '/api/json/swaggerui'];
+const mounted = routes.filter((r) => r.kind === 'forward' && !EXPLORERS.includes(r.path));
+const optOut = facts.resources.optOut;
+const onBase = facts.resources.declaredOnBase;
 
 const proofHref = pageHref('/proof/', '/docs/questions/');
 const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
@@ -180,7 +193,7 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
     wide
   >
     <Fragment slot="chips">
-      {control.map((c) => <StatusChip status={c.status} label={c.label} />)}
+      {control.map((c) => <StatusChip status={c.status} label={c.label} word={c.word} />)}
     </Fragment>
 
     <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
@@ -219,7 +232,7 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
             target="_blank"
             rel="noopener noreferrer"
           >
-            The conformance suite
+            The conformance suite<span class="sr-only"> (opens in a new tab)</span>
           </a>
         </p>
       </div>
@@ -236,19 +249,22 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
     id="audit"
     step="02"
     eyebrow="Audit and erasure"
-    title="Every write is recorded in a chain the database will not let you edit."
+    title="Every audited write goes into a hash chain, and an edit to it shows when the chain is verified."
     tone="muted"
     wide
   >
     <Fragment slot="chips">
-      {audit.map((c) => <StatusChip status={c.status} label={c.label} />)}
+      {audit.map((c) => <StatusChip status={c.status} label={c.label} word={c.word} />)}
     </Fragment>
 
     <div class="grid gap-10 lg:grid-cols-2">
       <div class="ae-body space-y-4">
         <p>
-          Every create, update and destroy on a platform resource writes to one central event log,
-          naming the actor and the request's correlation id. A trigger refuses
+          By default, every create, update and destroy on a platform resource writes to one central
+          event log, naming the actor and the request's correlation id. A resource turns that off
+          only with <code class="ae-code">audit?: false</code> in its own file: {optOut.audit} of the{' '}
+          {onBase} that declare the base do, among them logs of their own, read-only lookups and sync
+          cursors. A trigger refuses
           <code class="ae-code">UPDATE</code> and <code class="ae-code">DELETE</code> on the log, and
           each event carries a SHA-256 chained to the one before it, so someone able to drop the
           trigger still cannot make an edit look untouched.
@@ -299,7 +315,7 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
     wide
   >
     <Fragment slot="chips">
-      {process.map((c) => <StatusChip status={c.status} label={c.label} />)}
+      {process.map((c) => <StatusChip status={c.status} label={c.label} word={c.word} />)}
     </Fragment>
 
     <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
@@ -312,14 +328,16 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
         </p>
         <p>
           A second person's approval is a change on an action: a work item, a list of candidates,
-          delegation and escalation timers. Maker-checker removes the requester while the candidate
+          delegation and escalation timers. Under the default (<code class="ae-code">:standard</code>)
+          approval posture the requester never approves their own request. Maker-checker removes the requester while the candidate
           list is built, not with a <code class="ae-code">forbid_if</code>, so who may approve is the
           same union of grants as who may read.
         </p>
         <p>
           <code class="ae-code">ash_decisions</code> keeps each decision as a DMN document, versioned
-          and immutable once published. Hit policies that make rule order matter are refused when
-          it compiles, and a verifier over every table blocks a publish on an error-severity
+          and immutable once published. <code class="ae-code">OUTPUT ORDER</code> and
+          <code class="ae-code">RULE ORDER</code>, which make the order of the result list part of the
+          answer, are refused at compile time, and a verifier over every table blocks a publish on an error-severity
           finding. Each evaluation records which version decided, what it saw and which rules
           fired.
         </p>
@@ -349,7 +367,7 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
     wide
   >
     <Fragment slot="chips">
-      {recipes.map((c) => <StatusChip status={c.status} label={c.label} />)}
+      {recipes.map((c) => <StatusChip status={c.status} label={c.label} word={c.word} />)}
     </Fragment>
 
     <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
@@ -361,11 +379,13 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
           tenancy and audit.
         </p>
         <p>
-          Publishing a recipe is a person's act, and that person is recorded as accountable. Its
+          A person can give a recipe's steps authority by publishing it with
+          <code class="ae-code">publish_granted</code>. They are then recorded as accountable, and its
           steps run as the recipe runner acting for them, on the intersection of the two sets of
           grants, rebuilt at every step. A grant is per version and expires. A publisher who has
           left, a revoked grant or a version nobody is accountable for records
-          <code class="ae-code">no_authority</code> and runs nothing.
+          <code class="ae-code">no_authority</code> and runs nothing. By default, a recipe published
+          without one may start only processes whose steps are human tasks.
         </p>
         <p>
           Compliance runs on the same records. <code class="ae-code">ash_rules</code> rules are
@@ -414,7 +434,7 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {pack.path}
+                {pack.path}<span class="sr-only"> (opens in a new tab)</span>
               </a>
             </li>
           ))
@@ -428,11 +448,11 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
     id="ai"
     step="05"
     eyebrow="AI governance"
-    title="A model gets an actor's permissions, and what leaves the zone is a recorded disclosure."
+    title="A model gets an actor's permissions, and sending data to a model outside the data's zone is a recorded disclosure."
     wide
   >
     <Fragment slot="chips">
-      {ai.map((c) => <StatusChip status={c.status} label={c.label} />)}
+      {ai.map((c) => <StatusChip status={c.status} label={c.label} word={c.word} />)}
     </Fragment>
 
     <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
@@ -444,7 +464,8 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
         </p>
         <p>
           Model calls go through one guard, which can confine them to models running inside the
-          data's zone. Each call is recorded by its structure, never its content. Sending data to a
+          data's zone. A model call's record holds its provider, model and usage, never its content;
+          an agent run's journal keeps the turns, sealed under the subject's erasure key. Sending data to a
           model outside the zone is a disclosure: it is refused unless the tenant has recorded an
           opt-in, every unknown case is refused, and one setting refuses it for everyone.
         </p>
@@ -492,7 +513,7 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
     wide
   >
     <Fragment slot="chips">
-      {data.map((c) => <StatusChip status={c.status} label={c.label} />)}
+      {data.map((c) => <StatusChip status={c.status} label={c.label} word={c.word} />)}
     </Fragment>
 
     <div class="grid gap-10 lg:grid-cols-2">
@@ -548,7 +569,7 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
     wide
   >
     <Fragment slot="chips">
-      {integrations.map((c) => <StatusChip status={c.status} label={c.label} />)}
+      {integrations.map((c) => <StatusChip status={c.status} label={c.label} word={c.word} />)}
     </Fragment>
 
     <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
@@ -556,8 +577,9 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
         <p>
           Nango holds the provider edge: OAuth, token refresh and the proxy. The sync logic stays
           here as Ash actions over Oban, so a policy decides who may start a sync and the audit log
-          records it. Google Calendar, Gmail and Slack are built that way. No action accepts a
-          connection or a provider credential as input; the connection is derived from the actor.
+          records it. Google Calendar, Gmail and Slack are built that way. No provider operation
+          takes a connection or a credential as an argument: a compile-time verifier refuses one,
+          and the connection is resolved from the actor's own linked account.
         </p>
         <p>
           A provider reached with the deployment's own key is declared with
@@ -593,12 +615,12 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
     id="operate"
     step="08"
     eyebrow="Operate and recover"
-    title="Traced by default and drilled in CI. The rota and the pager are the owner's."
+    title="Traced by default and drilled in CI. The rota and the pager belong to whoever runs it."
     tone="muted"
     wide
   >
     <Fragment slot="chips">
-      {operate.map((c) => <StatusChip status={c.status} label={c.label} />)}
+      {operate.map((c) => <StatusChip status={c.status} label={c.label} word={c.word} />)}
     </Fragment>
 
     <div class="grid gap-10 lg:grid-cols-2">
@@ -608,11 +630,12 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
           every Ash action, query and calculation becomes a span, alongside Phoenix, Ecto, Oban and
           outbound HTTP, with correlation ids carried across them. Spans are exported over OTLP
           when an endpoint is configured. SigNoz and GlitchTip run beside the application in
-          development; no deployment we operate runs them yet.
+          development. Running them in production is the deployment's choice.
         </p>
         <p>
           <code class="ae-code">GET /health</code> answers without a sign-in and carries no data. A
-          backup and restore drill runs in CI on every push: it dumps the database, restores it
+          backup and restore drill runs in CI on every push to main and to
+          <code class="ae-code">ci/**</code> branches and on every pull request: it dumps the database, restores it
           into a fresh one, and checks row counts and every audit chain on the copy.
         </p>
       </div>
@@ -620,7 +643,7 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
         <p>
           An alert that reaches the signed inbound webhook opens an incident in its tenant, and the
           incident triage pack, once published, gives the person on call a task. The rota, the pager
-          and what a customer is told remain the owner's.
+          and what a customer is told belong to whoever runs the application.
         </p>
         {
           hasRoute('/app/recovery') && (
@@ -646,7 +669,7 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
             target="_blank"
             rel="noopener noreferrer"
           >
-            The restore runbook
+            The restore runbook<span class="sr-only"> (opens in a new tab)</span>
           </a>
         </p>
       </div>

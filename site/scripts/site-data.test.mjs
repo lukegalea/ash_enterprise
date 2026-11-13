@@ -8,6 +8,7 @@ import {
   REPO_ROOT,
   SITE_DIR,
   baseHrefProblems,
+  baseOptOuts,
   collectFacts,
   extractSnippet,
   extractSnippets,
@@ -95,4 +96,26 @@ test('an ADR status is read from either status line form', () => {
   assert.equal(parseAdr('0001-x.md', '# ADR 0001 — X\n\n- **Status:** accepted, not built\n').status, 'accepted');
   assert.equal(parseAdr('0049-y.md', '# 9. ADR 0049: Y\n\n- Status: **Accepted** (2026)\n').status, 'accepted');
   assert.equal(parseAdr('0002-z.md', '# ADR 0002 — Z\n').status, null);
+});
+
+test("a resource's opt-outs are read from its use of the base, not from its docs", () => {
+  const source = [
+    'defmodule Demo.Thing do',
+    '  @moduledoc """',
+    '  Unlike `Other`, which sets `audit?: false`.',
+    '  """',
+    '',
+    '  use AshEnterprise.Platform.Resource,',
+    '    domain: Demo,',
+    '    # tenant?: false would be wrong here',
+    '    archival?: false,',
+    '    audit?: true',
+    '',
+    '  postgres do',
+    '    tenant?: false',
+    '  end',
+    'end',
+  ].join('\n');
+  assert.deepEqual(baseOptOuts(source), ['archival']);
+  assert.equal(baseOptOuts('defmodule X do\nend'), null);
 });

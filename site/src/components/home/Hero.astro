@@ -27,9 +27,10 @@ const runIt = pageHref('/run-it/', '/docs/');
 
       <p class="ae-lead mt-7">
         Ash Enterprise is a set of first-party packages for Ash and an application built on
-        them. A resource that uses the platform base inherits a hash-chained audit trail,
-        user-or-team ownership, tenant scoping, soft delete, lineage and a policy set that is a
-        union of grants. The packages add BPMN processes, DMN decisions, compliance rules and
+        them. A resource that uses the platform base inherits, by default, a hash-chained audit
+        trail, user-or-team ownership, tenant scoping, soft delete, lineage and a policy set whose
+        row access is a union of grants; turning one off is written in the resource's own file.
+        The packages add BPMN processes, DMN decisions, compliance rules and
         governed agent actions over the same resources.
       </p>
 
@@ -39,7 +40,7 @@ const runIt = pageHref('/run-it/', '/docs/');
         </a>
         <a class="ae-btn" href={runIt}>Run it locally</a>
         <a class="ae-link text-sm" href={GITHUB} target="_blank" rel="noopener noreferrer">
-          Source on GitHub
+          Source on GitHub<span class="sr-only"> (opens in a new tab)</span>
         </a>
       </div>
 
@@ -49,7 +50,7 @@ const runIt = pageHref('/run-it/', '/docs/');
       >
         <li>{facts.resources.declaredOnBase} resources declare the platform base</li>
         <li>{numberWord(facts.packages.firstParty)} first-party packages</li>
-        <li>MIT licence</li>
+        <li>MIT licence (see NOTICE)</li>
       </ul>
     </div>
 

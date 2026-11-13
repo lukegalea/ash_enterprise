@@ -54,7 +54,7 @@
         "phoenix_live_view"
       ],
       "hex_name": "free",
-      "hex_path": "Publishable now: no git dependencies of its own.",
+      "hex_path": "No git dependencies of its own.",
       "carry": "Tracks the A2UI protocol, so a protocol revision is an update here. Confined to lib/ash_enterprise_web/a2ui/ and one live_session in the router, so removing it is a deletion."
     },
     {
@@ -77,7 +77,7 @@
         "plug"
       ],
       "hex_name": "free",
-      "hex_path": "Publishable now: no git dependencies of its own.",
+      "hex_path": "No git dependencies of its own.",
       "carry": "Follows the Agent Client Protocol, so a protocol revision is an update here. Authorization stays in the host's Ash policies; the adapter holds no rules of its own."
     },
     {
@@ -103,7 +103,7 @@
         "ash_postgres",
         "req_llm"
       ],
-      "hex_name": "taken: the Hex package ash_agent is an unrelated project (github.com/bradleygolden/ash_agent).",
+      "hex_name": "taken: an unrelated package of the same name (hex.pm/packages/ash_agent).",
       "hex_path": "None planned: reaching Hex would mean renaming the package (ADR 0056).",
       "carry": "The host instantiates every resource on its own base, so a fragment change upstream is a host migration here. lib/ names it in more files than any other first-party package."
     },
@@ -134,7 +134,7 @@
         "ash_decisions",
         "ash_judgments"
       ],
-      "hex_name": "taken: the Hex package ash_agent_tools is an unrelated project (github.com/bradleygolden/ash_agent_tools).",
+      "hex_name": "taken: an unrelated package of the same name (hex.pm/packages/ash_agent_tools).",
       "hex_path": "After its optional dependencies (ash_rules, ash_bpmn, ash_decisions, ash_judgments) reach Hex; the name is taken there.",
       "carry": "Nothing in a release. Dropping it removes the agent tooling and the standards' code subjects, which compile only when it is loaded."
     },
@@ -161,7 +161,7 @@
         "phoenix_live_view"
       ],
       "hex_name": "free",
-      "hex_path": "Publishable now: no git dependencies of its own.",
+      "hex_path": "No git dependencies of its own.",
       "carry": "Adds columns to resources the host owns, so a bump runs `mix ash.codegen --check` and may need a host migration. Processes in flight keep the version they started on."
     },
     {
@@ -267,7 +267,7 @@
         "oban"
       ],
       "hex_name": "free",
-      "hex_path": "Publishable now: no git dependencies of its own.",
+      "hex_path": "No git dependencies of its own.",
       "carry": "Its triggers live in the database, so a change to the chain is a migration and old rows must still verify."
     },
     {
@@ -291,7 +291,7 @@
         "ash_events"
       ],
       "hex_name": "free",
-      "hex_path": "Publishable now: no git dependencies of its own.",
+      "hex_path": "No git dependencies of its own.",
       "carry": "Arrives through ash_compliance, but the host configures it and mounts its three resources in the compliance domain, so its schema is the host's to migrate."
     },
     {
@@ -315,7 +315,7 @@
         "ash_events"
       ],
       "hex_name": "free",
-      "hex_path": "Publishable now: no git dependencies of its own.",
+      "hex_path": "No git dependencies of its own.",
       "carry": "Declared with `branch: \"main\"`; mix.lock pins the commit."
     },
     {
@@ -394,7 +394,7 @@
         "req"
       ],
       "hex_name": "free",
-      "hex_path": "Publishable now: no git dependencies of its own.",
+      "hex_path": "No git dependencies of its own.",
       "carry": "Pinned with `ref:` and `override: true`, because ash_discrete_business_events declares it too; the host's pin wins tree-wide."
     },
     {
@@ -418,7 +418,7 @@
         "ash_a2ui"
       ],
       "hex_name": "free",
-      "hex_path": "Publishable now: no git dependencies of its own.",
+      "hex_path": "No git dependencies of its own.",
       "carry": "Its ADR is still proposed; the credential registry is the one built reference."
     },
     {
@@ -465,7 +465,7 @@
         "wongi_engine"
       ],
       "hex_name": "free",
-      "hex_path": "Publishable now: no git dependencies of its own.",
+      "hex_path": "No git dependencies of its own.",
       "carry": "Bundles are content-hashed, so a change to how the IR is encoded changes their hashes."
     },
     {
@@ -491,7 +491,7 @@
         "ash_archival"
       ],
       "hex_name": "free",
-      "hex_path": "Publishable now: no git dependencies of its own.",
+      "hex_path": "No git dependencies of its own.",
       "carry": "Only needed while a legacy schema is being migrated. It is used by lib/ash_enterprise/legacy/, the user ledger and the platform base's projected-lifecycle verifier."
     },
     {

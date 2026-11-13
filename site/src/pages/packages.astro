@@ -90,6 +90,11 @@ const upstreamAsh = [...new Set(packages.flatMap((p) => p.builds_on))]
 const forkNames = new Set(forks.map((f) => f.name));
 
 const taken = packages.filter((p) => facts.packages.hexNameTaken.includes(p.name));
+/** Packages declared by path: they live in this repository, so mix.lock pins no commit for them. */
+const pathDeps = packages.filter((p) => p.declared === 'path');
+/** Packages that build on no Ash package at all. */
+const notOnAsh = packages.filter((p) => !p.builds_on.some((d) => d === 'ash' || d.startsWith('ash_')));
+const names = (ps: Package[]): string => ps.map((p) => p.name).join(', ');
 const coldClone = ciJob('cold-clone');
 ---
 
@@ -103,12 +108,19 @@ const coldClone = ciJob('cold-clone');
     <h1 class="ae-h1 mt-4">The packages this application is built from</h1>
     <p class="ae-lead mt-6">
       {cap(numberWord(facts.packages.firstParty))} first-party packages, {numberWord(facts.packages.forks)} forks of
-      other people's packages and {numberWord(facts.packages.overrides)} version override. Each card says what the
+      other people's packages and {numberWord(facts.packages.overrides)} version{' '}
+      {facts.packages.overrides === 1 ? 'override' : 'overrides'}. Each card says what the
       package does, what this application uses it for, how it is tested here, and what you would carry by keeping it.
     </p>
     <p class="ae-body mt-4">
       Distribution is git only. None of the first-party packages is published to Hex: each is fetched from its
-      repository at the commit <code class="ae-code">mix.lock</code> pins, and CI's{' '}
+      repository at the commit <code class="ae-code">mix.lock</code> pins{
+        pathDeps.length > 0 && (
+          <>
+            , except {names(pathDeps)}, which lives in this repository and is a path dependency here
+          </>
+        )
+      }, and CI's{' '}
       <a class="ae-link" href={withBase(`/proof/#gate-${coldClone.id}`)}>{coldClone.id} job</a> checks that every one
       of them can be fetched with no credentials.
     </p>
@@ -135,8 +147,9 @@ const coldClone = ciJob('cold-clone');
       }
     </dl>
     <p class="ae-body mt-6">
-      {cap(numberWord(facts.packages.battery))} of them are also exercised together by the cross-substrate battery, a
-      mix project of its own that CI runs against its own database. A card marked “battery” is one of those. The source
+      {cap(numberWord(facts.packages.battery))} of them are also exercised together by the battery: a mix project of its
+      own, run by CI against its own database, whose tests are flows that span two or more first-party packages. A card
+      marked “battery” is one of those. The source
       is <a class="ae-link font-mono" href={repoHref('docs/packages.json')}>docs/packages.json</a>, checked by{' '}
       <a class="ae-link font-mono" href={repoHref('test/ash_enterprise/site_data_test.exs')}
         >test/ash_enterprise/site_data_test.exs</a
@@ -217,7 +230,7 @@ const coldClone = ciJob('cold-clone');
                     <dd class="mt-1 text-ae-muted" set:html={inlineMarkdown(pkg.carry)} />
                   </div>
                   <div>
-                    <dt class="ae-eyebrow">Path to a Hex release</dt>
+                    <dt class="ae-eyebrow">What a Hex release would need</dt>
                     <dd class="mt-1 text-ae-muted" set:html={inlineMarkdown(pkg.hex_path)} />
                   </div>
                   {pkg.builds_on.length > 0 && (
@@ -355,7 +368,7 @@ const coldClone = ciJob('cold-clone');
             </p>
             <p class="mt-2 text-ae-muted">{cap(p.hex_name)}</p>
             <p class="mt-2 text-ae-muted">
-              <span class="text-ae-ink">Path to a Hex release: </span>
+              <span class="text-ae-ink">What a Hex release would need: </span>
               {p.hex_path}
             </p>
           </li>
@@ -368,14 +381,14 @@ const coldClone = ciJob('cold-clone');
     id="built-on-ash"
     step={String(groups.length + 4).padStart(2, '0')}
     eyebrow="Built on Ash"
-    title="Every package here extends Ash"
+    title="The packages build on Ash"
     tone="muted"
   >
     <div class="ae-body space-y-4">
       <p>
-        These packages are extensions of <a class="ae-link" href="https://github.com/ash-project/ash">Ash</a>, the
-        declarative resource framework from the Ash project, and build on the packages that project publishes. The
-        ones named in the cards above are:
+        {notOnAsh.length > 0 ? 'Apart from ' + names(notOnAsh) + ', these' : 'These'} packages are extensions of{' '}
+        <a class="ae-link" href="https://github.com/ash-project/ash">Ash</a>, the declarative resource framework from the
+        Ash project, and build on the packages that project publishes. The ones named in the cards above are:
       </p>
       <ul class="flex flex-wrap gap-2">
         {

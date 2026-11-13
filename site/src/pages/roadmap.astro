@@ -5,8 +5,8 @@
  * Rendered from `docs/roadmap.json`, keeping only items that are not shipped,
  * so an item that ships leaves this page on the next build (the proof page
  * keeps the checklist it closes). The prose around the items is
- * `docs/ROADMAP.md`'s: the one bar every external tool had to clear, the
- * sequencing, and the premises that did not survive checking.
+ * `docs/ROADMAP.md`'s: the one bar every external tool had to clear and
+ * the premises that did not survive checking.
  */
 import Base from '../layouts/Base.astro';
 import Section from '../components/Section.astro';
@@ -30,32 +30,12 @@ const groups = [...new Set(forward.map((i) => i.priority))]
   .sort((a, b) => a - b)
   .map((priority) => ({ priority, rows: forward.filter((i) => i.priority === priority) }));
 
-/** docs/ROADMAP.md, "Sequencing, and why". */
-const priorityIntro: Record<number, { label: string; text: string }> = {
-  1: {
-    label: 'A chain, not a set',
-    text: 'Ingestion first, because lineage and cataloguing mean nothing without something producing traceable ingestion events. Lineage next, because the correlation id is already threaded through every action. The integration hub sits alongside rather than after: it answers a different question, data you pull against systems you talk to.',
-  },
-  2: {
-    label: 'Consumes what priority 1 produces',
-    text: 'A catalog needs something to catalogue, and BI needs something to report on. API versioning sits here because it is likely to be needed before it is wanted: once the JSON:API surface has an external consumer, changing it becomes expensive.',
-  },
-  3: {
-    label: 'Deferrable',
-    text: 'Feature flags matter when there are enough users to stage a rollout to.',
-  },
-  4: {
-    label: 'Deferrable',
-    text: 'Entity resolution matters when the same customer has arrived from three systems, which is a consequence of priority 1 rather than a precondition for it.',
-  },
-};
-
 /** docs/ROADMAP.md, "Where the neat story did not survive checking". */
 const corrections: { claim: string; correction: string }[] = [
   {
     claim: 'Meltano is Apache-2.0, and Airbyte’s connectors are MIT.',
     correction:
-      'Meltano is MIT. Airbyte’s connectors moved from MIT to ELv2 in July 2025, so the fallback is source-available throughout.',
+      'Meltano is MIT. Airbyte’s connector licence has changed from MIT to ELv2, so its connectors can no longer be assumed to be MIT (ADR 0010).',
   },
   {
     claim: 'The ingestion tool will emit lineage events.',
@@ -136,14 +116,12 @@ const roadmapCheck = ciStep('test', 'Check the roadmap tables are rendered');
 
   {
     groups.map(({ priority, rows }, gi) => {
-      const intro = priorityIntro[priority];
       return (
         <Section
           id={`priority-${priority}`}
           step={String(gi + 2).padStart(2, '0')}
           eyebrow={`Priority ${priority} · ${rows.length} ${rows.length === 1 ? 'item' : 'items'}`}
-          title={intro?.label ?? `Priority ${priority}`}
-          lead={intro?.text}
+          title={`Priority ${priority}`}
           tone={gi % 2 === 1 ? 'muted' : 'default'}
         >
           <div class="space-y-6">

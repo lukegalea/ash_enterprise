@@ -84,9 +84,8 @@ the operation while the caller chooses whose credentials to spend. → [ADR 0011
 Four premises this roadmap was drafted on turned out to be wrong, and correcting them is more useful
 than the tidier version:
 
-- **Meltano is MIT**, not Apache-2.0. And **Airbyte's connectors moved from MIT to ELv2 in July 2025**,
-  so the "source-available platform, open connectors" split no longer holds — the fallback is
-  source-available throughout.
+- **Meltano is MIT**, not Apache-2.0. And **Airbyte's connector licence has changed from MIT to ELv2**,
+  so the "source-available platform, open connectors" split can no longer be assumed (ADR 0010).
 - **Neither Meltano nor Airbyte emits OpenLineage.** That leaves a hole in the lineage graph exactly
   where external data enters. [ADR 0008](adr/0008-typed-invertible-legacy-mappings.md)'s own argument
   applies — a diagram that omits edges it could not work out is worse than no diagram, because a reader

@@ -120,14 +120,40 @@ export function adrProblems(adrs) {
  * and the site says "declare the platform base", not "resources in total".
  */
 export function platformResources(root = REPO_ROOT) {
-  const modules = [];
+  return platformResourceDeclarations(root).map((r) => r.module);
+}
+
+/** The base's switches a resource can turn off, each `true` unless its `use` says otherwise. */
+export const BASE_OPT_OUTS = ['audit', 'archival', 'tenant'];
+
+/**
+ * The options a `use AshEnterprise.Platform.Resource` passes: the lines after it
+ * indented deeper than the `use`, comments removed. Answers which of
+ * BASE_OPT_OUTS it sets to `false`.
+ */
+export function baseOptOuts(text) {
+  const lines = text.split('\n');
+  const at = lines.findIndex((l) => /^  use AshEnterprise\.Platform\.Resource\b/.test(l));
+  if (at < 0) return null;
+  const block = [lines[at]];
+  for (const line of lines.slice(at + 1)) {
+    if (line.trim() !== '' && !/^ {3,}/.test(line)) break;
+    block.push(line);
+  }
+  const options = block.map((l) => l.replace(/#.*$/, '')).join('\n');
+  return BASE_OPT_OUTS.filter((flag) => new RegExp(`\\b${flag}\\?:\\s*false\\b`).test(options));
+}
+
+/** Each module of platformResources with the switches it turns off. */
+export function platformResourceDeclarations(root = REPO_ROOT) {
+  const declarations = [];
   for (const file of walk(path.join(root, 'lib'), (n) => n.endsWith('.ex'))) {
     const text = fs.readFileSync(file, 'utf8');
     if (!/^  use AshEnterprise\.Platform\.Resource\b/m.test(text)) continue;
-    const name = text.match(/^defmodule\s+([\w.]+)\s+do/m)?.[1];
-    if (name) modules.push(name);
+    const module = text.match(/^defmodule\s+([\w.]+)\s+do/m)?.[1];
+    if (module) declarations.push({ module, optOuts: baseOptOuts(text) });
   }
-  return modules.sort();
+  return declarations.sort((a, b) => a.module.localeCompare(b.module));
 }
 
 /** Ash domains: modules in lib/ that `use Ash.Domain` at module level (the dev-only standards domain is not). */
@@ -411,7 +437,8 @@ export function collectFacts(root = REPO_ROOT) {
   const capabilities = readJson(root, 'docs/capabilities.json');
   const ROADMAP = ['shipped', 'partial', 'planned', 'open'];
 
-  const resources = platformResources(root);
+  const declarations = platformResourceDeclarations(root);
+  const resources = declarations.map((r) => r.module);
   if (resources.length === 0) problems.push('no resource uses AshEnterprise.Platform.Resource: the pattern is wrong');
   const domainModules = domains(root);
   if (domainModules.length === 0) problems.push('no module uses Ash.Domain: the pattern is wrong');
@@ -423,7 +450,14 @@ export function collectFacts(root = REPO_ROOT) {
       byStatus: tally(adrs, 'status', ADR_STATUSES),
       list: adrs.map(({ number, slug, title, status, statusText }) => ({ number, slug, title, status, statusText })),
     },
-    resources: { declaredOnBase: resources.length, modules: resources },
+    resources: {
+      declaredOnBase: resources.length,
+      modules: resources,
+      // How many of them turn each of the base's defaults off (`audit?: false`, ...).
+      optOut: Object.fromEntries(
+        BASE_OPT_OUTS.map((flag) => [flag, declarations.filter((r) => r.optOuts.includes(flag)).length]),
+      ),
+    },
     domains: { total: domainModules.length, modules: domainModules },
     routes: routeFacts(routes),
     roadmap: {

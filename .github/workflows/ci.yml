@@ -195,7 +195,7 @@ jobs:
       - name: Security scan
         run: mix sobelow --config --skip --exit
 
-      - name: Retired and vulnerable dependencies
+      - name: Retired Hex packages
         run: mix hex.audit
 
       # The suite itself runs in the `test-shards` jobs below, and the durability

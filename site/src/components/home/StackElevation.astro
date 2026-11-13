@@ -136,7 +136,7 @@ const tooling = packages.filter((p) => p.only !== null);
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    {baseChip.label}
+                    {baseChip.label}<span class="sr-only"> (opens in a new tab)</span>
                   </a>
                 </li>
                 {packageChips.map((chip) => (
@@ -151,7 +151,7 @@ const tooling = packages.filter((p) => p.only !== null);
                       rel="noopener noreferrer"
                     >
                       {chip.label}
-                      {chip.note && <span class="text-ae-muted">({chip.note})</span>}
+                      {chip.note && <span class="text-ae-muted">({chip.note})</span>}<span class="sr-only"> (opens in a new tab)</span>
                     </a>
                   </li>
                 ))}
@@ -173,7 +173,7 @@ const tooling = packages.filter((p) => p.only !== null);
                         rel="noopener noreferrer"
                       >
                         {chip.label}
-                        <span class="text-ae-muted">({chip.note})</span>
+                        <span class="text-ae-muted">({chip.note})</span><span class="sr-only"> (opens in a new tab)</span>
                       </a>
                     ) : (
                       <span class:list={[chipBase, 'border border-ae-rule bg-ae-paper-2 text-ae-ink']}>
@@ -197,7 +197,8 @@ const tooling = packages.filter((p) => p.only !== null);
   <figcaption class="mt-6 max-w-[820px] text-[14px] leading-[1.55] text-ae-muted">
     Fig. 1 — Generated from <code class="ae-code">docs/packages.json</code> at build time: the{' '}
     {numberWord(facts.packages.runtime)} first-party packages a release carries, each linked to the
-    commit the lock file pins, and what they declare. {
+    commit the lock file pins (a path dependency, to its directory in this repository), and what they
+    declare. {
       facts.packages.tooling > 0 && (
         <>Developer tooling is not in a release and is not drawn: {tooling.map((p) => p.name).join(', ')}.</>
       )

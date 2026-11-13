@@ -76,7 +76,6 @@ const ROOT_FILES = [
   { from: 'QUESTIONS.md', to: 'questions.md' },
   { from: 'ROADMAP.md', to: 'roadmap.md' },
   { from: 'COMPLIANCE.md', to: 'compliance.md' },
-  { from: 'HANDOFF.md', to: 'handoff.md' },
   { from: 'BLEEDING-EDGE.md', to: 'bleeding-edge.md' },
   { from: 'HOUSE-STYLE.md', to: 'house-style.md' },
 ];
@@ -423,7 +422,6 @@ decision records, and the work not yet done in the plans.
 
 - [The enterprise checklist](${routeFor('questions.md')}) — every question an enterprise application has to answer, and this repository's answer to each.
 - [Roadmap](${routeFor('roadmap.md')}) — what is decided but not built.
-- [Handoff notes](${routeFor('handoff.md')}) — the state of the tree.
 
 ## Manifesto
 

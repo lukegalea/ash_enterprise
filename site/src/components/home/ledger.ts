@@ -50,11 +50,13 @@ export function capability(id: string): Capability {
 }
 
 /**
- * The chip for a capability row. The inventory grades on its own scale; the
- * chip draws it on the delivery scale it maps onto by the inventory's own
- * definitions: `existing` (works, and a named test fails if it regresses) is
- * shipped, `partial` is partial, `missing` (not built) is open. A `refused` row
- * is a decision, not a status, and has no chip: naming one throws.
+ * The chip for a capability row. The inventory grades on its own scale, and the
+ * chip prints the inventory's own word (`capabilityWord`): Existing, Partial or
+ * Missing, never "Shipped", which on the checklist means running in a deployment
+ * we operate. Only the glyph and colour are borrowed, the same way /proof/ draws
+ * the inventory: `existing` takes the shipped glyph, `partial` the partial one,
+ * `missing` the open one. A `refused` row is a decision, not a status, and has
+ * no chip: naming one throws.
  */
 export function capabilityStatus(id: string): ChipStatus {
   const row = capability(id);
@@ -68,6 +70,18 @@ export function capabilityStatus(id: string): ChipStatus {
     default:
       throw new Error(`Capability "${id}" is ${row.status}; show its reason, not a chip`);
   }
+}
+
+const CAPABILITY_WORDS: Record<CapabilityStatus, string> = {
+  existing: 'Existing',
+  partial: 'Partial',
+  missing: 'Missing',
+  refused: 'Refused',
+};
+
+/** The word the capability inventory uses for a row's grade, printed on its chip. */
+export function capabilityWord(id: string): string {
+  return CAPABILITY_WORDS[capability(id).status];
 }
 
 // ---------------------------------------------------------------------------

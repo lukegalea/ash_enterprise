@@ -165,7 +165,8 @@ export interface Facts {
    * level. A floor: resources built through a wrapping macro are not counted.
    * Say "N resources declare the platform base", not "N resources".
    */
-  resources: { declaredOnBase: number; modules: string[] };
+  /** `optOut`: how many of them set `audit?:`, `archival?:` (soft delete) or `tenant?:` to false. */
+  resources: { declaredOnBase: number; modules: string[]; optOut: { audit: number; archival: number; tenant: number } };
   domains: { total: number; modules: string[] };
   routes: {
     total: number;

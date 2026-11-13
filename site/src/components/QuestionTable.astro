@@ -88,13 +88,13 @@ const perSection = sections.map((section) => {
                         {q.proof && (
                           <li>
                             <a
-                              class="block truncate font-mono text-xs text-ae-workshop underline-offset-4 hover:underline"
+                              class="relative block truncate font-mono text-xs text-ae-workshop underline-offset-4 hover:underline"
                               href={repoHref(q.proof)}
                               target="_blank"
                               rel="noopener noreferrer"
                               title={q.proof}
                             >
-                              {basename(q.proof)}
+                              {basename(q.proof)}<span class="sr-only"> (opens in a new tab)</span>
                             </a>
                           </li>
                         )}
