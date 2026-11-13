@@ -4,9 +4,9 @@ defmodule AshEnterprise.Audit.PackageTest do
   tenant and one period. Refusals first: a person without the auditor privilege, a
   call in another tenant, and another tenant's rows, which never appear. Then a broken
   chain, which the package reports as broken. Then the OSCAL document, built by
-  `AshCompliance.Oscal.AssessmentResults` (whose suite validates it against NIST's
-  official schema) with the identifiers this application has always derived, and the
-  files the mix task writes.
+  `AshCompliance.Oscal.AssessmentResults` with this application's own observations and
+  findings, valid against NIST's official schema and keeping the identifiers this
+  application has always derived, and the files the mix task writes.
   """
 
   use AshEnterprise.DataCase, async: false
@@ -14,6 +14,7 @@ defmodule AshEnterprise.Audit.PackageTest do
   import AshEnterprise.Test.DailyFixtures, only: [tenant!: 0, member!: 3, brief!: 1]
 
   alias AshCompliance.Domain, as: Compliance
+  alias AshCompliance.Oscal.AssessmentResults
   alias AshEnterprise.Audit
   alias AshEnterprise.Audit.{ChainVerifyWorker, EventLog, Package}
   alias AshEnterprise.Compliance.FreshnessSweepWorker
@@ -191,6 +192,26 @@ defmodule AshEnterprise.Audit.PackageTest do
   end
 
   describe "the OSCAL document" do
+    test "is valid OSCAL, with the chain, the reviews and a broken chain's findings", ctx do
+      activity!(ctx.ours)
+      tamper!(ctx.ours.tenant)
+
+      {:ok, package} = export(ctx.auditor)
+      doc = package["assessment_results"]
+      [result] = doc["assessment-results"]["results"]
+
+      # This application's own observations and findings are in it, not only the
+      # compliance plane's.
+      titles = Enum.map(result["observations"], & &1["title"])
+      assert "Audit chain verification" in titles
+      assert "Review tasks" in titles
+      assert Enum.any?(result["findings"], &(&1["title"] =~ "the audit chain is broken"))
+
+      assert :ok = AssessmentResults.validate(doc)
+      # As the mix task writes it.
+      assert :ok = doc |> Jason.encode!() |> Jason.decode!() |> AssessmentResults.validate()
+    end
+
     test "keeps every identifier this application has always derived", ctx do
       activity!(ctx.ours)
       tamper!(ctx.ours.tenant)

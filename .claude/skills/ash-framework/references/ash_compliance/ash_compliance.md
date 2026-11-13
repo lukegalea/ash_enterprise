@@ -261,6 +261,11 @@ anything the compliance plane cannot observe (an audit-log verification,
 review tasks) as `extra_observations:` / `extra_findings:` plain maps. Never
 post-process the document to say `satisfied`: an attestation is the auditor's.
 A host finding's `reason` is `:fail` or `:other`; anything else raises.
+Test the document you publish with `AssessmentResults.validate/1` (`:ok` or
+`{:error, errors}`), extras and any post-processing included: `build/2` checks
+an extra's shape, not OSCAL's rules for its values (property names are tokens).
+`validate/1` needs the optional `{:jsv, "~> 0.26"}` dependency and raises
+without it.
 
 ## Evidence producers and the control-file check
 

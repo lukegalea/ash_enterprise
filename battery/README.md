@@ -108,8 +108,9 @@ elixir scripts/battery-pins-check.exs          # check again
 A package that genuinely cannot match goes in the script's `@exceptions`
 map with its reason.
 
-**`ash_compliance` is locked at `92bbe30`, in the root and here.** That is
-ash_compliance `main` after PR #30 (OSCAL assessment results) merged, with
+**`ash_compliance` is locked at `9ff9cfb`, in the root and here.** That is
+ash_compliance `main` after PR #31 (`AssessmentResults.validate/1`) merged, with
+PR #30's OSCAL assessment results and
 PR #28's evidence archive and verified move, which
 `evidence_archive_chain_test.exs` runs. It also carries the temporal rule-set
 revisions and `activate`'s `effective_at` (the dated-activation seam
@@ -118,7 +119,7 @@ exactly as the root declares it, with no `ref:` and no `override:`, so an app
 that takes the battery as a test dependency resolves its own `ash_compliance`,
 not one the battery picked. The declared layer schemes are not exercised here.
 Their nullable `scheme` columns (`20261025000616`) are ported anyway, so the
-battery's schema matches the code a host locking `92bbe30` runs.
+battery's schema matches the code a host locking `9ff9cfb` runs.
 
 The temporal migrations are ported verbatim from ash_compliance's suite
 (`priv/repo/migrations/2026102500061*`).
