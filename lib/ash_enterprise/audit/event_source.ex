@@ -64,12 +64,11 @@ defmodule AshEnterprise.Audit.EventSource do
   `docs/plans/event-triggered-processes.md` §2, and `AshEnterprise.Audit.EventLog`'s
   moduledoc records the same dependency beside the chain it also supports.
 
-  The `organization_id IS NULL` chain — where the writes of `tenant?: false`
-  resources land — shares **no lock space** with anything: the default key
-  generator produces a two-element key under attribute multitenancy and a
-  single integer otherwise, and Postgres treats those as separate lock spaces.
-  It is therefore `:best_effort`, full stop: it has no ordering guarantee to
-  weaken. It also gets no sweep fan-out — `trigger_tenants/0` enumerates real
+  The `organization_id IS NULL` chain — where writes made outside any tenant
+  land — shares **no lock space** with the tenant chains: its key is the log's
+  single default integer and theirs are two-element lists, and Postgres treats
+  those as separate lock spaces. It is declared `:best_effort`, and it gets no
+  sweep fan-out — `trigger_tenants/0` enumerates real
   organizations only, and a cursor row for a NULL tenant is impossible under
   the platform base's `allow_nil? false` tenancy invariant.
 

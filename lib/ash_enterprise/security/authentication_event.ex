@@ -27,10 +27,8 @@ defmodule AshEnterprise.Security.AuthenticationEvent do
 
   Not tenant-scoped: a sign-in happens before any tenant is resolved, and a user is not
   a tenant row. The events are therefore in the audit log's untenanted chain
-  (`AshEnterprise.Audit.EventLog`). They must not be stamped into a tenant's chain:
-  `ash_events` takes its advisory lock per tenant only for a tenant-scoped resource, so a
-  row from this resource written into a tenant's chain would not hold that chain's lock
-  and two writers could link to the same tail.
+  (`AshEnterprise.Audit.EventLog`): they are written with no tenant, so nothing stamps
+  an `organization_id` into their metadata.
 
   Append-only: the one write is `:record`, and only a system actor may make it.
   Reading is for the platform operator.

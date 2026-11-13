@@ -73,18 +73,28 @@ defmodule AshEnterprise.Audit.EventLog do
   across all tenants.
 
   It would also be *redundant*, because AshEvents already takes
-  `pg_advisory_xact_lock` on every audited action, keyed by the tenant of the
-  resource being written (`AshEvents.AdvisoryLockKeyGenerator.Default`). The
-  serialization a chain needs is therefore already held — per tenant. Chaining
+  `pg_advisory_xact_lock` on every audited action, before it inserts the event.
+  The key is the chain the event joins (`AshEvents.Chain.LockKeyGenerator`): the
+  `organization_id` in its metadata, which is what the trigger partitions on. The
+  serialization a chain needs is therefore already held — per chain. Chaining
   per tenant adds no contention that was not already there, and chaining globally
   would add a great deal.
+
+  The key is read from the metadata, not from the tenant of the resource being
+  written, because the two can disagree: a resource that is not tenant-scoped can
+  still be written under a tenant, and its event joins that tenant's chain. Keyed on
+  the resource's tenancy (`AshEvents.AdvisoryLockKeyGenerator.Default`), such a write
+  would hold the shared default key while appending to the tenant's chain, and could
+  race that chain's tail.
 
   It is also the better artefact. A customer can verify their own chain without
   being shown anyone else's, which is exactly what "can I audit my own trail" has
   to mean in a multi-tenant system.
 
   Events with no tenant — registration before an organization exists, system
-  actors operating outside one — form their own chain, keyed on `NULL`.
+  actors operating outside one — form their own chain, keyed on `NULL`. A write
+  given its tenant only when it runs (`Ash.create!(changeset, tenant: tenant)`) is
+  not one of them: `StampCorrelation` stamps the tenant again as the action runs.
 
   ## Something depends on that lock which is not the chain
 
@@ -94,31 +104,34 @@ defmodule AshEnterprise.Audit.EventLog do
   where it is used.
 
   Because the lock is taken *before* the event row is inserted and is
-  `xact`-scoped, a second transaction for the same tenant cannot consume
-  `nextval()` until the first has committed. So **within one tenant, `sequence`
-  order is commit order** — which is what makes `sequence` usable as a change-feed
-  cursor at all. A plain `bigserial` is otherwise the canonical wrong thing to build
-  a feed on: values are assigned at INSERT, so two transactions can take 100 and 101
-  and commit in the other order, and a consumer holding a high-water mark loses 100
-  permanently and silently.
+  `xact`-scoped, a second transaction for the same chain cannot consume
+  `nextval()` until the first has committed. So **within one tenant's chain,
+  `sequence` order is commit order** — which is what makes `sequence` usable as a
+  change-feed cursor at all. A plain `bigserial` is otherwise the canonical wrong
+  thing to build a feed on: values are assigned at INSERT, so two transactions can
+  take 100 and 101 and commit in the other order, and a consumer holding a
+  high-water mark loses 100 permanently and silently.
 
   Three limits on that, each of which someone will otherwise assume away:
 
-    * **It is per tenant, and only for tenant-scoped resources.** The default key
-      generator returns a two-element list under attribute multitenancy and a single
-      integer otherwise, so the two paths call `pg_advisory_xact_lock($1, $2)` and
-      `pg_advisory_xact_lock($1)`. Postgres treats those as **separate lock spaces** —
-      measured: holding `(0, 0)`, a `(0)` acquires in about a millisecond. The
-      `NULL`-tenant chain therefore has *no* ordering guarantee, not a weaker one, and
-      a consumer must give it its own cursor and treat it as best-effort.
+    * **It is per chain.** The key generator returns a two-element list for a
+      tenant's chain and the log's single default integer for the `NULL` chain, so
+      the two call `pg_advisory_xact_lock($1, $2)` and `pg_advisory_xact_lock($1)`.
+      Postgres treats those as **separate lock spaces** — measured: holding `(0, 0)`,
+      a `(0)` acquires in about a millisecond. The `NULL` chain therefore orders
+      nothing against a tenant's chain, and a consumer must give it its own cursor
+      (`AshEnterprise.Audit.EventSource` declares it best-effort).
     * **It depends on there being an enclosing transaction**, which is not obvious
       given `AshEnterprise.Repo` sets `prefer_transaction? false`. There is: an
       audited create traces as `begin / INSERT <resource> / pg_advisory_xact_lock /
       INSERT audit_events / commit`.
-    * **It is `ash_events`' implementation, not our schema.** Setting a custom
-      `advisory_lock_key_generator`, or an upstream change to when the lock is taken,
-      invalidates all of the above — and would do so silently, because the failure is
-      a consumer skipping an event rather than an error.
+    * **It is `ash_events`' implementation, not our schema.** Another
+      `advisory_lock_key_generator`, a key that stops matching the chain an event
+      joins, or an upstream change to when the lock is taken, invalidates all of the
+      above — and would do so silently, because the failure is a consumer skipping an
+      event rather than an error. `AshEnterprise.Mdm.Refold` also relies on a tenant's
+      key being the one `AshEvents.AdvisoryLockKeyGenerator.Default` gives it
+      (`test/ash_enterprise/durability/mdm_refold_lock_order_test.exs`).
 
   `docs/plans/event-triggered-processes.md` §2 has the measurements and the design
   that rests on them.
@@ -281,13 +294,13 @@ defmodule AshEnterprise.Audit.EventLog do
     # user_id alone cannot tell them apart.
     persist_actor_primary_key :user_id, AshEnterprise.Accounts.User
 
-    # The tenant's key, not `AshEvents.Chain.LockKeyGenerator`'s. That one reads the
-    # tenant from the event's metadata, which `StampCorrelation` writes when the
-    # action is built: a write given its tenant only when it runs has none there, and
-    # would lock the shared default key instead of the one
-    # `AshEnterprise.Repo.AdvisoryLock.xact_lock_audit_log!/2` takes to order the
-    # MDM refold behind audited writes.
-    advisory_lock_key_generator AshEvents.AdvisoryLockKeyGenerator.Default
+    # The key of the chain the event joins: its metadata's `organization_id`, which
+    # `StampCorrelation` writes from the changeset's tenant (again in a `before_action`,
+    # for a write given its tenant only when it runs). For a tenant's chain it is the
+    # key `AshEvents.AdvisoryLockKeyGenerator.Default` gives that tenant, which is the
+    # one `AshEnterprise.Repo.AdvisoryLock.xact_lock_audit_log!/2` takes to order the
+    # MDM refold behind audited writes. See "Something depends on that lock" above.
+    advisory_lock_key_generator AshEvents.Chain.LockKeyGenerator
 
     # What the Audit trail and Lineage surfaces show of an entry: when, what,
     # which record and who. Never `data`, `changed_attributes` or `metadata`.

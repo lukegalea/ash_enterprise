@@ -36,9 +36,12 @@ defmodule AshEnterprise.Repo.AdvisoryLock do
   end
 
   @doc """
-  Waits for the per-tenant lock `AshEvents` takes on an audited write to
-  `resource`, using its own key. Code that holds another lock across an audited
-  write takes this one first, so every path orders them the same way.
+  Waits for the lock `AshEvents` takes on an audited write to `resource` in
+  `tenant`. The audit log keys it on the chain the event joins
+  (`AshEvents.Chain.LockKeyGenerator`), and for a tenant's chain that is the key
+  `AshEvents.AdvisoryLockKeyGenerator.Default` gives the tenant, which is the one
+  taken here. Code that holds another lock across an audited write takes this one
+  first, so every path orders them the same way.
   """
   @spec xact_lock_audit_log!(module(), term()) :: :ok
   def xact_lock_audit_log!(resource, tenant) do

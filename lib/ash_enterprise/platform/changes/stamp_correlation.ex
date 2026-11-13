@@ -25,7 +25,14 @@ defmodule AshEnterprise.Platform.Changes.StampCorrelation do
   It also stamps the write's tenant, which is what makes a per-tenant audit trail
   possible at all — `AshEnterprise.Audit.EventLog`'s chain trigger lifts it back
   out into a real, indexed `organization_id` column, and
-  `AshEnterprise.Audit.Checks.OwnTenantTrail` filters on it.
+  `AshEnterprise.Audit.Checks.OwnTenantTrail` filters on it. The tenant is stamped
+  twice: when the changeset is built, and again in a `before_action` hook, because a
+  write can be given its tenant only when it runs (`Ash.create!(changeset, tenant:
+  tenant)`). The hook fills `organization_id` only when it is absent, so a value
+  stamped earlier or supplied by the caller stands.
+  The event log's lock key (`AshEvents.Chain.LockKeyGenerator`) is read from the same
+  key after the hook, so the event locks the chain it joins. A write with no tenant at
+  either point stays in the untenanted chain.
   """
 
   use Ash.Resource.Change
@@ -44,7 +51,24 @@ defmodule AshEnterprise.Platform.Changes.StampCorrelation do
       |> put_trigger_depth(changeset.context, changeset.tenant)
       |> Map.merge(existing)
 
-    Ash.Changeset.set_context(changeset, %{ash_events_metadata: metadata})
+    changeset
+    |> Ash.Changeset.set_context(%{ash_events_metadata: metadata})
+    |> Ash.Changeset.before_action(&stamp_run_tenant/1)
+  end
+
+  # The tenant the write runs under, when it was not known as the changeset was built.
+  defp stamp_run_tenant(%{tenant: nil} = changeset), do: changeset
+
+  defp stamp_run_tenant(changeset) do
+    metadata = changeset.context |> Map.get(:ash_events_metadata, %{}) |> normalize()
+
+    if Map.has_key?(metadata, "organization_id") do
+      changeset
+    else
+      Ash.Changeset.set_context(changeset, %{
+        ash_events_metadata: put_tenant(metadata, changeset.tenant)
+      })
+    end
   end
 
   defp normalize(map) when is_map(map), do: map

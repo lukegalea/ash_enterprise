@@ -90,6 +90,36 @@ defmodule AshEnterprise.Audit.TenantIsolationTest do
       assert event.organization_id == ctx.acme
     end
 
+    test "a write given its tenant only when it runs is in that tenant's chain", ctx do
+      bu =
+        BusinessUnit
+        |> Ash.Changeset.for_create(:create, %{name: "Acme root"},
+          authorize?: false,
+          actor: SystemActor.seed()
+        )
+        |> Ash.create!(tenant: ctx.acme)
+
+      assert [event] = read(ctx.acme)
+      assert event.record_id == bu.id
+      assert event.metadata["organization_id"] == ctx.acme
+      assert event.organization_id == ctx.acme
+      assert %{findings: []} = AshEvents.Chain.verify(EventLog, ctx.acme)
+    end
+
+    test "a tenant the caller stamped is not replaced by the one the write runs under", ctx do
+      BusinessUnit
+      |> Ash.Changeset.for_create(:create, %{name: "Acme root"},
+        authorize?: false,
+        actor: SystemActor.seed(),
+        context: %{ash_events_metadata: %{"organization_id" => ctx.globex}}
+      )
+      |> Ash.create!(tenant: ctx.acme)
+
+      assert [] = read(ctx.acme)
+      assert [%{organization_id: globex}] = read(ctx.globex)
+      assert globex == ctx.globex
+    end
+
     test "an ordinary actor cannot write to the log", ctx do
       # AshEvents does declare a `:create` action -- it has to, that is how
       # events get written -- so "the log offers only :read" was never quite the
