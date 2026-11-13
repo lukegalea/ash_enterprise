@@ -288,7 +288,7 @@ defmodule Mix.Tasks.AshEnterprise.Roadmap do
     |> Enum.sort_by(fn {section, _} -> section_order(data, section) end)
     |> Enum.map_join("\n\n", fn {section, rows} ->
       """
-      ### #{section_title(data, section)}
+      ## #{section_title(data, section)}
 
       | # | Question | Our answer | Status | Proven by |
       |---|---|---|---|---|
