@@ -141,6 +141,12 @@ natively; the package never assumes an actor model.
 - Every create action on a versioned resource stamps `content_hash` with
   `AshMdm.Changes.SetContentHash`, whose `fields:` option names what the hash
   covers: `field_rules` on a mapping, `rules` and `survivorship` on a rule set.
+- To show what changed between two mapping versions, call
+  `AshMdm.Mapping.Diff.diff(old, new)`. It compares the target and each field
+  rule by the field it writes, and returns plain maps (`aspect`, `kind`,
+  `subject`, `option`, `from`, `to`). `aspects/0` gives English labels to
+  translate in the host's catalogue. Rule order is not a change, because rules
+  do not chain. An empty list is not identity: compare `content_hash` for that.
 - `AshMdm.Survivorship.resolve/2` returns `%{merged:, provenance:}`.
   `provenance` is the per-attribute winner and strategy: record it with the
   merge rather than discarding it.

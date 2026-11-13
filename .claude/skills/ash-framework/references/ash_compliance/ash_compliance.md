@@ -188,6 +188,17 @@ own code interface (all hidden forms, so tests drive the whole lifecycle
 with `render_submit/2`, no browser). Validate renders the verifier's
 diagnostics inline; a rule set that does not verify stays draft.
 
+## Comparing revisions
+
+`AshCompliance.RuleSet.Diff.diff(old, new)` compares two rule set revisions
+over the bundles they pin (`rules_json`), never the JSON text. It returns
+`{:ok, changes}`, where each change is a plain map (`aspect`, `kind`,
+`subject`, `option`, `from`, `to`) in one of `aspects/0` (`:layer`, `:rules`,
+`:facts`, with English labels for the host to translate). A revision whose
+bundle does not decode returns `{:error, :unreadable_bundle}`: show that as a
+failure, never as "no changes". An empty list is not identity either: compare
+`content_hash` for that.
+
 ## Agent integration
 
 `ash_agent_tools` has **no compliance-specific tool**: its optional

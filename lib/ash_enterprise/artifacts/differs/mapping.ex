@@ -1,13 +1,15 @@
 defmodule AshEnterprise.Artifacts.Differs.Mapping do
   @moduledoc """
-  Two versions of a schema mapping (`AshEnterprise.Mdm.Mapping`):
-
-    * **target**: the direction, source, stream and resource the mapping writes;
-    * **fields**: each field rule by the field it writes, added or removed, and for one
-      in both the source path, the operator, its arguments and whether it is required.
+  Two versions of a schema mapping (`AshEnterprise.Mdm.Mapping`), compared by
+  `AshMdm.Mapping.Diff`: the target (the direction, source, stream and resource the
+  mapping writes) and each field rule by the field it writes.
 
   Rule order is not compared: rules do not chain, so their order changes nothing a
   record becomes (`AshMdm.Mapping.Evaluator`).
+
+  The package owns the comparison, so it changes with the mapping format it reads. This
+  module gives the aspects their labels in this application's catalogue and turns the
+  package's plain change maps into `AshEnterprise.Artifacts.Change`s.
   """
 
   @behaviour AshEnterprise.Artifacts.Differ
@@ -25,22 +27,6 @@ defmodule AshEnterprise.Artifacts.Differs.Mapping do
   end
 
   @impl true
-  def diff(old, new, _opts) do
-    {:ok,
-     Change.keyed(:target, target(old), target(new)) ++
-       Change.keyed(:fields, fields(old.field_rules), fields(new.field_rules))}
-  end
-
-  defp target(mapping) do
-    %{
-      "direction" => mapping.direction,
-      "source" => mapping.source,
-      "stream" => mapping.stream,
-      "resource" => mapping.target_resource
-    }
-  end
-
-  defp fields(rules),
-    do:
-      Map.new(rules || [], fn rule -> {to_string(rule["target"]), Map.delete(rule, "target")} end)
+  def diff(old, new, _opts),
+    do: {:ok, Enum.map(AshMdm.Mapping.Diff.diff(old, new), &struct!(Change, &1))}
 end

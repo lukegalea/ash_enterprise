@@ -277,6 +277,66 @@ defmodule AshEnterprise.Artifacts.RegistryTest do
       assert Keyword.keys(entry(:decision).differ.aspects()) ==
                Keyword.keys(AshDecisions.Diff.aspects())
     end
+
+    test "a mapping diff is the package's: two rules for one field are told apart" do
+      {old, _new} = pair(:mapping)
+
+      rules = [
+        %{"path" => "Email", "target" => "email", "op" => "trim"},
+        %{"path" => "Work Email", "target" => "email", "op" => "trim"}
+      ]
+
+      old = %{old | field_rules: rules}
+      new = %{old | field_rules: List.update_at(rules, 1, &Map.put(&1, "op", "downcase"))}
+
+      assert {:changes, [%Change{} = change]} = Artifacts.diff(entry(:mapping), old, new, [])
+
+      assert Map.take(change, [:aspect, :kind, :subject, :option, :from, :to]) ==
+               %{
+                 aspect: :fields,
+                 kind: :changed,
+                 subject: "email (2)",
+                 option: "op",
+                 from: "trim",
+                 to: "downcase"
+               }
+
+      assert Keyword.keys(entry(:mapping).differ.aspects()) ==
+               Keyword.keys(AshMdm.Mapping.Diff.aspects())
+    end
+
+    test "a rule set diff is the package's: each fact the rules read by its name" do
+      revision = fn type ->
+        bundle = %{
+          "combining" => "deny_overrides",
+          "fact_schema" => [%{"name" => "licence_expiry", "type" => type}],
+          "rules" => [%{"id" => "licence", "name" => "Licence on file"}]
+        }
+
+        struct(AshCompliance.Resources.RuleSetRevision,
+          name: "clinic",
+          revision: "1",
+          layer: :tenant_supplement,
+          rules_json: Jason.encode!(bundle)
+        )
+      end
+
+      assert {:changes, [%Change{} = change]} =
+               Artifacts.diff(entry(:rule_set), revision.("date"), revision.("datetime"), [])
+
+      assert Map.take(change, [:aspect, :kind, :subject, :option, :from, :to]) ==
+               %{
+                 aspect: :facts,
+                 kind: :changed,
+                 subject: "licence_expiry",
+                 option: "type",
+                 from: "date",
+                 to: "datetime"
+               }
+
+      assert Keyword.keys(entry(:rule_set).differ.aspects()) ==
+               Keyword.keys(AshCompliance.RuleSet.Diff.aspects())
+    end
   end
 
   describe "a release manifest's diff (UX-14)" do

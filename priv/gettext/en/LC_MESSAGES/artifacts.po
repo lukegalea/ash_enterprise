@@ -150,7 +150,7 @@ msgstr ""
 msgid "Facts"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts/differs/mapping.ex:23
+#: lib/ash_enterprise/artifacts/differs/mapping.ex:25
 #: lib/ash_enterprise/artifacts/differs/surface_spec.ex:25
 #, elixir-autogen, elixir-format
 msgid "Fields"
@@ -399,7 +399,7 @@ msgstr ""
 msgid "Surface"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts/differs/mapping.ex:22
+#: lib/ash_enterprise/artifacts/differs/mapping.ex:24
 #, elixir-autogen, elixir-format
 msgid "Target"
 msgstr ""
