@@ -299,16 +299,22 @@ defmodule AshEnterprise.Assistant.Ask do
   Records the answer of the run `run_id` once it has ended, as the actor in `opts`:
   `{:ok, turn}` for a completed run, `{:error, reason, turn}` for one that failed, was
   stopped or reached a limit, and `{:pending, progress}` while it is still working. A
+  run that could not be read just now (an unknown error, such as a connection that was not there in time) is
+  `{:unread, error}`: nothing is recorded, and the caller looks again. A
   run waiting on a limit is cancelled first: an answer's limits are not lifted. A run
   waiting on nothing but the person's approval of its requests has ended its answer,
   which is recorded as complete; the run is left as it is (see the moduledoc).
   Recording twice records once.
   """
   @spec settle(Ash.Resource.record(), Ash.UUID.t(), keyword()) ::
-          {:ok, Turn.t()} | {:error, reason() | :stopped, Turn.t() | nil} | {:pending, progress()}
+          {:ok, Turn.t()}
+          | {:error, reason() | :stopped, Turn.t() | nil}
+          | {:pending, progress()}
+          | {:unread, term()}
   def settle(thread, run_id, opts) do
     case progress(run_id, opts) do
       {:ok, progress} -> settled(thread, progress, verdict(progress), opts)
+      {:error, %{class: :unknown} = error} -> {:unread, error}
       {:error, _error} -> {:error, :internal, nil}
     end
   end

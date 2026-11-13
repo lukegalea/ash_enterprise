@@ -432,6 +432,9 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
         {:pending, progress, requests}
 
+      {:unread, _error} ->
+        :unread
+
       settled ->
         {:settled, settled, requests_of(settled_turn(settled), opts)}
     end
@@ -600,6 +603,9 @@ defmodule AshEnterpriseWeb.AssistantLive do
         %{assigns: %{run: %{id: run_id} = run}} = socket
       ) do
     case result do
+      :unread ->
+        {:noreply, socket}
+
       {:pending, progress, requests} ->
         {:noreply, progressed(socket, progress, requests)}
 
@@ -664,6 +670,7 @@ defmodule AshEnterpriseWeb.AssistantLive do
       |> Enum.reduce({nil, false}, fn {question_id, run}, {live, settled?} ->
         case Ask.settle(thread, run.id, opts) do
           {:pending, _progress} -> {{question_id, run.id}, settled?}
+          {:unread, _error} -> {{question_id, run.id}, settled?}
           _settled -> {live, true}
         end
       end)
