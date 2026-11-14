@@ -24,6 +24,15 @@ defmodule AshEnterpriseWeb.LiveUserAuth do
   and stop the socket there: an event that arrives after it is not handled, and a
   timer sends an idle page to sign-in when the token runs out. The token's lifetime
   is `AshEnterprise.Accounts.TokenPolicy`'s, which the session cookie shares.
+
+  An expiry is not the only way a session ends: deactivating a person revokes their
+  tokens, and so does a password change. So before each event the page
+  also checks that its session is still good, as a new request would: the token verifies,
+  is still stored for sign-in and not revoked, and its subject is still a user who may sign
+  in (`get_by_subject` does not find a deactivated one). If not, the event is not handled
+  and the page goes to sign-in. Only then is the context rebuilt. The check reads the
+  database, as the context's rebuild does; a page with no event in flight is not
+  interrupted until its next event or its token's expiry.
   """
 
   import Phoenix.Component
@@ -45,7 +54,7 @@ defmodule AshEnterpriseWeb.LiveUserAuth do
        socket
        |> bound_by_session(session_expiry(session))
        |> with_actor_context()
-       |> refresh_before_events()}
+       |> refresh_before_events(session["user_token"])}
     else
       {:cont, assign(socket, :current_user, nil)}
     end
@@ -57,7 +66,7 @@ defmodule AshEnterpriseWeb.LiveUserAuth do
        socket
        |> bound_by_session(session_expiry(session))
        |> with_actor_context()
-       |> refresh_before_events()}
+       |> refresh_before_events(session["user_token"])}
     else
       {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/sign-in")}
     end
@@ -97,6 +106,31 @@ defmodule AshEnterpriseWeb.LiveUserAuth do
 
   def session_expiry(_session), do: nil
 
+  @doc """
+  Whether the session `token` still signs its user in, as a new request would check it:
+  it verifies, it is still stored for sign-in (not revoked, as deactivation and a password
+  change revoke it), and its subject is still a user who may sign in. True for a session
+  with no token, which has no stored session to end.
+  """
+  @spec session_live?(String.t() | nil) :: boolean()
+  def session_live?(nil), do: true
+
+  def session_live?(token) when is_binary(token) do
+    with {:ok, %{"sub" => subject, "jti" => jti}, resource} <-
+           AshAuthentication.Jwt.verify(token, :ash_enterprise),
+         token_resource = AshAuthentication.Info.authentication_tokens_token_resource!(resource),
+         {:ok, [_stored]} <-
+           AshAuthentication.TokenResource.Actions.get_token(token_resource, %{
+             "jti" => jti,
+             "purpose" => "user"
+           }),
+         {:ok, _user} <- AshAuthentication.subject_to_user(subject, resource) do
+      true
+    else
+      _ended -> false
+    end
+  end
+
   @doc "Whether a session that expires at `exp` (Unix seconds) has expired at `now`."
   @spec expired?(integer() | nil, integer()) :: boolean()
   def expired?(nil, _now), do: false
@@ -135,20 +169,29 @@ defmodule AshEnterpriseWeb.LiveUserAuth do
   end
 
   defp end_session(socket) do
+    end_session(socket, gettext("Your session has expired. Sign in again."))
+  end
+
+  defp end_session(socket, message) do
     socket
-    |> Phoenix.LiveView.put_flash(:error, gettext("Your session has expired. Sign in again."))
+    |> Phoenix.LiveView.put_flash(:error, message)
     |> Phoenix.LiveView.redirect(to: ~p"/sign-in")
   end
 
   defp now, do: System.os_time(:second)
 
   # Detached first: a LiveView that declares this on_mount itself, inside a
-  # live_session that declares it too, mounts it twice.
-  defp refresh_before_events(socket) do
+  # live_session that declares it too, mounts it twice. A session that has ended since the
+  # page connected (the person deactivated, the token revoked) handles nothing more.
+  defp refresh_before_events(socket, token) do
     socket
     |> Phoenix.LiveView.detach_hook(:actor_context, :handle_event)
     |> Phoenix.LiveView.attach_hook(:actor_context, :handle_event, fn _event, _params, socket ->
-      {:cont, refresh_actor_context(socket)}
+      if session_live?(token) do
+        {:cont, refresh_actor_context(socket)}
+      else
+        {:halt, end_session(socket, gettext("Your session has ended. Sign in again."))}
+      end
     end)
   end
 

@@ -1623,7 +1623,7 @@ msgstr "Vous ne pouvez pas modifier cette recette."
 msgid "This identity provider account is not linked to a confirmed account here."
 msgstr "Ce compte du fournisseur d’identité n’est lié à aucun compte confirmé ici."
 
-#: lib/ash_enterprise_web/live_user_auth.ex:139
+#: lib/ash_enterprise_web/live_user_auth.ex:172
 #, elixir-autogen, elixir-format
 msgid "Your session has expired. Sign in again."
 msgstr "Votre session a expiré. Reconnectez-vous."
@@ -1632,3 +1632,8 @@ msgstr "Votre session a expiré. Reconnectez-vous."
 #, elixir-autogen, elixir-format
 msgid "hidden"
 msgstr "masqué"
+
+#: lib/ash_enterprise_web/live_user_auth.ex:193
+#, elixir-autogen, elixir-format
+msgid "Your session has ended. Sign in again."
+msgstr "Votre session a pris fin. Reconnectez-vous."

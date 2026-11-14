@@ -2,7 +2,9 @@ defmodule AshEnterpriseWeb.SessionBoundsTest do
   @moduledoc """
   A browser session is bounded three ways by one lifetime (`Accounts.TokenPolicy`,
   8 hours): the session token expires, the session cookie that carries it expires with
-  it, and a LiveView connected before the token expired stops acting when it does.
+  it, and a LiveView connected before the token expired stops acting when it does. A
+  LiveView also stops acting when its session ends sooner: the person deactivated, or the
+  token revoked by a password change.
   """
 
   use AshEnterpriseWeb.ConnCase, async: true
@@ -38,6 +40,44 @@ defmodule AshEnterpriseWeb.SessionBoundsTest do
     assert LiveUserAuth.expired?(100, 100)
     assert LiveUserAuth.expired?(100, 101)
     refute LiveUserAuth.expired?(100, 99)
+  end
+
+  # A connected launcher, opened with a stored session token the way sign-in stores one.
+  defp connected(conn, user) do
+    {:ok, token, _claims} = AshAuthentication.Jwt.token_for_user(user)
+    conn = conn |> Plug.Test.init_test_session(%{}) |> Plug.Conn.put_session("user_token", token)
+    {:ok, view, _html} = live(conn, ~p"/app")
+    {view, token}
+  end
+
+  defp filter(view), do: render_change(view, "filter", %{"launch" => %{"q" => "a"}})
+
+  test "a live view of a user deactivated since it connected handles no further event",
+       %{conn: conn, user: user} do
+    {view, _token} = connected(conn, user)
+
+    user |> Ash.Changeset.for_update(:deactivate, %{}, authorize?: false) |> Ash.update!()
+
+    assert {:error, {:redirect, %{to: "/sign-in"}}} = filter(view)
+    assert {"/sign-in", flash} = assert_redirect(view)
+    assert flash["error"] =~ "ended"
+  end
+
+  test "a live view whose session token was revoked since it connected handles no further event",
+       %{conn: conn, user: user} do
+    {view, token} = connected(conn, user)
+
+    # A password change revokes the stored token, as deactivation does.
+    :ok = AshAuthentication.TokenResource.Actions.revoke(AshEnterprise.Accounts.Token, token)
+
+    assert {:error, {:redirect, %{to: "/sign-in"}}} = filter(view)
+  end
+
+  test "a live view whose session is still good handles its events", %{conn: conn, user: user} do
+    {view, _token} = connected(conn, user)
+
+    assert is_binary(filter(view))
+    assert is_binary(filter(view))
   end
 
   test "a live view connected before the token expired stops acting after it",

@@ -1623,7 +1623,7 @@ msgstr ""
 msgid "This identity provider account is not linked to a confirmed account here."
 msgstr ""
 
-#: lib/ash_enterprise_web/live_user_auth.ex:139
+#: lib/ash_enterprise_web/live_user_auth.ex:172
 #, elixir-autogen, elixir-format
 msgid "Your session has expired. Sign in again."
 msgstr ""
@@ -1631,4 +1631,9 @@ msgstr ""
 #: lib/ash_enterprise_web/hidden_field.ex:23
 #, elixir-autogen, elixir-format
 msgid "hidden"
+msgstr ""
+
+#: lib/ash_enterprise_web/live_user_auth.ex:193
+#, elixir-autogen, elixir-format
+msgid "Your session has ended. Sign in again."
 msgstr ""
