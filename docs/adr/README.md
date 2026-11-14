@@ -28,6 +28,11 @@ What this makes easy, what it makes hard, what it forecloses.
 The concrete exit: which files change, and how much work it is.
 ```
 
+The status starts with one of `proposed`, `accepted`, `rejected` or `superseded by ADR-NNNN`; the index row must start with the
+same word. `mix ash_enterprise.adr.check` (run in CI) fails when an index row, a status, a link or an `ADR NNNN` mention
+disagrees with the records. A reversal inside a record's body is not machine-checkable: when a record's decision changes,
+change its status in the same commit.
+
 ## Index
 
 | ADR | Title | Status |
@@ -79,7 +84,7 @@ The concrete exit: which files change, and how much work it is.
 | [0045](0045-system-one-in-tooling-is-advisory.md) | System One in developer and agent tooling is advisory | accepted (2026-09-28); the host's advisory standards review built, the tooling package's model tier not built (verified 2026-10-23) |
 | [0046](0046-the-declaration-is-the-output-contract.md) | The declaration is the output contract | accepted (2026-09-28); wire-schema contracts built for proposals, the one shared type-to-schema mapping not built (verified 2026-10-23) |
 | [0047](0047-learning-produces-proposals.md) | Learning produces proposals | accepted (2026-09-28); person-confirmed proposal records built, offline learners not built (verified 2026-10-23) |
-| [0048](0048-a-judgment-is-a-predicate-over-any-set.md) | A judgment is a predicate over any set | proposed |
+| [0048](0048-a-judgment-is-a-predicate-over-any-set.md) | A judgment is a predicate over any set | accepted (2026-10-02) |
 | [0049](0049-temporal-resources-are-the-validity-substrate.md) | Temporal resources are the platform's validity substrate | accepted (2026-10-06; in progress) |
 | [0050](0050-neobrutalism-design-system.md) | A neobrutalism token system, dark by default, replaces daisyUI | accepted |
 | [0051](0051-business-events-are-derived-from-the-canonical-store.md) | Business events are derived from the canonical store, into a chained ledger | accepted |
@@ -130,7 +135,7 @@ information-flow labels as a conjunct inside every grant (0084). 0012 carries a 
 kept in-app, and a backend is an optional forwarder.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that
 status flips to plain `accepted` when its code lands, so `accepted` on its own keeps meaning code that exists.
-**0012–0015, 0017–0019 and 0048 are `proposed`: none of them is built**, with the exception 0015 below. 0025 is accepted for its internal half (audit events reach SigNoz as log records, 2026-11-16); its customer SIEM half is still proposed and not built. 0010 (ingestion), 0011 (the Nango edge) and 0024 (crypto-shredding) were accepted on 2026-10-12 when a deployment we operate began depending on them, and 0032 (the generated greenmask config) on 2026-11-17 when it was adopted and gated in CI; each one's implementation note says what is built and where it differs from the Decision (0010 lands into an Ash resource rather than a staging schema; 0024's age half was built later as a verified move to archive tables rather than partitions). They are here because a decision is cheapest to reason about — and cheapest to
+**0012–0015 and 0017–0019 are `proposed`: none of them is built**, with the exception 0015 below. 0025 is accepted for its internal half (audit events reach SigNoz as log records, 2026-11-16); its customer SIEM half is still proposed and not built. 0010 (ingestion), 0011 (the Nango edge) and 0024 (crypto-shredding) were accepted on 2026-10-12 when a deployment we operate began depending on them, and 0032 (the generated greenmask config) on 2026-11-17 when it was adopted and gated in CI; each one's implementation note says what is built and where it differs from the Decision (0010 lands into an Ash resource rather than a staging schema; 0024's age half was built later as a verified move to archive tables rather than partitions). They are here because a decision is cheapest to reason about — and cheapest to
 *reverse* — while the alternatives are still fresh, and because
 [thesis 6](../manifesto/06-reversibility.md) asks for the exit before the entrance. Three of them
 record an answer that changed under verification, which is the main reason to write them down early.
@@ -151,7 +156,7 @@ resolved four conflicts with earlier records: the automation principal never byp
 do; the `ai` system actor loses its bypass; thesis 5's human decision moves to the moment a grant is made
 ([0043](0043-automation-authority-is-a-grant.md)); and 0042 narrows 0026, which both records now say. From acceptance
 on, changing one of them takes an amendment marked as such or a superseding record.
-0048 extends the set, and is `proposed`: it generalises the path from compliance to any consumer that selects records
+0048 extends the set, and is `accepted` (2026-10-02, on S1-52, Q13): it generalises the path from compliance to any consumer that selects records
 (filters, search, segments, standing queries), following the operator's direction the same day that the mechanism
 "applies to more than just compliance". It amends none of 0038–0047; it adds a consumer and the rules that consumer
 needs (three-valued membership, no inference in reads, scores that order but never decide membership).
