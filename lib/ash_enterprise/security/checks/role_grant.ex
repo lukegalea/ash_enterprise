@@ -34,6 +34,17 @@ defmodule AshEnterprise.Security.Checks.RoleGrant do
   it is reading `AshEnterprise.Audit.EventLog`. The depth clauses still test the policy's
   own resource's columns.
 
+  ## A grant on one column
+
+  `{RoleGrant, field: :number}` answers from the actor's `:read` grant on the column's own
+  privilege, `"<Resource>#number"`, whatever action is running: it is the check the base
+  resource writes into a field policy for each of its `secured_fields`
+  (`AshEnterprise.Platform.Resource`). The verb is fixed because a field grant is a grant
+  to see the value, and Ash evaluates field policies on the records a create or update
+  returns too; a `:write` grant on the column does not exist. The depth clauses test the
+  policy's own resource's columns, so a field grant at `:local` reveals the column on the
+  rows in that business unit and leaves it hidden on the rest.
+
   ## Never queries
 
   Everything comes from the precomputed context. See
@@ -48,16 +59,37 @@ defmodule AshEnterprise.Security.Checks.RoleGrant do
 
   @impl true
   def describe(opts) do
-    case Keyword.get(opts, :as) do
-      nil -> "actor holds a role granting this action at sufficient depth"
-      resource -> "actor holds a role granting this action on #{inspect(resource)}"
+    cond do
+      field = Keyword.get(opts, :field) ->
+        "actor holds a role granting read on the #{field} column at sufficient depth"
+
+      resource = Keyword.get(opts, :as) ->
+        "actor holds a role granting this action on #{inspect(resource)}"
+
+      true ->
+        "actor holds a role granting this action at sufficient depth"
     end
   end
+
+  @doc """
+  The privilege key of `field` on `resource`: `"<inspect(resource)>#<field>"`. The
+  privilege catalogue writes one `:read` privilege under it for each secured field
+  (`AshEnterprise.Platform.Seeder`).
+  """
+  @spec field_key(module(), atom()) :: String.t()
+  def field_key(resource, field), do: "#{inspect(resource)}##{field}"
 
   @impl true
   def filter(actor, authorizer, opts) do
     context = ActorContext.for_actor(actor)
-    granted_on = Keyword.get(opts, :as) || authorizer.resource
+    field = Keyword.get(opts, :field)
+
+    granted_on =
+      if field,
+        do: field_key(authorizer.resource, field),
+        else: Keyword.get(opts, :as) || authorizer.resource
+
+    verb = if field, do: :read, else: verb(authorizer)
 
     cond do
       # A system actor is not subject to grants, but it reaches no further here
@@ -75,10 +107,10 @@ defmodule AshEnterprise.Security.Checks.RoleGrant do
         false
 
       generic?(authorizer) ->
-        ActorContext.grant(context, granted_on, verb(authorizer)).global?
+        ActorContext.grant(context, granted_on, verb).global?
 
       true ->
-        grant = ActorContext.grant(context, granted_on, verb(authorizer))
+        grant = ActorContext.grant(context, granted_on, verb)
         build_filter(grant, context, authorizer.resource)
     end
   end

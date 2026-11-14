@@ -7,10 +7,15 @@ defmodule AshEnterprise.Security.Privilege do
   per table per verb. We keep that shape: a privilege is not "read" in the
   abstract, it is "read `AshEnterprise.Accounts.Team`".
 
+  A secured column (`AshEnterprise.Platform.Resource`'s `secured_fields`) gets one more:
+  `:read` on `"<Resource>#<field>"`, named `prvRead<Entity>.<field>` (Dataverse keeps
+  these in field security profiles; here they are privileges like any other, so a role
+  grants them and the union stays the one model). A row grant does not include it.
+
   ## Seeded, not created
 
   Privilege rows are **derived from the resource list**, not authored. Every
-  platform resource yields up to eight of them, and
+  platform resource yields up to eight of them, plus one per secured column, and
   `mix ash_enterprise.seed_privileges` regenerates the catalogue after resources
   are added. Hand-creating privileges would let the catalogue drift from what the
   application can actually do — you would be able to grant a privilege on a
@@ -164,7 +169,7 @@ defmodule AshEnterprise.Security.Privilege do
   """
   @spec operator_only?(String.t()) :: boolean()
   def operator_only?(resource_name) when is_binary(resource_name),
-    do: resource_name in @operator_only
+    do: base_resource_name(resource_name) in @operator_only
 
   @doc "The resource names `operator_only?/1` is true for."
   @spec operator_only_resources() :: [String.t()]
@@ -203,7 +208,17 @@ defmodule AshEnterprise.Security.Privilege do
   """
   @spec owner_only?(String.t()) :: boolean()
   def owner_only?(resource_name) when is_binary(resource_name),
-    do: resource_name in @owner_only
+    do: base_resource_name(resource_name) in @owner_only
+
+  @doc """
+  The resource a privilege's `resource_name` belongs to: the name itself, or, for a
+  secured column's privilege (`"AshEnterprise.Credentialing.Credential#number"`), the
+  part before `#`. A column's privilege is reserved or owner-only exactly when its
+  resource's are.
+  """
+  @spec base_resource_name(String.t()) :: String.t()
+  def base_resource_name(resource_name) when is_binary(resource_name),
+    do: resource_name |> String.split("#", parts: 2) |> hd()
 
   @doc "The resource names `owner_only?/1` is true for."
   @spec owner_only_resources() :: [String.t()]

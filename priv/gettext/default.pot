@@ -1627,3 +1627,8 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Your session has expired. Sign in again."
 msgstr ""
+
+#: lib/ash_enterprise_web/hidden_field.ex:23
+#, elixir-autogen, elixir-format
+msgid "hidden"
+msgstr ""

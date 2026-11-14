@@ -44,7 +44,8 @@ defmodule AshEnterprise.Test.DailyFixtures do
   @doc """
   A member of `admin`'s tenant, in its root business unit, holding one role that
   grants exactly `grants` (`{resource, verb, depth}`; `[]` grants nothing):
-  `%{actor:, user:, tenant:, email:}`.
+  `%{actor:, user:, tenant:, email:}`. A resource may be a privilege's name, such as a
+  secured column's `"AshEnterprise.Credentialing.Credential#number"`.
   """
   def member!(admin, role_name, grants) do
     actor = SystemActor.seed()
@@ -62,7 +63,7 @@ defmodule AshEnterprise.Test.DailyFixtures do
       |> Ash.create!()
 
     for {resource, verb, depth} <- grants do
-      name = inspect(resource)
+      name = if is_binary(resource), do: resource, else: inspect(resource)
 
       privilege =
         Security.Privilege

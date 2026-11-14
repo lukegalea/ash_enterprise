@@ -45,6 +45,15 @@ defmodule AshEnterprise.Credentialing.Credential do
   row, and any approval bound to its version, is not touched. `open_case` starts the case
   (`AshEnterprise.Credentialing.CaseProcess`) as the person asking.
 
+  ## The number is a secured column
+
+  Reading a credential does not show its number: that takes a role granting the column's
+  own privilege, `prvReadCredential.number` (`secured_fields`, `AshEnterprise.Platform.Resource`).
+  A committee member reviewing an activation sees that the clinician holds a licence
+  and when it expires; the coordinator who records it, and the Administrator, see the
+  number. Without the grant it reads as `%Ash.ForbiddenField{}`, and a search on it
+  matches nothing.
+
   `correct` changes the credential's number or expiry date. A correction while an
   activation waits for approval moves the credential's version on, so the approval no
   longer holds (failure scenario F4).
@@ -54,6 +63,7 @@ defmodule AshEnterprise.Credentialing.Credential do
     domain: AshEnterprise.Credentialing,
     ownership: :user_owned,
     lifecycle?: false,
+    secured_fields: [:number],
     extra_extensions: [AshAgent.Effects]
 
   postgres do

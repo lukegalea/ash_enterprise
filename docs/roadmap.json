@@ -94,9 +94,9 @@
       "id": "q6",
       "section": "identity",
       "question": "Are some columns more sensitive than the rows that contain them?",
-      "answer": "One resource, not the platform. `AshEnterprise.Integration.LinkedAccount` declares a field policy that hides `connection_id` from every read grant, and the integration tenant-isolation tests exercise it. No field policy sits on the base resource, and no CDM resource uses the corpus's `FieldPermission` or `FieldSecurityProfile` yet, so 'some columns are more sensitive than their rows' is answered for one column and by hand. The model would carry the rest on the same additive footing.",
+      "answer": "Yes, for reads, on the base resource and keyed by grants (ADR 0073). A resource lists `secured_fields`; reading one takes a role granting the column's own `:read` privilege (`prvReadCredential.number`), written into the catalogue at every boot, at a depth that reaches the row. A row grant does not include it, the Administrator holds every column, and there is no deny rule. Without the grant the value reads as hidden, and a filter or search on it matches nothing. The first secured column is a credential's licence number. `LinkedAccount` keeps its hand-written policy on `connection_id` beside it. Partial: a write to a secured column still follows the row's grant, and a sort on one is not rewritten.",
       "status": "partial",
-      "proof": "test/ash_enterprise/integration/tenant_isolation_test.exs"
+      "proof": "test/ash_enterprise/security/secured_fields_test.exs"
     },
     {
       "id": "q7",

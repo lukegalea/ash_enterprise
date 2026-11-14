@@ -211,11 +211,14 @@ defmodule AshEnterprise.Platform.DemoData do
 
     # Not the MDM egress grant: its `read` verb authorizes a departure of the
     # tenant's golden records (ADR 0054), which an auditor that "changes
-    # nothing" must not be handed by sweeping up every read.
+    # nothing" must not be handed by sweeping up every read. Nor a secured
+    # column's privilege ("Resource#field"): a column is secured so that it is
+    # granted by name, and "every read" is a sweep, not a name.
     reads =
       Enum.filter(
         privileges,
-        &(&1.access_right == :read and &1.resource_name != inspect(AshEnterprise.Mdm.Egress))
+        &(&1.access_right == :read and &1.resource_name != inspect(AshEnterprise.Mdm.Egress) and
+            not String.contains?(&1.resource_name, "#"))
       )
 
     people_writes =

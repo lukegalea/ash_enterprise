@@ -102,10 +102,8 @@ defmodule AshEnterprise.Platform.Seeder do
       |> Ash.read!(actor: actor)
       |> Map.new(&{{&1.resource_name, &1.access_right}, privilege_fields(&1)})
 
-    for resource <- platform_resources(),
-        verb <- AshEnterprise.Security.AccessRight.verbs(),
-        fields = desired_privilege(resource, verb),
-        Map.get(existing, {fields.resource_name, verb}) != fields do
+    for fields <- desired_privileges(),
+        Map.get(existing, {fields.resource_name, fields.access_right}) != fields do
       Security.Privilege
       |> Ash.Changeset.for_create(:create, fields, actor: actor)
       |> Ash.create!()
@@ -113,13 +111,49 @@ defmodule AshEnterprise.Platform.Seeder do
     |> length()
   end
 
-  defp desired_privilege(resource, verb) do
+  @doc """
+  The privilege catalogue this build defines: one privilege per `(resource, verb)`
+  over `platform_resources/0`, and one `:read` privilege per secured field
+  (`AshEnterprise.Platform.Resource`'s `secured_fields`), keyed
+  `"<Resource>#<field>"` and named `prvRead<Entity>.<field>`, with the resource's own
+  legal depths.
+  """
+  @spec desired_privileges() :: [map()]
+  def desired_privileges do
+    for resource <- platform_resources(),
+        privilege <- resource_privileges(resource) ++ field_privileges(resource),
+        do: privilege
+  end
+
+  defp resource_privileges(resource) do
+    for verb <- AshEnterprise.Security.AccessRight.verbs(),
+        do: desired_privilege(resource, inspect(resource), verb, privilege_name(resource, verb))
+  end
+
+  defp field_privileges(resource) do
+    for field <- secured_fields(resource) do
+      desired_privilege(
+        resource,
+        AshEnterprise.Security.Checks.RoleGrant.field_key(resource, field),
+        :read,
+        "#{privilege_name(resource, :read)}.#{field}"
+      )
+    end
+  end
+
+  defp secured_fields(resource) do
+    if platform_resource?(resource),
+      do: Spark.Dsl.Extension.get_opt(resource, [:platform], :secured_fields, []),
+      else: []
+  end
+
+  defp desired_privilege(resource, resource_name, verb, name) do
     legal = Security.Privilege.legal_depths_for(resource, ownership_of(resource))
 
     %{
-      resource_name: inspect(resource),
+      resource_name: resource_name,
       access_right: verb,
-      name: privilege_name(resource, verb),
+      name: name,
       can_be_basic: :basic in legal,
       can_be_local: :local in legal,
       can_be_deep: :deep in legal,

@@ -29,6 +29,7 @@ defmodule AshEnterprise.Credentialing.DemoData do
   |---|---|---|
   | `rosa@example.com` | Credentialing coordinator | register clinics, clinicians and credentials; activate a credential |
   | `rosa@example.com` | Credentialing requester | read the activation requests she owns |
+  | `rosa@example.com` | Credential numbers | read a credential's licence number, a secured column |
   | `kenji@example.com`, `amaka@example.com` | Credentialing committee | read the clinic's records |
 
   The coordinator and committee roles grant at `:global` depth: the clinic is the
@@ -74,6 +75,7 @@ defmodule AshEnterprise.Credentialing.DemoData do
   @committee ["kenji@example.com", "amaka@example.com"]
   @coordinator_role "Credentialing coordinator"
   @requester_role "Credentialing requester"
+  @numbers_role "Credential numbers"
 
   @clinic "Riverside Community Clinic"
 
@@ -142,8 +144,21 @@ defmodule AshEnterprise.Credentialing.DemoData do
         actor
       )
 
+    # The secured column, granted by name (`Credential`'s `secured_fields`).
+    numbers_role =
+      DemoData.ensure_role!(
+        @numbers_role,
+        "Reads a credential's licence number, which a read grant on credentials does not show.",
+        column_privileges([{Credential, :number}]),
+        :global,
+        root,
+        tenant,
+        actor
+      )
+
     coordinator = person!(@coordinator, coordinator_role, root, tenant, actor, password)
     DemoData.ensure_user_role!(coordinator, requester_role, root, tenant, actor)
+    DemoData.ensure_user_role!(coordinator, numbers_role, root, tenant, actor)
     committee = Enum.map(@committee, &person!(&1, committee_role, root, tenant, actor, password))
 
     as_coordinator = [actor: as_person(coordinator, tenant), tenant: tenant]
@@ -254,6 +269,18 @@ defmodule AshEnterprise.Credentialing.DemoData do
           resource <- if(which == :all, do: resources, else: which),
           into: MapSet.new(),
           do: {inspect(resource), verb}
+
+    Security.Privilege
+    |> Ash.read!(actor: SystemActor.seed())
+    |> Enum.filter(&MapSet.member?(wanted, {&1.resource_name, &1.access_right}))
+  end
+
+  # The catalogue's privileges on secured columns, `{resource, field}`.
+  defp column_privileges(columns) do
+    wanted =
+      MapSet.new(columns, fn {resource, field} ->
+        {Security.Checks.RoleGrant.field_key(resource, field), :read}
+      end)
 
     Security.Privilege
     |> Ash.read!(actor: SystemActor.seed())

@@ -47,7 +47,7 @@
       "name": "Logical access — authorization",
       "asks": "Access to data and systems is restricted to authorized users, and the basis of that authorization is defined.",
       "questions": ["q1", "q2", "q3", "q4", "q5", "q6"],
-      "note": "The strongest area. Authorization is `(role, privilege, depth)` data evaluated as a pure union with no deny rules, and a conformance suite asserts the resulting truth table rather than a sample of it. The gap is column-level: q6 is partial, with one field policy on one resource, so 'restricted' is still mostly a row-level claim."
+      "note": "The strongest area. Authorization is `(role, privilege, depth)` data evaluated as a pure union with no deny rules, and a conformance suite asserts the resulting truth table rather than a sample of it. Columns are covered for reads: a resource's secured columns are read only through a role granting the column's own privilege (q6, ADR 0073), and a write to one still follows the row's grant, so q6 stays partial."
     },
     {
       "id": "CC6.2",
@@ -332,7 +332,7 @@
       "frequency": "continuous",
       "owner_role": "Security Lead",
       "test_ref": "file:test/ash_enterprise/security/conformance_test.exs",
-      "rationale": "Authorization is (role, privilege, depth) data evaluated as a pure union of grants. Column-level restriction is open (q6)."
+      "rationale": "Authorization is (role, privilege, depth) data evaluated as a pure union of grants. A secured column is read only through a grant on that column; writes to it follow the row grant (q6)."
     },
     {
       "id": "CC6.2",

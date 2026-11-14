@@ -136,6 +136,27 @@ defmodule AshEnterpriseWeb.ShowcaseCredentialingLiveTest do
              {:awaiting_approval, ctx.clinic.coordinator.id}
   end
 
+  test "the credential board masks the number for a reviewer without the grant", ctx do
+    [credential | _] = ctx.clinic.credentials
+    reviewer = hd(ctx.clinic.committee)
+
+    # The workspace: the row is listed, its number is not on the wire.
+    {:ok, view, _html} = live(sign_in(reviewer), "/app/credentialing")
+    assert_push_event(view, "a2ui:messages", %{messages: messages}, 5_000)
+    wire = Jason.encode!(messages)
+    assert wire =~ credential.id
+    refute wire =~ credential.number
+
+    # The tour: the pending credential reads as hidden.
+    {:ok, tour, _html} = live(sign_in(reviewer), @tour)
+    assert has_element?(tour, "#pending-#{credential.id}", "hidden")
+    refute has_element?(tour, "#pending-#{credential.id}", credential.number)
+
+    # The coordinator, who records the numbers, holds the column's grant.
+    {:ok, tour, _html} = live(sign_in(ctx.clinic.coordinator), @tour)
+    assert has_element?(tour, "#pending-#{credential.id}", credential.number)
+  end
+
   test "the seeded clinic arrives with cases in several states", %{clinic: clinic} do
     {:ok, view, _html} = live(sign_in(clinic.coordinator), @tour)
 

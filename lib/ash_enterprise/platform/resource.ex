@@ -68,6 +68,17 @@ defmodule AshEnterprise.Platform.Resource do
       a strangled read model that projects `version_number` as a constant
       (`AshStrangler.Verifiers.VerifyOptimisticLock` refuses the lock on its
       writes while a view stands in for the table). ADR 0059.
+    * `:secured_fields` — attributes a row grant does not hand over: Dataverse's
+      secured columns, distinct from Ash's `sensitive?`, which only redacts logs. For
+      each one the base writes a field policy authorizing a read only through a role
+      granting `:read` on the column's own privilege, `"<Resource>#<field>"`, at a depth
+      that reaches the row (`{AshEnterprise.Security.Checks.RoleGrant, field: name}`),
+      plus `field_policy :*` authorizing every other field. Additive like every grant: no
+      `forbid_if`, and the privilege catalogue writes the column's privilege at boot, so
+      the Administrator holds it. Without the grant the value reads as
+      `%Ash.ForbiddenField{}` and a filter on it matches nothing. Reads only: a write to
+      the column follows the row grant. Verified by
+      `AshEnterprise.Platform.Verifiers.SecuredFields`. Default `[]`.
     * `:audit?` — write to the central event log. Default `true`.
     * `:archival?` — soft delete. Default `true`.
     * `:lineage?` — emit an OpenLineage COMPLETE RunEvent on every successful
@@ -122,6 +133,7 @@ defmodule AshEnterprise.Platform.Resource do
     {engine_only, opts} = Keyword.pop(opts, :engine_only, [])
     {changes_authority, opts} = Keyword.pop(opts, :changes_authority, [])
     {optimistic_lock?, opts} = Keyword.pop(opts, :optimistic_lock?, true)
+    {secured_fields, opts} = Keyword.pop(opts, :secured_fields, [])
     {audit?, opts} = Keyword.pop(opts, :audit?, true)
     {archival?, opts} = Keyword.pop(opts, :archival?, true)
     {lineage?, opts} = Keyword.pop(opts, :lineage?, true)
@@ -183,21 +195,7 @@ defmodule AshEnterprise.Platform.Resource do
         change AshEnterprise.Platform.Changes.StampProvenance, on: [:create, :update]
       end
 
-      unquote(
-        if optimistic_lock? do
-          quote do
-            # ADR 0059: `version_number` is an optimistic lock. Ash's own change,
-            # not an increment: on a non-atomic update (every audited one -- the
-            # AshEvents wrapper refuses atomics) an increment computes N+1 from the
-            # row each writer loaded, so two writers both write N+1 and the second
-            # silently wins. The lock adds `WHERE version_number = N` to the UPDATE,
-            # so the second writer matches no row and gets a StaleRecord error.
-            changes do
-              change optimistic_lock(:version_number), on: [:update]
-            end
-          end
-        end
-      )
+      unquote(version_lock(optimistic_lock?))
 
       platform do
         ownership(unquote(ownership))
@@ -211,6 +209,7 @@ defmodule AshEnterprise.Platform.Resource do
         optimistic_lock?(unquote(optimistic_lock?))
         state_machine?(unquote(state_machine?))
         audit?(unquote(audit?))
+        secured_fields(unquote(secured_fields))
 
         unquote(api_type_declaration)
 
@@ -262,6 +261,8 @@ defmodule AshEnterprise.Platform.Resource do
           end
         end
       )
+
+      unquote(secured_field_policies(secured_fields))
 
       unquote(
         if api_type do
@@ -330,4 +331,55 @@ defmodule AshEnterprise.Platform.Resource do
 
   defp maybe_add(list, true, extension), do: [extension | list]
   defp maybe_add(list, false, _extension), do: list
+
+  # ADR 0059: `version_number` is an optimistic lock. Ash's own change, not an
+  # increment: on a non-atomic update (every audited one -- the AshEvents wrapper
+  # refuses atomics) an increment computes N+1 from the row each writer loaded, so two
+  # writers both write N+1 and the second silently wins. The lock adds
+  # `WHERE version_number = N` to the UPDATE, so the second writer matches no row and
+  # gets a StaleRecord error.
+  defp version_lock(false), do: nil
+
+  defp version_lock(true) do
+    quote do
+      changes do
+        change optimistic_lock(:version_number), on: [:update]
+      end
+    end
+  end
+
+  # Column security as grants (ADR 0073): each secured field is readable through a role
+  # granting its own privilege, and every other field is as visible as the row. The
+  # preparation sits on every platform resource, because a lookup by a secured column
+  # can start from another resource, across a relationship.
+  defp secured_field_policies([]) do
+    quote do
+      preparations do
+        prepare AshEnterprise.Security.Preparations.SecuredFieldRefs
+      end
+    end
+  end
+
+  defp secured_field_policies(secured_fields) do
+    field_policies =
+      for field <- secured_fields do
+        quote do
+          field_policy unquote(field) do
+            authorize_if {AshEnterprise.Security.Checks.RoleGrant, field: unquote(field)}
+          end
+        end
+      end
+
+    quote do
+      unquote(secured_field_policies([]))
+
+      field_policies do
+        (unquote_splicing(field_policies))
+
+        field_policy :* do
+          authorize_if always()
+        end
+      end
+    end
+  end
 end

@@ -13,6 +13,8 @@ defmodule AshEnterprise.Credentialing.RegistryActivationTest do
   import AshEnterprise.Test.DailyFixtures, only: [tenant!: 0]
   import AshEnterprise.Test.RegistryActivation
 
+  require Ash.Query
+
   alias AshEnterprise.Credentialing.{Credential, DemoData, RegistryApi}
   alias AshEnterprise.Credentialing.RegistryApi.Transport
   alias AshEnterprise.Execution
@@ -58,5 +60,41 @@ defmodule AshEnterprise.Credentialing.RegistryActivationTest do
     assert Agent.get(log, &{&1.posts, &1.gets}) == {1, 1}
 
     assert RegistryApi.reference(tenant, credential.id) == Agent.get(log, & &1.accepted)
+  end
+
+  test "a requester without the number's grant activates with the number the committee approved",
+       %{tenant: tenant, clinic: clinic} do
+    [credential | _] = clinic.credentials
+
+    # The coordinator loses the licence-number column (a secured column) but keeps the row.
+    coordinator_id = clinic.coordinator.id
+
+    AshEnterprise.Security.UserRole
+    |> Ash.Query.filter(user_id == ^coordinator_id and role.name == "Credential numbers")
+    |> Ash.read!(authorize?: false, tenant: tenant)
+    |> Enum.each(&Ash.destroy!(&1, authorize?: false, tenant: tenant))
+
+    hidden = Ash.get!(Credential, credential.id, as_person(clinic.coordinator, tenant))
+    assert %Ash.ForbiddenField{} = hidden.number
+
+    {:ok, sent} = Agent.start_link(fn -> [] end)
+
+    Req.Test.stub(Transport, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      Agent.update(sent, &[body | &1])
+
+      conn
+      |> Plug.Conn.put_resp_content_type("application/json")
+      |> Plug.Conn.send_resp(201, ~s({"id": "act-9"}))
+    end)
+
+    point_transport!()
+    row = ready!(clinic, credential, tenant)
+
+    assert %{success: 1} = Oban.drain_queue(queue: :execution)
+    assert Execution.get_invocation!(row.id, oban(tenant)).status == :succeeded
+    assert [body] = Agent.get(sent, & &1)
+    assert %{"licenceNumber" => number} = Jason.decode!(body)
+    assert number == credential.number
   end
 end

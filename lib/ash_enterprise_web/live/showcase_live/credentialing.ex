@@ -408,7 +408,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
 
     assign(socket,
       credentials: credentials,
-      numbers: Map.new(credentials, &{&1.id, &1.number}),
+      numbers: Map.new(credentials, &{&1.id, AshEnterpriseWeb.HiddenField.shown(&1.number)}),
       activations: Tour.activations(actor),
       acp_requests: Tour.acp_requests(actor),
       readings: Tour.readings(actor),

@@ -238,6 +238,24 @@ defmodule AshEnterprise.Platform.SystemAttributes do
         extension list. Metadata only: it changes no behaviour.
         """
       ],
+      secured_fields: [
+        type: {:list, :atom},
+        default: [],
+        doc: """
+        Attributes a row grant does not hand over (Dataverse's secured columns). Set by
+        `AshEnterprise.Platform.Resource` from its `secured_fields` option, which also
+        injects the field policies that enforce it: reading a listed attribute needs a
+        role granting `:read` on the field's own privilege, `"<Resource>#<field>"`, at a
+        depth that reaches the row (`AshEnterprise.Security.Checks.RoleGrant`'s `field:`
+        option). Without it the attribute reads as `%Ash.ForbiddenField{}`, and a filter
+        on it matches nothing.
+
+        Reads only: a write to the attribute still follows the row's grant. Each listed
+        name must be a plain attribute that is not the primary key, an ownership column or
+        the tenant column, and a resource with secured fields declares no field policies
+        of its own (`AshEnterprise.Platform.Verifiers.SecuredFields`).
+        """
+      ],
       cdm_entity: [
         type: :string,
         required: false,
@@ -260,6 +278,7 @@ defmodule AshEnterprise.Platform.SystemAttributes do
     verifiers: [
       AshEnterprise.Platform.Verifiers.SelfServiceActions,
       AshEnterprise.Platform.Verifiers.NarrowedActions,
-      AshEnterprise.Platform.Verifiers.ProjectedLifecycle
+      AshEnterprise.Platform.Verifiers.ProjectedLifecycle,
+      AshEnterprise.Platform.Verifiers.SecuredFields
     ]
 end

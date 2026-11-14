@@ -12,6 +12,13 @@ defmodule AshEnterprise.Credentialing.Changes.ActivateInRegistry do
   whose answer was lost is `:ambiguous`: the invocation is left `outcome_unknown` and
   reconciled through `lookup_activation`, never re-sent.
 
+  The licence number is a secured column (`AshEnterprise.Credentialing.Credential`). The
+  act runs as its requester, who may not hold the column's grant, so the record it is
+  given can carry `%Ash.ForbiddenField{}` there; the number is then read from the row
+  itself. The column's grant decides who sees the number, not what an approved act sends:
+  sending it is the act, governed by the committee's four-eyes approval and the
+  registry's disclosure gate.
+
   The fault point `:credential_registry_accepted` sits between the registry accepting
   the activation and anything being recorded here (`AshEnterprise.Faults`): the moment
   failure scenario F2 is about.
@@ -34,7 +41,7 @@ defmodule AshEnterprise.Credentialing.Changes.ActivateInRegistry do
 
     arguments = %{
       reference: RegistryApi.reference(changeset.tenant, credential.id),
-      licence_number: credential.number,
+      licence_number: licence_number(credential, changeset.tenant),
       disclosure_ref: credential.id
     }
 
@@ -65,6 +72,14 @@ defmodule AshEnterprise.Credentialing.Changes.ActivateInRegistry do
         Ash.Changeset.add_error(changeset, error)
     end
   end
+
+  defp licence_number(%{number: %Ash.ForbiddenField{}} = credential, tenant) do
+    credential.__struct__
+    |> Ash.get!(credential.id, tenant: tenant, authorize?: false)
+    |> Map.fetch!(:number)
+  end
+
+  defp licence_number(credential, _tenant), do: credential.number
 
   # ADR 0012, the hole rule: the registry's own dataset is not covered by a tap, so the
   # activation is emitted as a job that writes it. Structural names only (the leak rule): no
