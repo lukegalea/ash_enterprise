@@ -62,6 +62,17 @@ defmodule AshEnterprise.Legacy.UserBackfill do
   """
   @spec project_row(struct()) :: :ok | {:error, term()}
   def project_row(row) do
+    with {:ok, _projected} <- project(row), do: :ok
+  end
+
+  @doc """
+  Projects one legacy row like `project_row/1`, and returns the projected row. `path` is
+  the `legacy_path` its audit rows carry: `"backfill"`, or `"reconcile"` for the nightly
+  repair (`AshEnterprise.Legacy.ReconcileWorker`), which records the row's compliance
+  events from it.
+  """
+  @spec project(struct(), String.t()) :: {:ok, struct()} | {:error, term()}
+  def project(row, path \\ "backfill") do
     attrs = %{
       id: row.id,
       legacy_id: row.legacy_id,
@@ -71,15 +82,13 @@ defmodule AshEnterprise.Legacy.UserBackfill do
       legacy_state: row.legacy_state
     }
 
-    context = %{ash_events_metadata: audit_metadata(row)}
-
-    with {:ok, _projected} <- UserProjection.project(attrs, context: context), do: :ok
+    UserProjection.project(attrs, context: %{ash_events_metadata: audit_metadata(row, path)})
   end
 
   # `legacy_*` cannot collide with the platform's own audit keys or the drain's `ledger_*` keys.
-  defp audit_metadata(row) do
+  defp audit_metadata(row, path) do
     %{
-      "legacy_path" => "backfill",
+      "legacy_path" => path,
       "legacy_source_table" => AshStrangler.Info.relation(AshEnterprise.Legacy.User),
       "legacy_id" => row.legacy_id
     }

@@ -11,17 +11,23 @@ defmodule AshEnterprise.Legacy.ReconcileWorkerTest do
 
   alias AshEnterprise.Accounts.ProjectedUser
   alias AshEnterprise.Audit.EventLog
+  alias AshEnterprise.Compliance.EventLog, as: ComplianceLog
+  alias AshEnterprise.Compliance.Seeds
   alias AshEnterprise.Legacy.Estate
   alias AshEnterprise.Legacy.ReconcileWorker
   alias AshEnterprise.Legacy.UserBackfill
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Repo
 
-  setup do
+  setup ctx do
     case AshEnterprise.Platform.Seeder.seed_legacy_estate() do
       :already_seeded -> raise "the legacy estate should not survive the sandbox transaction"
       _seeded -> :ok
     end
+
+    # The drain records the KYC compliance events of each row it projects, and refuses a row
+    # when there is no active bundle to record them under; the repair does the same.
+    unless ctx[:no_bundle], do: {:ok, _bundle} = Seeds.seed(Estate.organization_id())
 
     for row <- legacy_users(), do: :ok = UserBackfill.project_row(row)
     :ok
@@ -62,6 +68,61 @@ defmodule AshEnterprise.Legacy.ReconcileWorkerTest do
   end
 
   defp event_count, do: Ash.count!(EventLog, authorize?: false)
+
+  # The KYC compliance events recorded for one legacy user by a reconcile repair.
+  defp repair_events(legacy_id) do
+    subject = Integer.to_string(legacy_id)
+
+    ComplianceLog
+    |> Ash.read!(authorize?: false)
+    |> Enum.filter(fn event ->
+      event.metadata["subject_id"] == subject and
+        String.starts_with?(event.metadata["correlation_id"] || "", "reconcile:")
+    end)
+  end
+
+  defp status_fact(event) do
+    Enum.find_value(event.metadata["facts"], fn
+      ["customer", "status", status] -> status
+      _fact -> nil
+    end)
+  end
+
+  @tag no_bundle: true
+  test "a repair whose compliance events cannot be recorded is refused and left for the next run" do
+    legacy_id = insert_legacy_user!("no.bundle")
+
+    report = ReconcileWorker.run()
+
+    assert report.refused >= 1
+    refute report.converged?
+    assert projected_login(legacy_id) == []
+    assert repair_events(legacy_id) == []
+  end
+
+  test "a repaired row's compliance events are recorded as the drain records them" do
+    victim = Enum.find(projected(), &(&1.login == "awhitfield"))
+    assert repair_events(victim.legacy_id) == []
+
+    # The legacy application suspends the user; the ledger event is never drained.
+    Repo.query!("UPDATE legacy.users SET state = 'suspended' WHERE id = $1", [victim.legacy_id])
+
+    report = ReconcileWorker.run()
+    assert report.converged?
+
+    projected = Enum.find(projected(), &(&1.legacy_id == victim.legacy_id))
+    assert projected.legacy_state == "suspended"
+
+    events = repair_events(victim.legacy_id)
+    assert events != []
+    assert Enum.all?(events, &(status_fact(&1) == "suspended"))
+
+    # A legacy user the drain never saw is evaluated too, not left unevaluated.
+    missed = insert_legacy_user!("missed.compliance")
+    assert %{converged?: true} = ReconcileWorker.run()
+    assert [_ | _] = missed_events = repair_events(missed)
+    assert Enum.all?(missed_events, &(status_fact(&1) == "active"))
+  end
 
   test "a projected row that disagrees with its legacy row is reported by key range, repaired, and the estate converges" do
     victim = Enum.find(projected(), &(&1.login == "awhitfield"))

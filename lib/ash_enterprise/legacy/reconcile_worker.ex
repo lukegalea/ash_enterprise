@@ -28,10 +28,15 @@ defmodule AshEnterprise.Legacy.ReconcileWorker do
   ## The repair
 
   For each key range whose checksums disagree, the legacy rows in that range are read through
-  Ash (the projection actor, the estate's tenant) and handed to
-  `AshEnterprise.Legacy.UserBackfill.project_row/1`, the same single entry point the backfill
-  and the drain's ingestion use. The comparison then runs again, and the report says whether the
-  estate converged.
+  Ash (the projection actor, the estate's tenant) and each is repaired as the drain would have
+  ingested it (`AshEnterprise.Ledger.UserIngestion`): projected through
+  `AshEnterprise.Legacy.UserProjection.project/2`, the one projection entry point the backfill
+  and the drain share, and its KYC compliance events recorded from the projected row
+  (`AshEnterprise.Compliance.Kyc.record_from_projection/2`), in one transaction. A repaired
+  row's verdict therefore follows its repaired state, and a user the drain never saw is
+  evaluated. A row whose events cannot be recorded (the estate has no active compliance
+  bundle) is rolled back and counted as refused, so the estate does not read as converged.
+  The comparison then runs again, and the report says whether the estate converged.
 
   ## The report
 
@@ -54,6 +59,7 @@ defmodule AshEnterprise.Legacy.ReconcileWorker do
   Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
 
   alias AshEnterprise.Accounts.ProjectedUser
+  alias AshEnterprise.Compliance.Kyc
   alias AshEnterprise.Legacy.Estate
   alias AshEnterprise.Legacy.User, as: LegacyUser
   alias AshEnterprise.Legacy.UserBackfill
@@ -192,13 +198,31 @@ defmodule AshEnterprise.Legacy.ReconcileWorker do
 
   defp repair(ranges) do
     opts = [actor: SystemActor.projection(), tenant: Estate.organization_id(), authorize?: false]
+    run_id = Ecto.UUID.generate()
 
     ranges
     |> Enum.flat_map(fn {lower, upper} -> read_range(lower, upper, opts) end)
     |> Enum.reduce({0, 0}, fn row, {ok, bad} ->
-      case UserBackfill.project_row(row) do
-        :ok -> {ok + 1, bad}
+      case repair_row(row, "reconcile:#{run_id}:#{row.legacy_id}") do
+        {:ok, _projected} -> {ok + 1, bad}
         {:error, _reason} -> {ok, bad + 1}
+      end
+    end)
+  end
+
+  # What the drain's ingestion does with a row, in one transaction: the projection, then the
+  # compliance events the projected row supports, attributed to the same system actor.
+  defp repair_row(row, correlation_id) do
+    Repo.transaction(fn ->
+      with {:ok, projected} <- UserBackfill.project(row, "reconcile"),
+           :ok <-
+             Kyc.record_from_projection(projected,
+               actor: SystemActor.projection(),
+               correlation_id: correlation_id
+             ) do
+        projected
+      else
+        {:error, reason} -> Repo.rollback(reason)
       end
     end)
   end
