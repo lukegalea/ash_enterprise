@@ -11,6 +11,8 @@ defmodule AshEnterprise.Audit.PackageTest do
 
   use AshEnterprise.DataCase, async: false
 
+  require Ash.Query
+
   import AshEnterprise.Test.DailyFixtures, only: [tenant!: 0, tenant!: 1, member!: 3, brief!: 1]
 
   alias AshCompliance.Domain, as: Compliance
@@ -45,6 +47,15 @@ defmodule AshEnterprise.Audit.PackageTest do
     now = DateTime.utc_now()
     {DateTime.add(now, -1, :hour), DateTime.add(now, 1, :hour)}
   end
+
+  defp open_tasks!(admin) do
+    AshEnterprise.Bpmn.HumanTask
+    |> Ash.Query.filter(status == :open)
+    |> Ash.read!(authorize?: false, tenant: admin.tenant)
+  end
+
+  defp complete!(admin, task),
+    do: AshBpmn.complete_task!(task, outcome: "approved", actor: admin.user, tenant: admin.tenant)
 
   defp export(person, tenant \\ nil) do
     {from, to} = window()
@@ -114,6 +125,60 @@ defmodule AshEnterprise.Audit.PackageTest do
                  actor: ctx.auditor.actor,
                  tenant: ctx.auditor.tenant
                )
+    end
+  end
+
+  describe "when a review was decided" do
+    # The task row holds its current outcome. A package for a period must not credit a
+    # review with an outcome reached after the period ended; the audit log says when.
+
+    test "a review decided after the period ends is not in that period's package as decided",
+         ctx do
+      brief!(ctx.ours)
+      [task] = open_tasks!(ctx.ours)
+
+      {from, _} = window()
+      to = DateTime.utc_now()
+      complete!(ctx.ours, task)
+
+      {:ok, package} = export_period(ctx.auditor, from, to)
+      [entry] = Enum.filter(package["reviews"]["tasks"], &(&1["id"] == task.id))
+
+      assert entry["status"] == "open"
+      assert entry["outcome"] == nil
+      assert entry["decided_by_id"] == nil
+      assert entry["decided_at"] == nil
+      assert entry["decided_after_period"] == true
+    end
+
+    test "a review decided inside the period carries its outcome and decided_at", ctx do
+      brief!(ctx.ours)
+      [task] = open_tasks!(ctx.ours)
+
+      {from, _} = window()
+      complete!(ctx.ours, task)
+      to = DateTime.add(DateTime.utc_now(), 1, :hour)
+
+      {:ok, package} = export_period(ctx.auditor, from, to)
+      [entry] = Enum.filter(package["reviews"]["tasks"], &(&1["id"] == task.id))
+
+      assert entry["status"] == "completed"
+      assert entry["outcome"] == "approved"
+      assert entry["decided_after_period"] == false
+      assert {:ok, decided_at, _} = DateTime.from_iso8601(entry["decided_at"])
+      assert DateTime.compare(decided_at, from) == :gt
+      assert DateTime.compare(decided_at, to) == :lt
+    end
+
+    test "another tenant's review decided in the period is not in this tenant's package", ctx do
+      brief!(ctx.ours)
+      brief!(ctx.theirs)
+      [theirs] = open_tasks!(ctx.theirs)
+      complete!(ctx.theirs, theirs)
+
+      {:ok, package} = export(ctx.auditor)
+      refute Jason.encode!(package) =~ theirs.id
+      assert Enum.all?(package["reviews"]["tasks"], &(&1["decided_at"] == nil))
     end
   end
 

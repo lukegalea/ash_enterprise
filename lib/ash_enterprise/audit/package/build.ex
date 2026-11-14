@@ -17,7 +17,10 @@ defmodule AshEnterprise.Audit.Package.Build do
   This module adds what the compliance plane cannot observe:
 
     * **reviews** — the human tasks opened, claimed, decided or cancelled in the period,
-      with their outcomes and the process each belongs to;
+      with their outcomes and the process each belongs to. A task is credited with an
+      outcome only if the audit log shows it ended before the period's end (`decided_at`);
+      one decided afterwards is reported as it stood at the end (`open` or `claimed`, no
+      outcome, `decided_after_period: true`);
     * **chain** — `AshEvents.Chain.verify/2` over the tenant's whole chain,
       hot and archived, at export time, the events in the period, and the daily
       verifications recorded in it (`AshEnterprise.Audit.ChainVerifyWorker`);
@@ -46,10 +49,12 @@ defmodule AshEnterprise.Audit.Package.Build do
 
   use Ash.Resource.Actions.Implementation
 
+  require Ash.Query
+
   alias AshCompliance.Oscal.AssessmentResults
   alias AshCompliance.Ownership.Evidence
   alias AshCompliance.Ownership.Package, as: CompliancePackage
-  alias AshEnterprise.Audit.{ChainVerifyWorker, EventLog, Export}
+  alias AshEnterprise.Audit.{ArchivedEvent, ChainVerifyWorker, EventLog, Export}
   alias AshEnterprise.Compliance.FreshnessSweepWorker
   alias AshEnterprise.Security.ActorContext
 
@@ -180,31 +185,88 @@ defmodule AshEnterprise.Audit.Package.Build do
         [load: [instance: [definition: [:key, :version]]]] ++ host
       )
 
+    decided = decided_at(tasks, to, host)
+
     %{
-      "tasks" =>
-        Enum.map(tasks, fn task ->
-          %{
-            "id" => task.id,
-            "name" => task.name,
-            "node_id" => task.node_id,
-            "status" => to_string(task.status),
-            "outcome" => task.outcome,
-            "decided_by_id" => task.decided_by_id,
-            "assignee_type" => task.assignee_type && to_string(task.assignee_type),
-            "assignee_id" => task.assignee_id,
-            "delegated_from_id" => task.delegated_from_id,
-            "comment" => task.comment,
-            "subject_type" => task.subject_type,
-            "subject_id" => task.subject_id,
-            "opened_at" => iso(task.inserted_at),
-            "claimed_at" => task.claimed_at && iso(task.claimed_at),
-            "due_at" => task.due_at && iso(task.due_at),
-            "last_changed_at" => iso(task.updated_at),
-            "instance_id" => task.instance_id,
-            "process" => process(task.instance)
-          }
-        end)
+      "tasks" => Enum.map(tasks, &review(&1, Map.get(decided, &1.id), to))
     }
+  end
+
+  # A task row holds its *current* status and outcome, and the period is over: a review
+  # opened inside it and decided afterwards must not be credited to it as decided. So a
+  # task counts as decided only when the audit log has an event that ended it before `to`.
+  # Otherwise it is reported as it stood at the end of the period.
+  defp review(task, nil, to) do
+    claimed? = task.claimed_at != nil and DateTime.compare(task.claimed_at, to) == :lt
+
+    task
+    |> base(if(claimed?, do: "claimed", else: "open"))
+    |> Map.merge(%{
+      "outcome" => nil,
+      "decided_by_id" => nil,
+      "comment" => nil,
+      "decided_at" => nil,
+      "decided_after_period" => task.status in [:completed, :cancelled],
+      "claimed_at" => claimed? && iso(task.claimed_at),
+      "last_changed_at" => iso(if(claimed?, do: task.claimed_at, else: task.inserted_at))
+    })
+  end
+
+  defp review(task, decided_at, _to) do
+    task
+    |> base(to_string(task.status))
+    |> Map.merge(%{
+      "outcome" => task.outcome,
+      "decided_by_id" => task.decided_by_id,
+      "comment" => task.comment,
+      "decided_at" => iso(decided_at),
+      "decided_after_period" => false,
+      "claimed_at" => task.claimed_at && iso(task.claimed_at),
+      "last_changed_at" => iso(task.updated_at)
+    })
+  end
+
+  defp base(task, status) do
+    %{
+      "id" => task.id,
+      "name" => task.name,
+      "node_id" => task.node_id,
+      "status" => status,
+      "assignee_type" => task.assignee_type && to_string(task.assignee_type),
+      "assignee_id" => task.assignee_id,
+      "delegated_from_id" => task.delegated_from_id,
+      "subject_type" => task.subject_type,
+      "subject_id" => task.subject_id,
+      "opened_at" => iso(task.inserted_at),
+      "due_at" => task.due_at && iso(task.due_at),
+      "instance_id" => task.instance_id,
+      "process" => process(task.instance)
+    }
+  end
+
+  @ending_actions [:complete, :force_complete, :cancel]
+
+  # When each task ended (decided or cancelled) before `to`, from the audit log, hot and
+  # archived, keyed by task id. A task with no such event is absent.
+  defp decided_at([], _to, _host), do: %{}
+
+  defp decided_at(tasks, to, host) do
+    ids = Enum.map(tasks, & &1.id)
+    resource = AshEnterprise.Bpmn.HumanTask
+    actions = @ending_actions
+
+    [ArchivedEvent, EventLog]
+    |> Enum.flat_map(fn log ->
+      log
+      |> Ash.Query.filter(
+        resource == ^resource and record_id in ^ids and action in ^actions and
+          occurred_at < ^to
+      )
+      |> Ash.Query.select([:record_id, :occurred_at])
+      |> Ash.read!(host)
+    end)
+    |> Enum.group_by(&to_string(&1.record_id), & &1.occurred_at)
+    |> Map.new(fn {id, times} -> {id, Enum.min(times, DateTime)} end)
   end
 
   defp process(%{definition: %{key: key, version: version}}),
