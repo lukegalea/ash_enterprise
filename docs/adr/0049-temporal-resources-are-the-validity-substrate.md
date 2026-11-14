@@ -1,7 +1,8 @@
-# 9. ADR 0049: Temporal resources are the platform's validity substrate
+# ADR 0049 — Temporal resources are the platform's validity substrate
 
-- Status: **Accepted** (Luke, 2026-10-06 — "GO ALL IN")
-- Supersedes: the pilot-gated posture drafted in `system-one-program/research/temporal-resources-strategy.md` (see its 2026-10-06 addendum)
+- **Status:** accepted (2026-10-06, Luke: "GO ALL IN"); in progress
+- **Date:** 2026-10-06
+- **Supersedes:** the pilot-gated posture drafted in `system-one-program/research/temporal-resources-strategy.md` (see its 2026-10-06 addendum)
 - Context: [Introducing Temporal Resources](https://ash-hq.org/blog/introducing-temporal-resources); [temporal resources guide](https://hexdocs.pm/ash/temporal-resources.html); deep dive + inventory in the programme repo.
 
 ## Decision

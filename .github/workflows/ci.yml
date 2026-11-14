@@ -178,6 +178,15 @@ jobs:
       - name: Check the roadmap tables are rendered
         run: mix ash_enterprise.roadmap --check
 
+      # docs/adr/README.md indexes every ADR and each ADR carries its own
+      # status. Same reasoning as the gates above: an index that can disagree
+      # with the record it points at will, and an ADR that says `proposed`
+      # while its siblings cite it as decided is how a reader acts on a
+      # reversed decision. Also checks that every ADR link and `ADR NNNN`
+      # mention resolves, and that the numbers have no gaps.
+      - name: Check the ADR set agrees with itself
+        run: mix ash_enterprise.adr.check
+
       # docs/controls.json names an owner, an evidence producer, an operating
       # process and a test for each of the 61 SOC 2 criteria. Many are not
       # there yet, so this runs in report mode: it lists every missing piece

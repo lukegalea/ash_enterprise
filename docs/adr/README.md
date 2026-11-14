@@ -28,6 +28,11 @@ What this makes easy, what it makes hard, what it forecloses.
 The concrete exit: which files change, and how much work it is.
 ```
 
+The status starts with one of `proposed`, `accepted`, `rejected` or `superseded by ADR-NNNN`; the index row must start with the
+same word. `mix ash_enterprise.adr.check` (run in CI) fails when an index row, a status, a link or an `ADR NNNN` mention
+disagrees with the records. A reversal inside a record's body is not machine-checkable: when a record's decision changes,
+change its status in the same commit.
+
 ## Index
 
 | ADR | Title | Status |
@@ -47,7 +52,7 @@ The concrete exit: which files change, and how much work it is.
 | [0013](0013-openmetadata-as-catalog.md) | OpenMetadata as the catalog, populated from codegen | proposed |
 | [0014](0014-superset-over-metabase.md) | Superset over Metabase for BI | proposed |
 | [0015](0015-approvals-stay-in-ash.md) | Approvals and process modelling stay inside Ash | proposed |
-| [0016](0016-unleash-for-feature-flags.md) | Feature flags: FunWithFlags, not Unleash | proposed |
+| [0016](0016-unleash-for-feature-flags.md) | Feature flags: FunWithFlags, not Unleash | proposed (2026-08-18; Unleash adoption rejected 2026-08-18, FunWithFlags not built) |
 | [0017](0017-entity-resolution-in-ash.md) | Entity resolution as Ash calculations over CDM resources | proposed |
 | [0018](0018-grafana-lgtm-observability-backend.md) | Grafana LGTM as the observability backend | superseded by 0065 |
 | [0019](0019-api-versioning-as-presentation-contract.md) | API versioning is a presentation contract, not a schema fork | proposed |
@@ -79,7 +84,7 @@ The concrete exit: which files change, and how much work it is.
 | [0045](0045-system-one-in-tooling-is-advisory.md) | System One in developer and agent tooling is advisory | accepted (2026-09-28); the host's advisory standards review built, the tooling package's model tier not built (verified 2026-10-23) |
 | [0046](0046-the-declaration-is-the-output-contract.md) | The declaration is the output contract | accepted (2026-09-28); wire-schema contracts built for proposals, the one shared type-to-schema mapping not built (verified 2026-10-23) |
 | [0047](0047-learning-produces-proposals.md) | Learning produces proposals | accepted (2026-09-28); person-confirmed proposal records built, offline learners not built (verified 2026-10-23) |
-| [0048](0048-a-judgment-is-a-predicate-over-any-set.md) | A judgment is a predicate over any set | proposed |
+| [0048](0048-a-judgment-is-a-predicate-over-any-set.md) | A judgment is a predicate over any set | accepted (2026-10-02) |
 | [0049](0049-temporal-resources-are-the-validity-substrate.md) | Temporal resources are the platform's validity substrate | accepted (2026-10-06; in progress) |
 | [0050](0050-neobrutalism-design-system.md) | A neobrutalism token system, dark by default, replaces daisyUI | accepted |
 | [0051](0051-business-events-are-derived-from-the-canonical-store.md) | Business events are derived from the canonical store, into a chained ledger | accepted |
@@ -106,7 +111,7 @@ The concrete exit: which files change, and how much work it is.
 Records 0001–0005, 0007–0009, 0020–0023, 0027–0031, 0033–0037, 0050–0054, 0059 and 0061 are `accepted` and describe code that exists. 0006 is superseded by 0050. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed. 0060 is accepted and in progress: its phases 1 (ash_a2ui) and 2 (this repository) have landed; the downstream host's phases and CLDR formatting are not built.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that
 status flips to plain `accepted` when its code lands, so `accepted` on its own keeps meaning code that exists.
-**0012–0019, 0025, 0026, 0032 and 0048 are `proposed`: none of them is built**, with the exception 0015 below. 0010 (ingestion), 0011 (the Nango edge) and 0024 (crypto-shredding) were accepted on 2026-10-12 when a deployment we operate began depending on them; each one's implementation note says what is built and where it differs from the Decision (0010 lands into an Ash resource rather than a staging schema; 0024's age half was built later as a verified move to archive tables rather than partitions). They are here because a decision is cheapest to reason about — and cheapest to
+**0012–0019, 0025, 0026 and 0032 are `proposed`: none of them is built**, with the exception 0015 below. 0010 (ingestion), 0011 (the Nango edge) and 0024 (crypto-shredding) were accepted on 2026-10-12 when a deployment we operate began depending on them; each one's implementation note says what is built and where it differs from the Decision (0010 lands into an Ash resource rather than a staging schema; 0024's age half was built later as a verified move to archive tables rather than partitions). They are here because a decision is cheapest to reason about — and cheapest to
 *reverse* — while the alternatives are still fresh, and because
 [thesis 6](../manifesto/06-reversibility.md) asks for the exit before the entrance. Three of them
 record an answer that changed under verification, which is the main reason to write them down early.
@@ -127,7 +132,7 @@ resolved four conflicts with earlier records: the automation principal never byp
 do; the `ai` system actor loses its bypass; thesis 5's human decision moves to the moment a grant is made
 ([0043](0043-automation-authority-is-a-grant.md)); and 0042 narrows 0026, which both records now say. From acceptance
 on, changing one of them takes an amendment marked as such or a superseding record.
-0048 extends the set, and is `proposed`: it generalises the path from compliance to any consumer that selects records
+0048 extends the set, and is `accepted` (2026-10-02, on S1-52, Q13): it generalises the path from compliance to any consumer that selects records
 (filters, search, segments, standing queries), following the operator's direction the same day that the mechanism
 "applies to more than just compliance". It amends none of 0038–0047; it adds a consumer and the rules that consumer
 needs (three-valued membership, no inference in reads, scores that order but never decide membership).
