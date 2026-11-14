@@ -31,7 +31,7 @@ defmodule AshEnterprise.Process.StandingGrantTest do
   alias AshEnterprise.Platform.{AutomationPrincipal, Correlation, SystemActor}
   alias AshEnterprise.Process.{ActionInvoker, RecipeAuthority}
   alias AshEnterprise.Security.{ActionReach, ActorContext, AgentStartGrant}
-  alias AshEnterprise.Test.DailyFixtures
+  alias AshEnterprise.Test.{ActionSteps, DailyFixtures}
   alias AshEnterprise.Test.Execution.Authority, as: Grants
 
   @check_expiry """
@@ -246,59 +246,11 @@ defmodule AshEnterprise.Process.StandingGrantTest do
     team
   end
 
-  # The steps an action runs, by module (and the attribute a built-in names). The event
-  # log wraps every change in a replay wrapper, so the step is the change it wraps:
-  # comparing the wrapper would make every change look the same.
-  defp step_modules(action_name) do
-    Subscription
-    |> Ash.Resource.Info.action(action_name)
-    |> Map.fetch!(:changes)
-    |> Enum.map(&step/1)
-  end
+  # The steps an action runs: `ActionSteps` unwraps AshEvents' replay wrappers, so a step
+  # compares as itself and a missing one is not masked by another.
+  defp step_modules(action_name), do: ActionSteps.steps(Subscription, action_name)
 
-  defp step(%Ash.Resource.Validation{validation: {module, opts}}), do: {module, opts[:attribute]}
-
-  defp step(%Ash.Resource.Change{change: {AshEvents.Events.ReplayChangeWrapper, opts}}),
-    do: step(Keyword.fetch!(opts, :change))
-
-  defp step(%Ash.Resource.Change{change: {module, opts}}), do: {module, opts[:attribute]}
-
-  # Whether a resource-wide validation or change, by its `where`, applies to `action_name`.
-  defp applies_to?(%{where: where}, action_name) do
-    Enum.all?(where, fn
-      {Ash.Resource.Validation.ActionIs, opts} ->
-        action_name in List.wrap(opts[:action])
-
-      {Ash.Resource.Validation.Negate, opts} ->
-        case opts[:validation] do
-          {Ash.Resource.Validation.ActionIs, inner} ->
-            action_name not in List.wrap(inner[:action])
-
-          _other ->
-            true
-        end
-
-      _other ->
-        true
-    end)
-  end
-
-  defp global_steps(action_name) do
-    validations =
-      for %Ash.Resource.Validation{validation: {module, opts}} = v <-
-            Ash.Resource.Info.validations(Subscription),
-          :update in v.on,
-          applies_to?(v, action_name),
-          do: {module, opts[:attribute]}
-
-    changes =
-      for %Ash.Resource.Change{} = c <- Ash.Resource.Info.changes(Subscription),
-          :update in c.on,
-          applies_to?(c, action_name),
-          do: step(c)
-
-    validations ++ changes
-  end
+  defp global_steps(action_name), do: ActionSteps.global_steps(Subscription, :update, action_name)
 
   describe "publish_granted is a person's own act" do
     test "it is human-only, beside the macro's own publish" do
@@ -346,18 +298,22 @@ defmodule AshEnterprise.Process.StandingGrantTest do
     # The macro has no option for extra actions, so publish_granted restates publish by
     # module name. A step the library adds to publish later must be added here too.
     test "it carries every step publish carries" do
-      assert step_modules(:publish) -- step_modules(:publish_granted) == []
+      assert ActionSteps.missing(step_modules(:publish), step_modules(:publish_granted)) == []
 
       # The resource-wide ones too, except the two that read the authority a draft brings
       # into publish and the refusal of a standing grant by publish itself.
       authority_specific = [
-        {AshEnterprise.Bpmn.Subscription.Validations.HumanTasksOnly, nil},
-        {AshEnterprise.Bpmn.Subscription.Validations.CausingPersonAllowlisted, nil},
+        AshEnterprise.Bpmn.Subscription.Validations.HumanTasksOnly,
+        AshEnterprise.Bpmn.Subscription.Validations.CausingPersonAllowlisted,
         {Ash.Resource.Validation.AttributeDoesNotEqual, :authority}
       ]
 
-      assert (global_steps(:publish) -- authority_specific) -- global_steps(:publish_granted) ==
-               []
+      publish_wide =
+        Enum.reject(global_steps(:publish), fn {module, key} ->
+          module in authority_specific or {module, key[:attribute]} in authority_specific
+        end)
+
+      assert ActionSteps.missing(publish_wide, global_steps(:publish_granted)) == []
     end
 
     test "a diagram that names a legacy step is refused, grant_role included", ctx do
