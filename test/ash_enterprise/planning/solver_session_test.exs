@@ -68,8 +68,18 @@ defmodule AshEnterprise.Planning.SolverSessionTest do
     @impl true
     defdelegate status(ref), to: Fake
 
+    # With `:planning_test_cancel_gate` naming a pid, a cancel that never returns.
     @impl true
-    defdelegate cancel(ref), to: Fake
+    def cancel(ref) do
+      case Application.get_env(:ash_enterprise, :planning_test_cancel_gate) do
+        nil ->
+          Fake.cancel(ref)
+
+        gate ->
+          send(gate, {:cancelling, self()})
+          Process.sleep(:infinity)
+      end
+    end
   end
 
   setup do
@@ -92,6 +102,7 @@ defmodule AshEnterprise.Planning.SolverSessionTest do
       Application.put_env(:ash_enterprise, :planning_model_dir, original_dir)
       Application.delete_env(:ash_enterprise, :planning_test_script)
       Application.delete_env(:ash_enterprise, :planning_test_gate)
+      Application.delete_env(:ash_enterprise, :planning_test_cancel_gate)
     end)
 
     ensure_runtime!()
@@ -190,6 +201,57 @@ defmodule AshEnterprise.Planning.SolverSessionTest do
 
       send(awaiter, :release)
       assert :normal = await_down(pid)
+    end
+  end
+
+  describe "the tasks a session starts" do
+    defp task_children, do: Task.Supervisor.children(AshEnterprise.TaskSupervisor)
+
+    test "after a solver session stops, no task it started is alive", %{run: run} do
+      gate!()
+      assert {:ok, pid} = SolverSession.start_run(run)
+      assert_receive {:awaiting, awaiter}, 5_000
+      assert Process.alive?(awaiter)
+
+      ref = Process.monitor(awaiter)
+      GenServer.stop(pid, :shutdown)
+
+      assert_receive {:DOWN, ^ref, :process, ^awaiter, _reason}, 5_000
+
+      assert Task.Supervisor.children(SessionSupervisor.task_supervisor()) == []
+    end
+
+    test "after a solver session test ends, AshEnterprise.TaskSupervisor has no children it started",
+         %{run: run} do
+      before = task_children()
+
+      gate!()
+      assert {:ok, pid} = SolverSession.start_run(run)
+      assert_receive {:awaiting, awaiter}, 5_000
+      assert SessionSupervisor.active_count() == 1
+
+      ref = Process.monitor(awaiter)
+      GenServer.stop(pid, :shutdown)
+      assert_receive {:DOWN, ^ref, :process, ^awaiter, _reason}, 5_000
+
+      assert task_children() -- before == []
+      refute awaiter in task_children()
+    end
+
+    test "a cancelled session's cancel task is shut down with it", %{run: run} do
+      gate!()
+      Application.put_env(:ash_enterprise, :planning_test_cancel_gate, self())
+      assert {:ok, pid} = SolverSession.start_run(run)
+      assert_receive {:awaiting, _awaiter}, 5_000
+
+      assert :ok = SolverSession.cancel(run.id)
+      assert_receive {:cancelling, canceller}, 5_000
+
+      ref = Process.monitor(canceller)
+      GenServer.stop(pid, :shutdown)
+
+      assert_receive {:DOWN, ^ref, :process, ^canceller, _reason}, 5_000
+      assert Task.Supervisor.children(SessionSupervisor.task_supervisor()) == []
     end
   end
 

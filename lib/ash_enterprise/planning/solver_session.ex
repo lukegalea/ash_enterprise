@@ -279,6 +279,8 @@ defmodule AshEnterprise.Planning.SolverSession do
            tree: [],
            await: nil,
            cancel_task: nil,
+           await_pid: nil,
+           cancel_pid: nil,
            final: nil,
            lease_ms: config(:lease_ms, 300_000),
            renewed_at: nil,
@@ -328,7 +330,7 @@ defmodule AshEnterprise.Planning.SolverSession do
         timeout = limits.time_limit_ms + @deadline_slack_ms
 
         task =
-          Task.Supervisor.async_nolink(AshEnterprise.TaskSupervisor, fn ->
+          Task.Supervisor.async_nolink(SessionSupervisor.task_supervisor(), fn ->
             backend.await(ref, timeout)
           end)
 
@@ -338,7 +340,14 @@ defmodule AshEnterprise.Planning.SolverSession do
         os_pid = os_pid(state.backend, ref)
 
         {:noreply,
-         %{state | ref: ref, os_pid: os_pid, tree: ProcessTree.snapshot(os_pid), await: task.ref}}
+         %{
+           state
+           | ref: ref,
+             os_pid: os_pid,
+             tree: ProcessTree.snapshot(os_pid),
+             await: task.ref,
+             await_pid: task.pid
+         }}
 
       {:error, %AshPlanning.Error{} = error} ->
         finish(state, error_args(state, error))
@@ -415,10 +424,20 @@ defmodule AshEnterprise.Planning.SolverSession do
   def terminate(_reason, %{done?: false, os_pid: os_pid} = state) when not is_nil(os_pid) do
     # Shutdown or crash with a live solver: no graceful stop, the lease handles the row.
     ProcessTree.kill_all(merge_tree(state.tree, ProcessTree.snapshot(os_pid)))
-    :ok
+    end_tasks(state)
   end
 
-  def terminate(_reason, _state), do: :ok
+  def terminate(_reason, state), do: end_tasks(state)
+
+  # The await and cancel tasks end with the session that started them: the await task
+  # blocks for the solve's whole time limit, and nothing else would stop it.
+  defp end_tasks(state) do
+    for pid <- [state[:await_pid], state[:cancel_pid]], is_pid(pid) do
+      Task.Supervisor.terminate_child(SessionSupervisor.task_supervisor(), pid)
+    end
+
+    :ok
+  end
 
   # --- run polling and lease -------------------------------------------------
 
@@ -468,13 +487,13 @@ defmodule AshEnterprise.Planning.SolverSession do
     backend = state.backend
 
     task =
-      Task.Supervisor.async_nolink(AshEnterprise.TaskSupervisor, fn ->
+      Task.Supervisor.async_nolink(SessionSupervisor.task_supervisor(), fn ->
         cancelled = backend.cancel(ref)
         ProcessTree.kill_all(tree)
         cancelled
       end)
 
-    %{state | cancel_task: task.ref, final: final, tree: tree}
+    %{state | cancel_task: task.ref, cancel_pid: task.pid, final: final, tree: tree}
   end
 
   defp begin_cancel(state, _final), do: state

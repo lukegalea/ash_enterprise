@@ -18,17 +18,32 @@ defmodule AshEnterprise.Planning.SessionSupervisor do
   started.
   """
 
-  use DynamicSupervisor
+  use Supervisor
 
   alias AshEnterprise.Planning.SolverSession
 
+  @sessions __MODULE__.Sessions
+
+  @doc "The `Task.Supervisor` the sessions' await and cancel tasks run under."
+  @spec task_supervisor() :: atom()
+  def task_supervisor, do: AshEnterprise.Planning.TaskSupervisor
+
   def start_link(arg) do
-    DynamicSupervisor.start_link(__MODULE__, arg, name: __MODULE__)
+    Supervisor.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
+  # The sessions, and beside them the supervisor of the tasks they start. Those are not the
+  # application's `TaskSupervisor`: a session shuts its own down when it stops (see
+  # `SolverSession.terminate/2`), and nothing else shares them.
   @impl true
   def init(_arg) do
-    DynamicSupervisor.init(strategy: :one_for_one)
+    Supervisor.init(
+      [
+        {DynamicSupervisor, name: @sessions, strategy: :one_for_one},
+        {Task.Supervisor, name: task_supervisor()}
+      ],
+      strategy: :one_for_one
+    )
   end
 
   @doc """
@@ -40,7 +55,7 @@ defmodule AshEnterprise.Planning.SessionSupervisor do
   @spec start_session(keyword()) ::
           {:ok, pid()} | {:error, :heavy_solve_busy | {:already_running, pid()} | term()}
   def start_session(opts) do
-    case DynamicSupervisor.start_child(__MODULE__, {SolverSession, opts}) do
+    case DynamicSupervisor.start_child(@sessions, {SolverSession, opts}) do
       {:ok, pid} -> {:ok, pid}
       {:error, {:already_started, pid}} -> {:error, {:already_running, pid}}
       {:error, {:shutdown, :heavy_solve_busy}} -> {:error, :heavy_solve_busy}
@@ -50,5 +65,5 @@ defmodule AshEnterprise.Planning.SessionSupervisor do
 
   @doc "How many solver sessions are live under this supervisor."
   @spec active_count() :: non_neg_integer()
-  def active_count, do: DynamicSupervisor.count_children(__MODULE__).active
+  def active_count, do: DynamicSupervisor.count_children(@sessions).active
 end
