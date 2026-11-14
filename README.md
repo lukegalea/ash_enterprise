@@ -151,10 +151,11 @@ touching no other tenant, so it is safe on a database that holds real ones. Most
 a single row: grant depth needs a subtree to be measured over, and policies that
 differ per actor need a second actor. Everything it creates goes through the
 application's own actions, so the people it adds can sign in. Their password is the fixed
-`password1234`, for local development only. On an instance other people can reach, run
-`mix ash_enterprise.demo --password-file PATH` instead: the people get the password in that
-file, a random one is written there (mode 0600) when it does not exist, and it is never
-printed. A re-run does not reset the password of a person who already exists.
+`password1234`, which only dev and test allow: in any other environment `seed` and `demo`
+refuse to run without `--password-file PATH`. On an instance other people can reach, pass it
+whatever the environment: the people get the password in that file, a random one is written
+there (mode 0600) when it does not exist, and it is never printed. A re-run does not reset the
+password of a person who already exists.
 
 Sign in with the credentials the seeder prints, then visit:
 
@@ -171,10 +172,10 @@ Sign in with the credentials the seeder prints, then visit:
 | `/agent` | Helper console — proposes changes for your approval, and shows or composes tables on request |
 | `/app/users`, `/app/teams`, `/app/roles`, `/app/business-units` | A2UI surfaces derived from resource metadata |
 | `/app/legacy-users` | The same, over a 2010-era Rails schema read through a compatibility view — and it updates when the old application writes |
-| `/admin` | Zero-config admin over every resource |
+| `/admin` | Zero-config admin over every resource (dev only) |
 | `/canvas` | The domains, resources and relationships as one object graph, with the selected resource's surface beneath it (dev only) |
 | `/clarity` | ER, class, policy and state-machine diagrams (dev only) |
-| `/api/json/swaggerui` · `/gql/playground` | JSON:API + OpenAPI, GraphQL |
+| `/api/json/swaggerui` · `/gql/playground` | Interactive explorers for JSON:API (OpenAPI) and GraphQL (dev only; a release serves the APIs and `/api/json/open_api`, not the explorers) |
 
 **The MDM demo, end to end** (fresh DB): sign in as `demo-admin@example.com` /
 `password1234` (or the password in your `--password-file`) — the demo tenant owns the demo data.

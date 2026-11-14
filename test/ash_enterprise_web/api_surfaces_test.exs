@@ -97,6 +97,95 @@ defmodule AshEnterpriseWeb.ApiSurfacesTest do
     end
   end
 
+  # GraphiQL and Swagger UI are interactive pages over the whole API. They are mounted
+  # only where `dev_routes` is set, which the test env, like a release, leaves unset.
+  describe "the API explorers" do
+    test "are not mounted without dev_routes" do
+      refute Application.get_env(:ash_enterprise, :dev_routes)
+
+      plugs = Enum.map(AshEnterpriseWeb.Router.__routes__(), & &1.plug)
+
+      refute Absinthe.Plug.GraphiQL in plugs
+      refute OpenApiSpex.Plug.SwaggerUI in plugs
+    end
+
+    test "their paths fall through to the APIs, which serve no explorer", %{conn: conn} do
+      # Each explorer sat ahead of its scope's catch-all; without it the path is the API's.
+      assert %{plug: Absinthe.Plug} = route_info("GET", "/gql/playground")
+      assert %{plug: AshEnterpriseWeb.AshJsonApiRouter} = route_info("GET", "/api/json/swaggerui")
+
+      for path <- ["/gql/playground", "/api/json/swaggerui"] do
+        conn = get(conn, path)
+
+        refute conn.resp_body =~ ~r/graphiql|swagger-ui/i,
+               "#{path} served an explorer page: #{String.slice(conn.resp_body, 0, 200)}"
+
+        refute (get_resp_header(conn, "content-type") |> List.first() || "") =~ "text/html"
+      end
+    end
+
+    test "the OpenAPI document stays mounted: it is part of the API" do
+      assert %{plug: AshEnterpriseWeb.AshJsonApiRouter} = route_info("GET", "/api/json/open_api")
+    end
+
+    test "are compiled only under the dev_routes flag, so the dev server keeps them" do
+      # Source-level, like the /canvas check: between the nearest `dev_routes`
+      # conditional above each forward and the forward itself, nothing closes it.
+      source = File.read!("lib/ash_enterprise_web/router.ex")
+      guard = "if Application.compile_env(:ash_enterprise, :dev_routes) do"
+
+      for forward <- [~s(forward "/playground"), ~s(forward "/swaggerui")] do
+        [head, _] = String.split(source, forward, parts: 2)
+        assert head =~ guard, "#{forward} is not inside a dev_routes conditional"
+
+        inside = head |> String.split(guard) |> List.last()
+        refute inside =~ ~r/^ {0,4}end$/m, "#{forward} is outside its dev_routes conditional"
+      end
+    end
+  end
+
+  # The JSON APIs are bearer only and serve no page, so they carry headers that keep a
+  # browser from sniffing, framing or rendering a response as anything but JSON.
+  describe "security headers" do
+    test "a JSON:API response carries them, unauthenticated or with a bearer", %{conn: conn} do
+      anonymous =
+        conn
+        |> put_req_header("accept", "application/vnd.api+json")
+        |> get("/api/json/teams")
+
+      assert %{"data" => []} = json_response(anonymous, 200)
+      assert_api_headers(anonymous)
+
+      %{user: user} = AshEnterprise.Test.DailyFixtures.tenant!()
+      {:ok, token, _claims} = AshAuthentication.Jwt.token_for_user(user)
+
+      authenticated =
+        build_conn()
+        |> put_req_header("accept", "application/vnd.api+json")
+        |> put_req_header("authorization", "Bearer " <> token)
+        |> get("/api/json/teams")
+
+      assert %{"data" => [_ | _]} = json_response(authenticated, 200)
+      assert_api_headers(authenticated)
+      refute Map.has_key?(authenticated.private, :plug_session)
+    end
+
+    test "the OpenAPI document carries them", %{conn: conn} do
+      conn = conn |> put_req_header("accept", "application/json") |> get("/api/json/open_api")
+
+      assert conn.status == 200
+      assert_api_headers(conn)
+    end
+
+    test "a GraphQL response carries them", %{conn: conn} do
+      conn = post(conn, "/gql", %{query: "{ __typename }"})
+
+      assert %{"data" => %{"__typename" => _}} = json_response(conn, 200)
+      assert_api_headers(conn)
+      refute Map.has_key?(conn.private, :plug_session)
+    end
+  end
+
   describe "MCP" do
     test "rejects an actorless request outright rather than returning empty results",
          %{conn: conn} do
@@ -113,5 +202,17 @@ defmodule AshEnterpriseWeb.ApiSurfacesTest do
       assert conn.status == 401
       assert %{"error" => "unauthenticated"} = Jason.decode!(conn.resp_body)
     end
+  end
+
+  defp route_info(method, path),
+    do: Phoenix.Router.route_info(AshEnterpriseWeb.Router, method, path, "localhost")
+
+  defp assert_api_headers(conn) do
+    assert get_resp_header(conn, "x-content-type-options") == ["nosniff"]
+    assert get_resp_header(conn, "x-frame-options") == ["DENY"]
+
+    assert [csp] = get_resp_header(conn, "content-security-policy")
+    assert csp =~ "default-src 'none'"
+    assert csp =~ "frame-ancestors 'none'"
   end
 end

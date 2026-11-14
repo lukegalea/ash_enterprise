@@ -191,6 +191,12 @@ config :ash_enterprise, AshEnterpriseWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :ash_enterprise, dev_routes: true, token_signing_secret: "qaZQqvCZKqxY3RCtI+Ofq4CLfBwXHI+r"
 
+# A seed or demo run that names no password gives its people the fixed, public `password1234`
+# (`AshEnterprise.Platform.Seeder.default_password!/0`). Only here and in test; anywhere else the
+# seed tasks refuse and ask for `--password-file`. `FIXED_SEED_PASSWORD=false` refuses it on an
+# instance that runs this configuration for other people (config/runtime.exs).
+config :ash_enterprise, fixed_seed_password?: true
+
 # Anyone may register at /register (`AshEnterprise.Accounts.Changes.RefuseSelfRegistration`).
 # An instance running this configuration for other people turns it off with
 # `SELF_REGISTRATION=false` (config/runtime.exs).

@@ -137,12 +137,12 @@ const operate = chips([
 const delegation = capability('multi-agent-delegation');
 
 /**
- * The surfaces mounted beside the LiveView screens, from the router. The two
- * interactive API explorers are left out: they are not something to point a
- * reader at.
+ * The surfaces mounted beside the LiveView screens, from the router. The
+ * interactive API explorers are not among them: they are mounted only under
+ * `dev_routes`, so docs/routes.json, which lists what a release serves, does
+ * not have them.
  */
-const EXPLORERS = ['/gql/playground', '/api/json/swaggerui'];
-const mounted = routes.filter((r) => r.kind === 'forward' && !EXPLORERS.includes(r.path));
+const mounted = routes.filter((r) => r.kind === 'forward');
 const optOut = facts.resources.optOut;
 const onBase = facts.resources.declaredOnBase;
 
@@ -699,8 +699,8 @@ const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
           key that must carry an expiry and stops working when its owner is deactivated.
         </p>
         <p>
-          Routes mounted only in development (the admin, the Clarity diagrams, the canvas and the
-          live dashboard) are not counted and not listed.
+          Routes mounted only in development (the admin, the Clarity diagrams, the canvas, the
+          live dashboard and the GraphQL and JSON:API explorers) are not counted and not listed.
         </p>
       </div>
 

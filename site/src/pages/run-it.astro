@@ -164,7 +164,8 @@ const clickedCount = facts.failures.total - facts.failures.seeded;
     <div class="ae-body mt-10 space-y-4">
       <p>
         Sign in with the credentials the seeder prints. By default every demo person signs in with the fixed password{' '}
-        <code class="ae-code">password1234</code>, which is for a local database only.
+        <code class="ae-code">password1234</code>, which is for a local database only: outside dev and test the seeder
+        refuses to use it and asks for <code class="ae-code">--password-file</code>.
       </p>
       <p>
         <code class="ae-code">mix ash_enterprise.demo</code> writes to its own tenant, <code class="ae-code">clinic-demo</code>.

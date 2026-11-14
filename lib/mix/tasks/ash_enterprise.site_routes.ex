@@ -9,8 +9,8 @@ defmodule Mix.Tasks.AshEnterprise.SiteRoutes do
       mix ash_enterprise.site_routes --check   # fail if it is out of date
 
   It runs in the test environment (`preferred_envs` in mix.exs): the routes
-  behind `:dev_routes` (the dashboard, the admin, clarity, the canvas) are not
-  compiled there, so the file lists what a release serves.
+  behind `:dev_routes` (the dashboard, the admin, clarity, the canvas, the two
+  API explorers) are not compiled there, so the file lists what a release serves.
 
   `test/ash_enterprise/site_data_test.exs` compares the file with the router on
   every CI run. A route added or removed fails that test until this task is run

@@ -5,6 +5,7 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
   Brings a fresh database to a state you can actually sign into and explore.
 
       mix ash_enterprise.seed
+      mix ash_enterprise.seed --password-file PATH
       mix ash_enterprise.seed --email me@example.com --password hunter2hunter2
       mix ash_enterprise.seed --privileges-only
 
@@ -25,6 +26,15 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
   that already exists is a mistake rather than a no-op. Use `--privileges-only`
   on a database that has already been seeded. (Verified 2026-08-18; this
   moduledoc previously claimed the whole task was idempotent.)
+
+  ## Passwords
+
+  The two administrators it provisions (the tenant's and the legacy estate's) sign in with
+  `--password`, or the password in `--password-file` (read, or generated and written there
+  with mode 0600 when the file does not exist, as `mix ash_enterprise.demo` does). With
+  neither they get the fixed `password1234`, which only dev and test allow
+  (`AshEnterprise.Platform.Seeder.default_password!/0`); anywhere else the task refuses
+  before it writes anything. `--privileges-only` provisions nobody and needs no password.
   """
 
   use Mix.Task
@@ -34,6 +44,7 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
   @switches [
     email: :string,
     password: :string,
+    password_file: :string,
     name: :string,
     unique_name: :string,
     privileges_only: :boolean
@@ -44,6 +55,9 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
   @impl Mix.Task
   def run(args) do
     {opts, _} = OptionParser.parse!(args, strict: @switches)
+
+    # Resolved before anything is written, so a refusal leaves the database as it was.
+    {password, password_note} = if opts[:privileges_only], do: {nil, nil}, else: password(opts)
 
     # Everything up to the legacy projection writes through the application's
     # own actions against the Repo. No Oban, no endpoint, no projectors (iron
@@ -64,7 +78,7 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
       # The legacy estate first, so the greenfield tenant is provably not the
       # only one and the isolation claim in plan §4.2 has something to isolate
       # from. Idempotent, unlike the greenfield half.
-      case AshEnterprise.Platform.Seeder.seed_legacy_estate() do
+      case AshEnterprise.Platform.Seeder.seed_legacy_estate(password: password) do
         :already_seeded ->
           Mix.shell().info("Legacy estate already provisioned.")
 
@@ -75,7 +89,7 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
           )
       end
 
-      seeded = AshEnterprise.Platform.Seeder.seed_tenant(opts)
+      seeded = AshEnterprise.Platform.Seeder.seed_tenant(Keyword.put(opts, :password, password))
 
       # Project the legacy estate into `projected_users`, and do it *here* rather than in a mix
       # alias, because this is the only point at which all three of its prerequisites exist: the
@@ -102,10 +116,28 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
         business unit   #{seeded.business_unit.name} (#{seeded.business_unit.id})
         role            #{seeded.role.name}
         sign in as      #{seeded.user.email}
-                        #{opts[:password] || "password1234"}
+                        #{password_note}
 
       Then visit http://localhost:4000/admin
       """)
+    end
+  end
+
+  defp password(opts) do
+    cond do
+      opts[:password] ->
+        {opts[:password], "with the --password you gave"}
+
+      opts[:password_file] ->
+        path = opts[:password_file]
+        {AshEnterprise.Platform.DemoTenant.password_from_file!(path), "password in #{path}"}
+
+      AshEnterprise.Platform.Seeder.fixed_password_allowed?() ->
+        password = AshEnterprise.Platform.Seeder.default_password!()
+        {password, password}
+
+      true ->
+        Mix.raise(AshEnterprise.Platform.Seeder.fixed_password_refusal())
     end
   end
 end

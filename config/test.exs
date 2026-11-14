@@ -31,6 +31,10 @@ config :ash_enterprise, token_signing_secret: "2W7xIBrAeWb/GPoe4MBvPxA6NFwqqjl0"
 # refused turns this off.
 config :ash_enterprise, self_registration?: true
 
+# The suite seeds its tenants without naming a password, so they get the fixed one
+# (`AshEnterprise.Platform.Seeder.default_password!/0`); a test of the refusal turns this off.
+config :ash_enterprise, fixed_seed_password?: true
+
 # A fresh crypto-shredding master key every run (ADR 0024). Nothing sealed in
 # a test outlives the sandbox transaction, so nothing needs a stable key.
 config :ash_enterprise, AshEnterprise.Erasure,

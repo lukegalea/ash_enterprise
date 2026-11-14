@@ -27,13 +27,6 @@
     },
     {
       "action": null,
-      "kind": "forward",
-      "module": "OpenApiSpex.Plug.SwaggerUI",
-      "path": "/api/json/swaggerui",
-      "verb": "*"
-    },
-    {
-      "action": null,
       "kind": "live",
       "module": "AshEnterpriseWeb.LauncherLive",
       "path": "/app",
@@ -513,13 +506,6 @@
       "kind": "forward",
       "module": "Absinthe.Plug",
       "path": "/gql",
-      "verb": "*"
-    },
-    {
-      "action": null,
-      "kind": "forward",
-      "module": "Absinthe.Plug.GraphiQL",
-      "path": "/gql/playground",
       "verb": "*"
     },
     {

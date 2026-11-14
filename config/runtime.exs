@@ -65,6 +65,14 @@ if config_env() != :test do
   end
 end
 
+# The fixed seed password (`AshEnterprise.Platform.Seeder.default_password!/0`) is allowed in dev
+# and refused in a release. `FIXED_SEED_PASSWORD=false` refuses it on an instance that runs the
+# dev config but is shown to people, so its seed and demo runs need `--password-file`. There is
+# no switch that allows it in a release. Not read under test, for the same reason as above.
+if config_env() != :test and System.get_env("FIXED_SEED_PASSWORD") in ~w(false 0) do
+  config :ash_enterprise, fixed_seed_password?: false
+end
+
 # Dev's :debug level logs every query with its parameters, and on an instance holding real
 # data those parameters are names and addresses. `LOG_LEVEL=info` keeps them out of the log.
 case System.get_env("LOG_LEVEL") do

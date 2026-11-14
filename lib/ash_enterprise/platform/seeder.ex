@@ -35,6 +35,40 @@ defmodule AshEnterprise.Platform.Seeder do
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Security
 
+  @fixed_password "password1234"
+
+  @doc """
+  The password a seeded person gets when the caller names none: `password1234`, which anyone
+  can read in this repository. So it is handed out only where
+  `config :ash_enterprise, fixed_seed_password?: true` is set (config/dev.exs, config/test.exs);
+  anywhere else this raises, before the caller writes anything, and the message tells the
+  operator to pass `--password-file`. A release never sets the flag, and
+  `FIXED_SEED_PASSWORD=false` clears it on an instance that runs the dev config for other
+  people (config/runtime.exs).
+  """
+  @spec default_password!() :: String.t()
+  def default_password! do
+    if fixed_password_allowed?() do
+      @fixed_password
+    else
+      raise ArgumentError, fixed_password_refusal()
+    end
+  end
+
+  @doc "Whether this environment may give seeded people the fixed password (`default_password!/0`)."
+  @spec fixed_password_allowed?() :: boolean()
+  def fixed_password_allowed?,
+    do: Application.get_env(:ash_enterprise, :fixed_seed_password?, false)
+
+  @doc "Why `default_password!/0` refused, and what to pass instead."
+  @spec fixed_password_refusal() :: String.t()
+  def fixed_password_refusal do
+    "refusing to give seeded people the fixed password #{inspect(@fixed_password)}: it is public, " <>
+      "and this environment does not allow it (only dev and test do). Pass --password-file PATH " <>
+      "to `mix ash_enterprise.demo` or `mix ash_enterprise.seed`: the file's password is used, or " <>
+      "a random one is written to it (mode 0600) when it does not exist."
+  end
+
   @doc """
   Seeds the privilege catalogue from the configured domains.
 
@@ -113,13 +147,16 @@ defmodule AshEnterprise.Platform.Seeder do
   (`ensure_judgment_certifier_role/2`, assigned to nobody), the starter On-call
   role (`ensure_on_call_role/2`, assigned to nobody), and an admin user.
 
+  The admin signs in with `password:`; without one, with `default_password!/0`, which
+  raises before anything is written where the fixed password is not allowed.
+
   Returns `%{organization: _, business_unit: _, role: _, user: _}`.
   """
   def seed_tenant(opts \\ []) do
     name = opts[:name] || "Example Corp"
     unique_name = opts[:unique_name] || "example"
     email = opts[:email] || "admin@example.com"
-    password = opts[:password] || "password1234"
+    password = opts[:password] || default_password!()
 
     actor = SystemActor.seed()
 
@@ -772,7 +809,7 @@ defmodule AshEnterprise.Platform.Seeder do
         name: opts[:name] || "Legacy Estate",
         unique_name: opts[:unique_name] || "legacy",
         email: opts[:email] || "admin@legacy.example",
-        password: opts[:password] || "password1234",
+        password: opts[:password] || default_password!(),
         organization_id: organization_id,
         business_unit_id: AshEnterprise.Legacy.Estate.business_unit_id()
       )

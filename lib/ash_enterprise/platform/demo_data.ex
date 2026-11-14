@@ -37,8 +37,6 @@ defmodule AshEnterprise.Platform.DemoData do
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Security
 
-  @password "password1234"
-
   @typedoc """
   A demo person: their `AshEnterprise.Accounts.User`, carrying the tenant they were seeded
   into as `organization_id`. A user has no tenant attribute of its own, so the struct with
@@ -91,7 +89,7 @@ defmodule AshEnterprise.Platform.DemoData do
   """
   @spec populate(Ash.UUID.t(), keyword()) :: map
   def populate(organization_id, opts \\ []) do
-    password = Keyword.get(opts, :password, @password)
+    password = Keyword.get_lazy(opts, :password, &Seeder.default_password!/0)
     actor = SystemActor.seed()
     tenant = organization_id
 
@@ -159,10 +157,6 @@ defmodule AshEnterprise.Platform.DemoData do
     end)
   end
 
-  @doc "The password demo people get when none is given: for local development only."
-  @spec default_password() :: String.t()
-  def default_password, do: @password
-
   @doc """
   A demo person who can sign in with the demo password, placed in `unit`: provisioned
   the first time, found by email after that. Shared with the other demo seeds
@@ -170,7 +164,7 @@ defmodule AshEnterprise.Platform.DemoData do
   """
   @spec ensure_user!(String.t(), Accounts.BusinessUnit.t(), Ash.UUID.t(), String.t()) ::
           person()
-  def ensure_user!(email, unit, tenant, password \\ @password) do
+  def ensure_user!(email, unit, tenant, password \\ Seeder.default_password!()) do
     existing =
       Accounts.User
       |> Ash.Query.filter(email == ^email)

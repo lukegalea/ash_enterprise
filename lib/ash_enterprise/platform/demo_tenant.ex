@@ -73,7 +73,7 @@ defmodule AshEnterprise.Platform.DemoTenant do
         name: @name,
         unique_name: @slug,
         email: @admin_email,
-        password: Keyword.get(opts, :password, DemoData.default_password())
+        password: Keyword.get_lazy(opts, :password, &Seeder.default_password!/0)
       ).organization
   end
 
@@ -169,9 +169,10 @@ defmodule AshEnterprise.Platform.DemoTenant do
   @doc """
   Provisions the demo tenant and fills it. Safe on a database that holds other tenants.
 
-  `password:` is the password the people it creates sign in with (default: the fixed local
-  development one). A person who already exists keeps the password they have: a re-run
-  never resets one.
+  `password:` is the password the people it creates sign in with. Without one they get
+  `AshEnterprise.Platform.Seeder.default_password!/0`, the fixed local-development one, which
+  raises before anything is written where that password is not allowed. A person who already
+  exists keeps the password they have: a re-run never resets one.
   """
   @spec run!(keyword()) :: %{
           organization: Organization.t(),
@@ -181,6 +182,7 @@ defmodule AshEnterprise.Platform.DemoTenant do
           mdm: map() | nil
         }
   def run!(opts \\ []) do
+    opts = Keyword.put_new_lazy(opts, :password, &Seeder.default_password!/0)
     organization = provision!(opts)
     Map.put(populate!(organization, opts), :organization, organization)
   end

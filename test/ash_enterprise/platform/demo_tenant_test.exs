@@ -184,6 +184,70 @@ defmodule AshEnterprise.Platform.DemoTenantTest do
     end
   end
 
+  # The fixed password is public, so only dev and test hand it out (`fixed_seed_password?`
+  # in config/dev.exs and config/test.exs). These turn the flag off, as a release has it.
+  describe "where the fixed password is not allowed" do
+    setup do
+      Application.put_env(:ash_enterprise, :fixed_seed_password?, false)
+      on_exit(fn -> Application.put_env(:ash_enterprise, :fixed_seed_password?, true) end)
+      Mix.shell(Mix.Shell.Process)
+      on_exit(fn -> Mix.shell(Mix.Shell.IO) end)
+      :ok
+    end
+
+    test "the demo task refuses without a password file, and writes nothing" do
+      assert_raise Mix.Error, ~r/password1234.*--password-file PATH/s, fn ->
+        Mix.Tasks.AshEnterprise.Demo.run([])
+      end
+
+      assert DemoTenant.find() == nil
+    end
+
+    test "the seed task refuses without a password, and writes nothing" do
+      count = Ash.count!(AshEnterprise.Accounts.Organization, authorize?: false)
+
+      assert_raise Mix.Error, ~r/--password-file PATH/, fn ->
+        Mix.Tasks.AshEnterprise.Seed.run([])
+      end
+
+      assert Ash.count!(AshEnterprise.Accounts.Organization, authorize?: false) == count
+    end
+
+    test "the seeder's own functions refuse before writing too" do
+      assert_raise ArgumentError, ~r/--password-file/, fn -> DemoTenant.run!() end
+      assert DemoTenant.find() == nil
+
+      n = System.unique_integer([:positive])
+
+      assert_raise ArgumentError, ~r/--password-file/, fn ->
+        Seeder.seed_tenant(name: "No password #{n}", unique_name: "no-password-#{n}")
+      end
+
+      assert AshEnterprise.Accounts.Organization
+             |> Ash.Query.filter(unique_name == ^"no-password-#{n}")
+             |> Ash.read!(authorize?: false) == []
+    end
+
+    @tag :tmp_dir
+    test "the demo task seeds with a password file, and the people sign in with it", %{
+      tmp_dir: dir
+    } do
+      path = Path.join(dir, "demo.pw")
+
+      Mix.Tasks.AshEnterprise.Demo.run(["--password-file", path])
+
+      password = File.read!(path)
+      assert DemoTenant.find()
+      assert signs_in?(DemoTenant.admin_email(), password)
+      assert signs_in?("dana@example.com", password)
+      refute signs_in?(DemoTenant.admin_email(), "password1234")
+
+      assert_received {:mix_shell, :info, [summary]}
+      assert summary =~ "password in #{path}"
+      refute summary =~ password
+    end
+  end
+
   test "a live reading of the licence reader starts on the released first version, not the candidate" do
     %{organization: organization, clinic: clinic} = DemoTenant.run!()
     tenant = organization.id

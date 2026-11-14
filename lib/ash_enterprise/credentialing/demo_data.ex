@@ -65,6 +65,7 @@ defmodule AshEnterprise.Credentialing.DemoData do
   alias AshEnterprise.Execution
   alias AshEnterprise.Execution.{Approval, Invocation}
   alias AshEnterprise.Platform.DemoData
+  alias AshEnterprise.Platform.Seeder
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Security
   alias AshEnterprise.Security.ActorContext
@@ -102,7 +103,7 @@ defmodule AshEnterprise.Credentialing.DemoData do
   """
   @spec populate(Ash.UUID.t(), keyword()) :: map()
   def populate(organization_id, opts \\ []) do
-    password = Keyword.get(opts, :password, DemoData.default_password())
+    password = Keyword.get_lazy(opts, :password, &Seeder.default_password!/0)
     actor = SystemActor.seed()
     tenant = organization_id
     root = DemoData.root_business_unit!(tenant, actor)

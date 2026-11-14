@@ -9,6 +9,19 @@ defmodule AshEnterpriseWeb.Router do
   # mounted in the endpoint, ahead of `Plug.Parsers`, so a signature can cover the raw
   # bytes. See `AshEnterpriseWeb.Plugs.ProviderWebhooks` (ADR 0063).
 
+  # Response headers for the two JSON APIs (`:graphql` and `:api`). A JSON body
+  # is never a page, so its policy allows nothing to load, nothing to frame it
+  # and no <base>; `nosniff` stops a browser reading it as anything but JSON.
+  # No session is touched: both pipelines are bearer only. Phoenix 1.8 no
+  # longer sends `x-frame-options`, so it is set here for clients that ignore
+  # `frame-ancestors`.
+  @api_headers %{
+    "content-security-policy" => "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+    "x-frame-options" => "DENY"
+  }
+
+  defp put_api_headers(conn, _opts), do: put_secure_browser_headers(conn, @api_headers)
+
   # Mirrors :api. Without these the endpoint has no way to authenticate anybody:
   # every request arrives with a nil actor, the policy union grants nothing, and
   # the API answers `{"count": 0, "results": []}` to every query -- a successful
@@ -18,6 +31,7 @@ defmodule AshEnterpriseWeb.Router do
   #
   # `AshGraphql.Plug` must run last; it reads the actor these plugs installed.
   pipeline :graphql do
+    plug :put_api_headers
     plug AshEnterpriseWeb.Plugs.LoadFromBearer
     plug :set_actor, :user
     plug AshEnterpriseWeb.Plugs.LoadActorContext
@@ -34,12 +48,14 @@ defmodule AshEnterpriseWeb.Router do
   # Two are weaker than they should be, and it is worth saying why rather than
   # letting a reader assume this is a considered maximum:
   #
-  #   * `script-src` allows 'unsafe-inline' and 'unsafe-eval' because the mounted
-  #     dev tools need them -- GraphiQL and Swagger UI both inline bootstrapping
-  #     scripts, and Clarity inlines its whole bundle. All three are dev-only
-  #     (`/gql/playground`, `/api/json/swaggerui`, `/clarity`), so a deployment
-  #     that drops them can tighten this to `'self'` plus a per-request nonce.
-  #     LiveView itself does not need either.
+  #   * `script-src` allows 'unsafe-inline' and 'unsafe-eval'. Clarity inlines
+  #     its whole bundle and needs both, and the root layout's theme script is
+  #     inline. Clarity is mounted only under `dev_routes`, so a release does not
+  #     serve it; tightening this to `'self'` plus a per-request nonce for the
+  #     theme script is still to do. LiveView itself needs neither. The two API
+  #     explorers (GraphiQL, Swagger UI) do not come through this pipeline: they
+  #     are mounted only under `dev_routes`, with their own headers
+  #     (`:api_explorer`).
   #   * `style-src` allows 'unsafe-inline' because A2UI's components render into
   #     shadow DOM with their styles inlined, and because Phoenix's own error
   #     pages do the same.
@@ -83,18 +99,40 @@ defmodule AshEnterpriseWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug :put_api_headers
     plug AshEnterpriseWeb.Plugs.LoadFromBearer
     plug :set_actor, :user
     plug AshEnterpriseWeb.Plugs.LoadActorContext
     plug AshEnterpriseWeb.Plugs.PutLocale
   end
 
+  # The interactive explorers, GraphiQL at `/gql/playground` and Swagger UI at
+  # `/api/json/swaggerui`, are mounted only under `dev_routes`: a release does
+  # not serve them. Each sits ahead of its scope's catch-all `forward "/"`,
+  # which would otherwise take the path. They serve HTML that loads scripts, so
+  # they swap the JSON policy (`@api_headers`) for one that only stops framing
+  # and an injected <base>. The OpenAPI document itself (`/api/json/open_api`) is
+  # part of the API and stays mounted everywhere.
+  if Application.compile_env(:ash_enterprise, :dev_routes) do
+    pipeline :api_explorer do
+      plug :put_secure_browser_headers, %{
+        "content-security-policy" => "base-uri 'self'; frame-ancestors 'none'"
+      }
+    end
+  end
+
   scope "/gql" do
     pipe_through [:graphql]
 
-    forward "/playground", Absinthe.Plug.GraphiQL,
-      schema: Module.concat(["AshEnterpriseWeb.GraphqlSchema"]),
-      interface: :simple
+    if Application.compile_env(:ash_enterprise, :dev_routes) do
+      scope "/" do
+        pipe_through [:api_explorer]
+
+        forward "/playground", Absinthe.Plug.GraphiQL,
+          schema: Module.concat(["AshEnterpriseWeb.GraphqlSchema"]),
+          interface: :simple
+      end
+    end
 
     forward "/", Absinthe.Plug, schema: Module.concat(["AshEnterpriseWeb.GraphqlSchema"])
   end
@@ -102,9 +140,15 @@ defmodule AshEnterpriseWeb.Router do
   scope "/api/json" do
     pipe_through [:api]
 
-    forward "/swaggerui", OpenApiSpex.Plug.SwaggerUI,
-      path: "/api/json/open_api",
-      default_model_expand_depth: 4
+    if Application.compile_env(:ash_enterprise, :dev_routes) do
+      scope "/" do
+        pipe_through [:api_explorer]
+
+        forward "/swaggerui", OpenApiSpex.Plug.SwaggerUI,
+          path: "/api/json/open_api",
+          default_model_expand_depth: 4
+      end
+    end
 
     forward "/", AshEnterpriseWeb.AshJsonApiRouter
   end

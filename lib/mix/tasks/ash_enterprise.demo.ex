@@ -14,10 +14,10 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
 
   ## Passwords
 
-  By default every demo person signs in with the fixed password `password1234`. That is for
-  local development only: anyone can read it here.
-
-  On an instance other people can reach, name a file:
+  Without `--password-file`, every demo person signs in with the fixed password
+  `password1234`. Anyone can read it here, so only dev and test allow it
+  (`AshEnterprise.Platform.Seeder.default_password!/0`); anywhere else the task refuses
+  before it writes anything. On an instance other people can reach, name a file:
 
       mix ash_enterprise.demo --password-file PATH
 
@@ -53,7 +53,7 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
 
   use Mix.Task
 
-  alias AshEnterprise.Platform.DemoTenant
+  alias AshEnterprise.Platform.{DemoTenant, Seeder}
   alias AshEnterprise.Showcase.History
   alias AshEnterprise.Showcase.History.HeldJobs
 
@@ -63,6 +63,10 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
   def run(args) do
     {opts, _rest, _invalid} =
       OptionParser.parse(args, strict: [password_file: :string, history: :boolean])
+
+    # Before anything starts or is written: a run that would hand out the public password
+    # where it is not allowed stops here.
+    password_opts = password_opts(opts)
 
     # The history seed's node must not fetch, sweep or lead on a database a server polls,
     # and must hold the jobs it inserts: set before the application starts its Oban.
@@ -77,7 +81,7 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
     Mix.Task.run("app.start")
 
     %{organization: organization, counts: counts, clinic: clinic, mdm: mdm} =
-      DemoTenant.run!(password_opts(opts))
+      DemoTenant.run!(password_opts)
 
     Mix.shell().info("""
 
@@ -136,14 +140,22 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
 
   defp password_opts(opts) do
     case opts[:password_file] do
-      nil -> []
+      nil -> [password: fixed_password!()]
       path -> [password: DemoTenant.password_from_file!(path)]
+    end
+  end
+
+  defp fixed_password! do
+    if Seeder.fixed_password_allowed?() do
+      Seeder.default_password!()
+    else
+      Mix.raise(Seeder.fixed_password_refusal())
     end
   end
 
   defp password_note(opts) do
     case opts[:password_file] do
-      nil -> "password1234"
+      nil -> Seeder.default_password!()
       path -> "password in #{path}"
     end
   end

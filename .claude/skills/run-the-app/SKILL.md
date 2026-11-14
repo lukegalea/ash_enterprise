@@ -17,7 +17,8 @@ devenv shell -- iex-server      # the app, in IEx
 ```
 
 Sign in with the credentials the seeder prints — `admin@example.com` /
-`password1234` by default.
+`password1234` by default. That fixed password is allowed in dev and test only; anywhere else
+`mix ash_enterprise.seed` and `mix ash_enterprise.demo` refuse without `--password-file PATH`.
 
 ## Three things that will confuse you
 
@@ -42,11 +43,11 @@ load, and the Ecto Sandbox pool would be missing.
 | `/` | Home, with navigation |
 | `/agent` | The helper console — propose, confirm, execute |
 | `/app/users`, `/app/teams`, `/app/roles`, `/app/business-units` | A2UI surfaces |
-| `/admin` | Zero-config admin over every resource |
+| `/admin` | Zero-config admin over every resource (dev only) |
 | `/clarity` | ER, class, policy and state-machine diagrams (dev only) |
-| `/dev/dashboard` | LiveDashboard and telemetry |
-| `/api/json/swaggerui` | JSON:API with OpenAPI |
-| `/gql/playground` | GraphQL |
+| `/dev/dashboard` | LiveDashboard and telemetry (dev only) |
+| `/api/json/swaggerui` | JSON:API explorer over the OpenAPI document (dev only) |
+| `/gql/playground` | GraphQL explorer (dev only) |
 
 ## Checks
 

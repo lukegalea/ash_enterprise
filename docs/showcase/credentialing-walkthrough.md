@@ -21,7 +21,7 @@ devenv shell -- mix ash_enterprise.demo --history --password-file PATH
 - `PATH` is a file that holds the demo password. When the file does not exist, a random password is
   generated and written to it (mode 0600); it is never printed, so read it from the file. Without
   `--password-file` every demo person signs in with the fixed `password1234`, which is for a local database
-  only.
+  only: outside dev and test the task refuses to run without the file.
 - `--history` records the beats that need a fault: it runs each of them once, through the same actions the
   fault panel uses, arming the fault points in the seed process only. It writes only to `clinic-demo` and
   refuses any other tenant. A second run finds every beat already recorded and changes nothing.
