@@ -1,6 +1,6 @@
 # ADR 0016 — Feature flags: FunWithFlags, not Unleash
 
-- **Status:** proposed
+- **Status:** proposed (2026-08-18). The adoption of Unleash this record was opened for is **rejected** (2026-08-18, reversed by verification); the decision it now records, FunWithFlags, is not built.
 - **Date:** 2026-08-18
 
 > This ADR was opened to adopt Unleash and to record its OSS end-of-life as the load-bearing risk.
