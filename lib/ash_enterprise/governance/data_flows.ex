@@ -42,6 +42,10 @@ defmodule AshEnterprise.Governance.DataFlows do
   schema. `AshEnterprise.Governance.DataInventory` consumes it.
   """
 
+  # Sobelow reads `@sobelow_skip` from the source AST; persisting it keeps
+  # `--warnings-as-errors` from calling it unused (see Zones).
+  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
   @data_classes ~w(
     account_identity
     personal_data
@@ -287,7 +291,7 @@ defmodule AshEnterprise.Governance.DataFlows do
       gate_module = AshOperations.Info.disclosure_gate(resource)
 
       base = %{
-        id: :"operation_#{provider}_#{operation.name}",
+        id: "operation_#{provider}_#{operation.name}",
         name:
           "#{provider}: #{String.upcase(to_string(operation.method))} #{operation.path} (#{operation.name})",
         recipient_class: :third_party_api,
@@ -371,6 +375,9 @@ defmodule AshEnterprise.Governance.DataFlows do
   A text scan, with the limits described in the moduledoc.
   """
   @spec undeclared_modules(keyword()) :: [map()]
+  # The files read are lib/ sources under a caller-given root, a test and CI
+  # check; no request reaches this function.
+  @sobelow_skip ["Traversal.FileModule"]
   def undeclared_modules(opts \\ []) do
     root = Keyword.get(opts, :root, File.cwd!())
     rows = Keyword.get(opts, :rows, all())

@@ -168,6 +168,10 @@ defmodule AshEnterprise.Platform.Resource do
       |> Keyword.put_new(:authorizers, [Ash.Policy.Authorizer])
       |> Keyword.put(:extensions, extensions)
 
+    # Recorded in the platform section so a tool can read a resource's exposure
+    # from its declaration (`AshEnterprise.Governance.DataInventory`).
+    api_type_declaration = api_type && quote(do: api_type(unquote(api_type)))
+
     quote do
       use Ash.Resource, unquote(resource_opts)
 
@@ -208,11 +212,7 @@ defmodule AshEnterprise.Platform.Resource do
         state_machine?(unquote(state_machine?))
         audit?(unquote(audit?))
 
-        unquote(
-          if api_type do
-            quote do: api_type(unquote(api_type))
-          end
-        )
+        unquote(api_type_declaration)
 
         unquote(
           if cdm_entity do
