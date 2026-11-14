@@ -318,6 +318,108 @@ defmodule AshEnterprise.Security.SecuredFieldsTest do
     end
   end
 
+  # The field policy covers the column. A calculation or an aggregate the application
+  # declares is evaluated in the data layer and is not rewritten (Ash applies no field
+  # policy to a column an expression reads across a relationship), so one that reads a
+  # secured column would hand its value to every reader of the row it sits on.
+  describe "nothing derived reads a secured column" do
+    test "no expression calculation or aggregate in the application reads a secured column" do
+      offenders =
+        for resource <- app_resources(),
+            {name, hits} <- derived_reads(resource),
+            hits != [],
+            do: {resource, name, hits}
+
+      assert offenders == []
+    end
+
+    test "the scan finds a read of a secured column, here and across a relationship" do
+      import Ash.Expr, only: [expr: 1]
+
+      assert [{Credential, :number}] = secured_reads(Credential, expr(number <> "x"))
+
+      assert [{Credential, :number}] =
+               secured_reads(Credentialing.LicenceDocument, expr(credential.number))
+
+      assert [{Credential, :number}] =
+               secured_reads(
+                 Credentialing.Clinician,
+                 expr(exists(credentials, number == "x"))
+               )
+
+      assert [] = secured_reads(Credential, expr(expires_on))
+    end
+  end
+
+  defp app_resources do
+    :ash_enterprise
+    |> Ash.Info.domains()
+    |> Enum.flat_map(&Ash.Domain.Info.resources/1)
+    |> Enum.uniq()
+  end
+
+  defp secured_fields_of(resource) do
+    if AshEnterprise.Platform.SystemAttributes in Spark.extensions(resource),
+      do: Spark.Dsl.Extension.get_opt(resource, [:platform], :secured_fields, []),
+      else: []
+  end
+
+  defp derived_reads(resource) do
+    calculations =
+      for %{calculation: {Ash.Resource.Calculation.Expression, opts}} = calculation <-
+            Ash.Resource.Info.calculations(resource),
+          do: {calculation.name, secured_reads(resource, opts[:expr])}
+
+    aggregates =
+      for aggregate <- Ash.Resource.Info.aggregates(resource) do
+        target =
+          if aggregate.related?,
+            do: Ash.Resource.Info.related(resource, aggregate.relationship_path),
+            else: aggregate.resource
+
+        field =
+          if target && aggregate.field && aggregate.field in secured_fields_of(target),
+            do: [{target, aggregate.field}],
+            else: []
+
+        {aggregate.name, field ++ secured_reads(target, aggregate.filter)}
+      end
+
+    calculations ++ aggregates
+  end
+
+  # Every `{resource, column}` a secured column `expr`, read on `resource`, refers to.
+  defp secured_reads(resource, expr), do: expr |> walk(resource, []) |> Enum.uniq()
+
+  defp walk(_expr, nil, _path), do: []
+
+  defp walk(%Ash.Query.Ref{attribute: attribute, relationship_path: rel}, resource, path) do
+    name = if is_atom(attribute), do: attribute, else: Map.get(attribute, :name)
+    target = Ash.Resource.Info.related(resource, path ++ rel)
+
+    if target && name in secured_fields_of(target), do: [{target, name}], else: []
+  end
+
+  defp walk(%Ash.Query.Exists{related?: true} = exists, resource, path),
+    do: walk(exists.expr, resource, path ++ exists.at_path ++ exists.path)
+
+  defp walk(%Ash.Query.Exists{} = exists, _resource, _path),
+    do: walk(exists.expr, exists.resource, [])
+
+  defp walk(%_{} = struct, resource, path),
+    do: struct |> Map.from_struct() |> Map.values() |> walk(resource, path)
+
+  defp walk(map, resource, path) when is_map(map),
+    do: map |> Map.values() |> walk(resource, path)
+
+  defp walk(list, resource, path) when is_list(list),
+    do: Enum.flat_map(list, &walk(&1, resource, path))
+
+  defp walk(tuple, resource, path) when is_tuple(tuple),
+    do: tuple |> Tuple.to_list() |> walk(resource, path)
+
+  defp walk(_other, _resource, _path), do: []
+
   defp refusal(dsl) do
     assert {:error, %Spark.Error.DslError{message: message}} = SecuredFields.verify(dsl)
     message

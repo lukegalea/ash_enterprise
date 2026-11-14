@@ -69,9 +69,18 @@ role of its own; the credentialing committee reviews an activation without it.
   hold the column; it reads the number from the row past the field policy
   (`Credentialing.Changes.ActivateInRegistry`). The column's grant decides who sees a value, not what an approved act
   sends: that is the act's four-eyes approval and the disclosure gate.
-- **The column, not every copy of it.** A secured column hides that column. A value copied elsewhere is that place's:
-  a licence document's text and what the licence reader found in it carry the number, and are read through their own
-  grants.
+- **The column, not every copy of it.** A secured column hides that column. A value copied into another record is that
+  record's: a licence document's text, the licence reader's judgment rows and the input of the run that read it carry
+  the number, and are read through their own grants. Demo data does not copy the number into a document's title.
+- **What the application derives from the column is masked with it.** The base's `field_policy :*` authorizes every
+  calculation and aggregate on a resource with secured columns, so a derivation is only as safe as the code that
+  computes it. `Credentialing.Findings` reads the credential's number through the reader and masks a finding that
+  answers the licence number question (its value and the text of the lines it cites) when the column is hidden, so
+  the credential's `document_findings` and the tour show it as hidden where the column is. Ash applies no field
+  policy to a column an expression reads, on the resource or across a relationship, so an expression calculation or
+  an aggregate (its field or its filter) that reads a secured column anywhere in the application fails a test
+  (`secured_fields_test.exs`, "nothing derived reads a secured column"). A module calculation is not scanned: one
+  that derives from a secured column reads it through the reader, as `Findings` does.
 - **Sorting is not rewritten.** A sort on a secured column orders the rows a reader can see by a value they cannot
   read, which tells them the order and not the value.
 - **Field policies do not run in the policy bypasses.** The engines reach a secured column through the actor they

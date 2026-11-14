@@ -24,6 +24,7 @@ defmodule AshEnterprise.Showcase.LicenceReaderTest do
 
   alias AshEnterprise.AI.Models
   alias AshEnterprise.Credentialing.DemoData
+  alias AshEnterprise.Credentialing.Findings
   alias AshEnterprise.Erasure.Shredded
   alias AshEnterprise.Execution
   alias AshEnterprise.Faults
@@ -113,6 +114,64 @@ defmodule AshEnterprise.Showcase.LicenceReaderTest do
 
     assert loaded.document_findings =~ "Licence number: DEMO-PT-0001"
     assert loaded.document_findings =~ "line 5"
+  end
+
+  test "a reader without the licence number's column grant does not read it in what was found",
+       %{clinic: clinic, tenant: tenant} do
+    rosa = actor(clinic.coordinator, tenant)
+    # A committee member reads every record of the clinic, and not the number column.
+    kenji = actor(hd(clinic.committee), tenant)
+    credential = credential(clinic, "DEMO-PT-0001")
+
+    assert {:ok, run} = Tour.start_reading(credential.id, rosa)
+    assert drive!(run, tenant).status == :completed
+
+    seen = loaded_with_findings(credential, kenji, tenant)
+    assert %Ash.ForbiddenField{} = seen.number
+    refute seen.document_findings =~ "DEMO-PT-0001"
+    assert seen.document_findings =~ "Licence number: hidden"
+    # What the column does not cover is still there: the date the licence is valid until.
+    assert seen.document_findings =~ "Valid until: 2028-06-30"
+
+    documents =
+      AshEnterprise.Credentialing.list_licence_documents!(
+        actor: kenji,
+        tenant: tenant,
+        query: [filter: [credential_id: credential.id]]
+      )
+
+    # The documents' own titles do not copy the number.
+    assert documents != []
+    refute Enum.any?(documents, &(&1.title =~ "DEMO-PT-0001"))
+
+    # The findings themselves, as any page reads them: the value and the line it cites
+    # are masked, and the rest stays.
+    found =
+      documents
+      |> Findings.for_documents(actor: kenji, tenant: tenant)
+      |> Enum.uniq_by(& &1.question)
+      |> Map.new(&{&1.question, &1})
+
+    assert %Ash.ForbiddenField{} = found["licence_number"].value
+    assert found["licence_number"].status == "found"
+    assert [%{line: 5, text: %Ash.ForbiddenField{}}] = found["licence_number"].lines
+    assert found["licence_valid_until"].value == "2028-06-30"
+
+    # The coordinator holds the column, and reads it in the findings too.
+    assert loaded_with_findings(credential, rosa, tenant).document_findings =~
+             "Licence number: DEMO-PT-0001"
+  end
+
+  defp loaded_with_findings(credential, viewer, tenant) do
+    [loaded] =
+      AshEnterprise.Credentialing.list_credentials!(
+        actor: viewer,
+        tenant: tenant,
+        query: [filter: [id: credential.id]],
+        load: [:document_findings]
+      )
+
+    loaded
   end
 
   test "F1: the model times out after the lookups; the run resumes and looks nothing up again",

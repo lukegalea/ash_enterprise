@@ -197,7 +197,9 @@ defmodule AshEnterprise.Credentialing.LicenceDemoData do
         Credentialing.file_licence_document!(
           %{
             kind: kind,
-            title: "#{credential.number} #{title(kind)}",
+            # Not the number: a title is as visible as the document, and the number is a
+            # secured column (ADR 0073).
+            title: "#{holder} #{title(kind)}",
             document_version_id: version,
             credential_id: credential.id
           },

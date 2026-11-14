@@ -52,7 +52,8 @@ defmodule AshEnterprise.Credentialing.Credential do
   A committee member reviewing an activation sees that the clinician holds a licence
   and when it expires; the coordinator who records it, and the Administrator, see the
   number. Without the grant it reads as `%Ash.ForbiddenField{}`, and a search on it
-  matches nothing.
+  matches nothing. `document_findings` masks the licence number the reader found the same
+  way (`AshEnterprise.Credentialing.Findings`).
 
   `correct` changes the credential's number or expiry date. A correction while an
   activation waits for approval moves the credential's version on, so the approval no
