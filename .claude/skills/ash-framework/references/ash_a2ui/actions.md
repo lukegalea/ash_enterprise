@@ -30,6 +30,28 @@ AshA2ui.ActionHandler.handle(resource_or_ui_module, message,
   `{:error, _}`** — error messages carry the validation feedback the
   renderer must display.
 
+## Running an action from the server
+
+When the server runs an action nobody clicked (a LiveView replaying the
+table query its URL names, a page running its reports on arrival, an agent
+transport running the call a client asked for), build the call the
+renderer would have sent and hand it to `handle/3`. Don't call the Ash
+action directly, and don't assemble the message by hand:
+
+```elixir
+call = AshA2ui.ActionHandler.ash_action_call(ui, "query", %{"query" => query})
+{_ok_or_error, messages} = AshA2ui.ActionHandler.handle(ui, call, actor: actor)
+```
+
+- `ash_action_call(resource_or_ui_module, name, context)` returns a whole
+  `callAgentFunction` for `ashAction`, on the surface id the module is
+  built with (so a LiveView with extra `:surfaces` routes it), under a
+  fresh `"server-<name>-<n>"` call id. It runs through every check a
+  renderer's call does: allowlist, authorization, `:as_of`.
+- The follow-ups end with the call's `agentFunctionResponse`, as for any
+  call. When you push them to a renderer that never made the call, drop it:
+  `Enum.reject(messages, &AshA2ui.ActionHandler.agent_function_response?/1)`.
+
 ## The task panel
 
 Every surface with a `:form` component composes a record task panel: a

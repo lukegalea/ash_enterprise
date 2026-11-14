@@ -18,7 +18,7 @@ defmodule AshEnterprise.Surfaces.SavedSurfaceTest do
   alias AshEnterprise.Surfaces.{ClientCatalog, SavedStatus}
   alias AshEnterprise.Test.DailyFixtures, as: D
 
-  @admin_catalog "https://github.com/lukegalea/ash_a2ui/catalogs/admin/v2"
+  @admin_catalog AshA2ui.Experience.admin_catalog_id()
   @basic_catalog "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
 
   defp sign_in(conn, user) do

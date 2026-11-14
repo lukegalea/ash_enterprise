@@ -246,8 +246,12 @@ the only composition and `catalog: :admin_v1` is still the configuration. What m
   `resultText`); there is no `/ui/response`. The `result` there is a map-returning action's output, so the channels'
   own word (`applied`, `pending`, `forbidden` ...; `AshEnterprise.Channels`) is written beside it as `channelResult`
   and `blockedReason`. A refusal is the feedback with code `FORBIDDEN`; a field error is still `/errors/<field>`.
-- **Catalog ids.** The admin catalog is `https://github.com/lukegalea/ash_a2ui/catalogs/admin/v2` at contract 2.0.0
-  (it was `https://ash-a2ui.dev/catalogs/admin/v1`). Every surface also needs the ash_a2ui catalog
+- **Catalog ids.** The admin catalog is `https://github.com/lukegalea/ash_a2ui/catalogs/admin/v3` at contract 3.0.0
+  (it was `.../admin/v2` at 2.0.0, and `https://ash-a2ui.dev/catalogs/admin/v1` before that; no old id is an alias).
+  At 3.0.0 the admin catalog declares TextField, CheckBox, ChoicePicker, DateTimeInput and Modal, so on an admin
+  surface those five carry no `@catalogId` and render as the admin catalog's accessible inputs and prompt Modal; every
+  other basic kind still carries the basic catalog's id. Code reads the id from
+  `AshA2ui.Experience.admin_catalog_id/0` rather than writing it out. Every surface also needs the ash_a2ui catalog
   (`https://github.com/lukegalea/ash_a2ui/catalogs/ash_a2ui/v1`), so an ACP client's `supportedCatalogIds` must list
   the basic and the ash_a2ui catalog, and the admin one for the admin composition; the capabilities key is `"1.0"`.
 - **The browser renderer** is a pinned build of upstream `a2ui-project/a2ui` at 8bf644a (`assets/vendor/a2ui/`), because

@@ -358,6 +358,12 @@ end
   maps validation errors onto the reserved data-model paths. Calling Ash
   actions directly from transport code skips the allowlist and the error
   mapping. Full contract in `ash_a2ui:actions`.
+- **An action the server runs itself** (a URL's table query replayed, a
+  report run on arrival) goes through the same handler: build the call with
+  `AshA2ui.ActionHandler.ash_action_call(ui, name, context)`, hand it to
+  `handle/3`, and drop the `agentFunctionResponse`
+  (`AshA2ui.ActionHandler.agent_function_response?/1`) when no renderer
+  call is waiting on it. See `ash_a2ui:actions`.
 - Action names are exactly `"submit_form"`, `"invoke"`,
   `"prompt"`, `"query"`, `"option_search"`, `"option_select"`,
   `"nested_add"`, `"nested_remove"` (those four only on surfaces with

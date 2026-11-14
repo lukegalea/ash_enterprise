@@ -94,14 +94,20 @@ const ashCatalog = createAshA2uiCatalog({
 })
 
 // The experience layer's semantic admin catalog (entityPage, dataGrid,
-// recordPanel, ...) registers under its OWN catalog id --
-// https://github.com/lukegalea/ash_a2ui/catalogs/admin/v2 -- so it sits alongside the merged
-// catalog rather than shadowing it: the processor resolves
-// `catalogs.find(c => c.id === catalogId)`, basic-catalog surfaces keep
-// resolving to ashCatalog and admin surfaces to adminCatalog. Passing the
-// merged catalog as `basicCatalog` means the admin surfaces inherit its
-// ChoicePicker/Column upgrades too (the admin catalog extends whatever it is
-// given -- "admin adds semantic components; it does not remove primitives").
+// recordPanel, ...) registers under its OWN catalog id (admin contract 3.0.0,
+// `catalog.id`; AshA2ui.Experience.admin_catalog_id/0 on the server), so it
+// sits alongside the merged catalog rather than shadowing it: the processor
+// resolves `catalogs.find(c => c.id === catalogId)`, basic-catalog surfaces
+// keep resolving to ashCatalog and admin surfaces to adminCatalog.
+//
+// The admin catalog also declares five basic kinds: TextField, CheckBox,
+// ChoicePicker, DateTimeInput and Modal. On an admin surface those carry no
+// `@catalogId` and render as the admin catalog's own accessible inputs and
+// prompt Modal, so ashCatalog's ChoicePicker upgrade applies to basic
+// surfaces only. Every other kind on an admin surface carries the basic
+// catalog's `@catalogId` and resolves to ashCatalog, so admin surfaces keep
+// its Column (the search-picker combobox). Passing the merged catalog as
+// `basicCatalog` still matters for a renderer that ignores `@catalogId`.
 // lit is injected for the same single-instance reason as above.
 //
 // `loadMermaid` draws live diagrams (the process flight views). Mermaid is its

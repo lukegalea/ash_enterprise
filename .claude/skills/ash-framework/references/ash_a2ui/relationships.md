@@ -171,7 +171,13 @@ end
   `AshA2ui.LiveRenderer` navigation target.
 - Admin catalog: link columns carry `"link": {"path": "_links/<field>"}`,
   FieldDisplays `"link": {"@path": ".../_links/<field>"}`; activation calls
-  the catalog's `openSurface` function (`{surface, recordId, query}`).
+  the catalog's `openSurface` function (`{surface, recordId, query}`). A
+  host swap that draws a link entry with its own element calls the exported
+  `activateLink(event, link, {source, surfaceId})` from its click handler
+  rather than re-implementing the rule: a plain click opens in place, a
+  modified or middle click (and a plain `link_url` link) is the browser's.
+  With an `AshA2ui.LiveRenderer` `:open_surface` callback, "in place" can be
+  a `push_patch` of the current LiveView (open a drawer, keep its query).
 - Basic catalog, with `link_buttons: true` (the LiveRenderer sets it when
   it has `:open_surface` / `:open_surface_url`; off, links stay plain
   Text): a to-one link (`link :rel` / `link {surface, id_path}`) in a

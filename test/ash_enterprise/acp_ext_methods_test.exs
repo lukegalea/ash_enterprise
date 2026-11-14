@@ -201,13 +201,12 @@ defmodule AshEnterprise.AcpExtMethodsTest do
             "supportedCatalogIds" => [
               AshA2ui.Encoder.basic_catalog_id(),
               AshA2ui.Encoder.ash_catalog_id(),
-              "https://github.com/lukegalea/ash_a2ui/catalogs/admin/v2"
+              AshA2ui.Experience.admin_catalog_id()
             ]
           }
         })
 
-      assert catalog_id(result["a2ui"]) ==
-               "https://github.com/lukegalea/ash_a2ui/catalogs/admin/v2"
+      assert catalog_id(result["a2ui"]) == AshA2ui.Experience.admin_catalog_id()
     end
 
     test "a client that renders none of them gets the fallback and no surface" do
