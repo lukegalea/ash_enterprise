@@ -33,7 +33,7 @@ the missing forward half.
 | 2 | SLOs, disaster recovery and incident response | Committed RPO/RTO with a tested restore; error budgets | 🔵 Planned | — |
 | 3 | Bulk import and export | Ash bulk actions over a staged upload | 🔵 Planned | — |
 | 3 | Data inventory, classification and sub-processors | Derived from resource metadata, not maintained by hand | 🔵 Planned | — |
-| 3 | Feature flags and progressive delivery | FunWithFlags (Unleash rejected) | 🔵 Planned | [ADR 0016](adr/0016-unleash-for-feature-flags.md) |
+| 3 | Feature flags and progressive delivery | Tenant flag rows resolved into ActorContext (FunWithFlags and Unleash not adopted) | 🟡 Partial | [ADR 0072](adr/0072-ash-native-tenant-flags.md) |
 | 3 | Observability backend | SigNoz and GlitchTip | 🟡 Partial | [ADR 0065](adr/0065-signoz-and-glitchtip-observability-backends.md) |
 | 3 | Outbound events and subscriptions | An Ash notifier over the existing event log | 🔵 Planned | — |
 | 4 | Master data and entity resolution | In-Ash resolution over CDM resources | 🟡 Partial | [ADR 0054](adr/0054-mdm-stewardship-is-system-one.md) |

@@ -288,10 +288,12 @@
       "id": "q26",
       "section": "change",
       "question": "How do you ship a change to some users first?",
-      "answer": "A flag is evaluated in-process against the application's own database, with actor, business unit and tenant supplied from the context already computed once per request. Policies are not a substitute — they answer *may you*, not *is this on*, and conflating them produces a `beta_user` role you then have to revoke from everyone.",
-      "status": "planned",
-      "adr": "0016",
-      "item": "flags"
+      "answer": "Through tenant feature flags (ADR 0072). A build declares its flags; each tenant decides who sees one with an audited, tenant-scoped row: off, on for everyone in the tenant, or targeted at named people, the members of named teams, the subtree of named business units, and a percentage of people by a bucket that is stable per person and key. The rows are resolved once per request (and before every LiveView event) into the person's `ActorContext`, so checking a flag is a set lookup that never queries, and a change reaches a person at their next request or event. An undeclared key is off; `FLAGS_OFF` kills a key in every tenant without touching a row. Flipping a flag is a person's act, needs a grant, and is in the audit log. Policies are not a substitute and never read a flag: they answer *may you*, not *is this on*, and conflating them produces a `beta_user` role you then have to revoke from everyone. Not provided: environments, percentage-of-time, scheduled flips and a management screen (flags are managed through the code interface and `mix ash_enterprise.flags`). Not yet running in a deployment we operate.",
+      "status": "partial",
+      "adr": "0072",
+      "item": "flags",
+      "proof": "test/ash_enterprise/flags/flags_test.exs",
+      "test": "a flag targeted at a team is on for its members and off for everyone else"
     },
     {
       "id": "q27",
@@ -676,11 +678,11 @@
       "id": "flags",
       "title": "Feature flags and progressive delivery",
       "priority": 3,
-      "choice": "FunWithFlags (Unleash rejected)",
-      "adr": "0016",
-      "status": "planned",
-      "effort": "Protocol implementations declared once, so actor, business unit and tenant become flag targeting for free. Verification reversed the expected answer twice over: the widely-cited Unleash end-of-life attaches to Edge OSS rather than the server, but the server relicensed Apache-2.0 to AGPL-3.0 at v8.0.0 and its OSS edition is capped at one project and two environments.",
-      "bar": "Unleash fails on a fact worse than licensing: its Elixir SDK is community-maintained and silently ignores segments and flag dependencies, so a flag the Unleash UI says excludes a user returns true for them. FunWithFlags evaluates in-process against the application's own Postgres."
+      "choice": "Tenant flag rows resolved into ActorContext (FunWithFlags and Unleash not adopted)",
+      "adr": "0072",
+      "status": "partial",
+      "effort": "Built: a declared catalogue, an audited tenant-scoped Flag resource targeting people, teams, business-unit subtrees and a stable percentage, resolved once per request into ActorContext, a deployment kill switch (FLAGS_OFF), and a mix task. Remaining: the first feature gated behind a flag in a deployment we operate, and a management screen.",
+      "bar": "A flag check never queries and a flag is never authorization. FunWithFlags (ADR 0016, superseded) would have kept flags in a table outside the platform resource, so a flip would not be audited and a flag would not be a tenant's; Unleash adds a second security model and its community Elixir SDK silently ignores segments."
     },
     {
       "id": "observability",

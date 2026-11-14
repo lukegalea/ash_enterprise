@@ -60,6 +60,17 @@ defmodule AshEnterprise.Security.ActorContext do
   engine checks candidacy itself when they act, and the steward queue decides
   a candidate without reading its task.
 
+  ## Feature flags
+
+  `flags` are the declared feature flags on for this person in this tenant
+  (ADR 0072): the tenant's `AshEnterprise.Flags.Flag` rows, read in one query and
+  resolved against the user, their teams, their business unit and its ancestors,
+  and a stable percentage bucket (`AshEnterprise.Flags.Targeting`). The unit's
+  ancestors cost one more query, and only while some row targets a business
+  unit. `AshEnterprise.Flags.enabled?/2` reads the set; no flag is ever read by a
+  policy check, since a flag says whether a code path is offered and not who may
+  use it.
+
   ## Automation principals
 
   An automation principal (ADR 0043, `AshEnterprise.Platform.AutomationPrincipal`) has
@@ -106,6 +117,7 @@ defmodule AshEnterprise.Security.ActorContext do
     grants: %{},
     shared: %{},
     hierarchy: nil,
+    flags: MapSet.new(),
     system?: false,
     automation: nil
   ]
@@ -121,6 +133,7 @@ defmodule AshEnterprise.Security.ActorContext do
           grants: %{{String.t(), atom()} => Grant.t()},
           shared: %{{String.t(), atom()} => MapSet.t(Ash.UUID.t())},
           hierarchy: AshEnterprise.Security.Hierarchy.t() | nil,
+          flags: MapSet.t(String.t()),
           system?: boolean(),
           automation: atom() | nil
         }
@@ -246,6 +259,7 @@ defmodule AshEnterprise.Security.ActorContext do
       # Costs nothing when hierarchy security is disabled (the default): resolve/2
       # returns an empty struct without querying.
       hierarchy: AshEnterprise.Security.Hierarchy.resolve(user, tenant),
+      flags: load_flags(user_id, team_ids, business_unit_id, tenant),
       system?: false
     }
   end
@@ -290,7 +304,8 @@ defmodule AshEnterprise.Security.ActorContext do
 
   The principal is never a task candidate and has no reporting chain, so the result
   has neither. It keeps the person's identity (user, teams, business unit), which is
-  what ownership is measured against, and names the principal in `automation`.
+  what ownership is measured against, and their feature flags, since the work is
+  theirs, and names the principal in `automation`.
 
   Contexts for different tenants intersect to nothing.
   """
@@ -309,6 +324,7 @@ defmodule AshEnterprise.Security.ActorContext do
         principal_ids: person.principal_ids,
         grants: intersect_grants(person.grants, automation.grants),
         shared: shared_under(person.shared, automation.grants),
+        flags: person.flags,
         automation: name
       }
     end
@@ -608,6 +624,44 @@ defmodule AshEnterprise.Security.ActorContext do
     case Map.get(grants, {inspect(AshEnterprise.Bpmn.HumanTask), :read}) do
       %Grant{global?: true} -> true
       _narrower -> false
+    end
+  end
+
+  # The declared flags on for this person: every row of the tenant that is not off,
+  # resolved here so a flag check is a set lookup. The business unit's ancestors are
+  # read only when a row targets a business unit.
+  defp load_flags(nil, _team_ids, _business_unit_id, _tenant), do: MapSet.new()
+
+  defp load_flags(user_id, team_ids, business_unit_id, tenant) do
+    rows =
+      AshEnterprise.Flags.Flag
+      |> Ash.Query.filter(state != :off)
+      |> Ash.Query.select([:key, :state, :team_ids, :business_unit_ids, :user_ids, :percentage])
+      |> read_all(tenant)
+
+    unit_ids =
+      if Enum.any?(rows, &AshEnterprise.Flags.Targeting.needs_units?/1),
+        do: units_above(business_unit_id, tenant),
+        else: MapSet.new()
+
+    person = %{user_id: user_id, team_ids: team_ids, unit_ids: unit_ids}
+
+    for row <- rows,
+        AshEnterprise.Flags.Targeting.on?(row, person),
+        into: MapSet.new(),
+        do: row.key
+  end
+
+  defp units_above(nil, _tenant), do: MapSet.new()
+
+  defp units_above(business_unit_id, tenant) do
+    AshEnterprise.Accounts.BusinessUnit
+    |> Ash.Query.filter(id == ^business_unit_id)
+    |> Ash.Query.select([:id, :path])
+    |> read_all(tenant)
+    |> case do
+      [%{path: path}] -> AshEnterprise.Flags.Targeting.units_on_path(path)
+      _none -> MapSet.new()
     end
   end
 

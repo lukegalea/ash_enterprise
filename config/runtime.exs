@@ -31,6 +31,14 @@ if AshEnterprise.Security.AuditedDeployment.class(System.get_env()) == :audited 
   config :ash_enterprise, :deployment_class, :audited
 end
 
+# The deployment's feature-flag kill switch (ADR 0072): `FLAGS_OFF=key1,key2` turns those
+# declared flags off in every tenant, whatever its rows say. Rows are not rewritten, so
+# removing a key restores each tenant's choice. Not read under test.
+if config_env() != :test do
+  config :ash_enterprise, AshEnterprise.Flags.Catalogue,
+    killed: AshEnterprise.Flags.Catalogue.parse_killed(System.get_env("FLAGS_OFF"))
+end
+
 # The directory of reviewed planning model artifacts (`<key>/<key>.mzn`, `<key>.mzc.mzn`,
 # `validator.ex`). Deployment-owned and kept out of the repository: private models live elsewhere
 # and are named here. Unset, no model can run.

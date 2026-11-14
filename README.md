@@ -38,7 +38,7 @@ code exists; ⚪ means a gap with no decision taken.
 <!-- roadmap:scoreboard:start -->
 **16 of 54** enterprise questions have a shipped answer.
 
-✅ Shipped 16 · 🟡 Partial 28 · 🔵 Planned 5 · ⚪ Open 5
+✅ Shipped 16 · 🟡 Partial 29 · 🔵 Planned 4 · ⚪ Open 5
 <!-- roadmap:scoreboard:end -->
 
 <!-- roadmap:sections:start -->
@@ -48,7 +48,7 @@ code exists; ⚪ means a gap with no decision taken.
 | What happened, and can you prove it? | 6 | 5 | 0 | 0 |
 | Whose data is it? | 2 | 3 | 0 | 1 |
 | Where does data come from, and where does it go? | 1 | 3 | 3 | 2 |
-| How does it change, and keep running? | 2 | 7 | 2 | 1 |
+| How does it change, and keep running? | 2 | 8 | 1 | 1 |
 | Can you prove it, continuously? | 0 | 5 | 0 | 1 |
 <!-- roadmap:sections:end -->
 
@@ -98,7 +98,7 @@ code exists; ⚪ means a gap with no decision taken.
 | 23 | How do the processes people actually follow get modelled? | `ash_bpmn` compiles a BPMN document into an immutable versioned graph and executes it with a token interpreter over Postgres and Oban, with an embedded designer. Gateway conditions are FEEL, the DMN expression language -- the hand-written expression evaluator it replaced is deleted. **Running here**: the six resources sit on the platform base resource, so a process instance is an ordinary owned, tenant-scoped record and the engine's bypass is the first policy in the base's own set. A published baseline, four seeded requests covering every branch of the gateway, and two tenants on different versions of the same key. | ✅ Shipped |
 | 24 | How does an action get a second person's approval before it takes effect? | A change dropped on any action: work item, materialized candidate list, maker-checker exclusion applied by subtraction at candidate resolution rather than as a `forbid_if`, delegation, and escalation timers that get cancelled. **A work item is a platform resource here** -- owned, tenant-scoped and audited -- so who may approve is the same union of grants as who may read, and both the manager and executive approval branches are reachable in the demo. The refusals are now asserted, not only the positive case: a member who is not a candidate, a member whose role reads every task, a candidate for another task and another tenant's candidate are each refused and the task stays open. | 🟡 Partial |
 | 25 | How do API contracts change without breaking the callers you cannot see? | Version deltas declared as data on the resource — one schema, N presentation contracts, no second table or view — with `render`/`parse` invertibility checked at compile time and sunset proposed from real traffic. | 🔵 Planned |
-| 26 | How do you ship a change to some users first? | A flag is evaluated in-process against the application's own database, with actor, business unit and tenant supplied from the context already computed once per request. Policies are not a substitute — they answer *may you*, not *is this on*, and conflating them produces a `beta_user` role you then have to revoke from everyone. | 🔵 Planned |
+| 26 | How do you ship a change to some users first? | Through tenant feature flags (ADR 0072). A build declares its flags; each tenant decides who sees one with an audited, tenant-scoped row: off, on for everyone in the tenant, or targeted at named people, the members of named teams, the subtree of named business units, and a percentage of people by a bucket that is stable per person and key. The rows are resolved once per request (and before every LiveView event) into the person's `ActorContext`, so checking a flag is a set lookup that never queries, and a change reaches a person at their next request or event. An undeclared key is off; `FLAGS_OFF` kills a key in every tenant without touching a row. Flipping a flag is a person's act, needs a grant, and is in the audit log. Policies are not a substitute and never read a flag: they answer *may you*, not *is this on*, and conflating them produces a `beta_user` role you then have to revoke from everyone. Not provided: environments, percentage-of-time, scheduled flips and a management screen (flags are managed through the code interface and `mix ash_enterprise.flags`). Not yet running in a deployment we operate. | 🟡 Partial |
 | 27 | How does the schema itself evolve without drifting from the model? | Migrations are derived as a diff against committed resource snapshots, and the diff is a CI gate — so a resource change without a migration fails the build rather than surfacing at deploy time. | ✅ Shipped |
 | 28 | Can you tell what is happening in production? | Instrumentation is the `ash_enterprise_telemetry` package (`telemetry/`, on main): `AshEnterprise.Telemetry.setup/1` registers the Ash tracer, so every action, query and calculation becomes a span with no per-resource wiring, plus Phoenix, Ecto, Oban, outbound HTTP and GenAI spans, with correlation ids carried across them. The OTLP exporter is switched on by `OTEL_EXPORTER_OTLP_ENDPOINT` in `config/runtime.exs`; with it unset nothing is exported, and a bounded in-memory trace ring serves the dev loop. ADR 0065 chose the receiving end, SigNoz for traces, logs and metrics and GlitchTip for errors, superseding ADR 0018, and `devenv/observability` runs both beside the application in development. Not here: this host does not enable error reporting to GlitchTip, and no deployment we operate runs the backends, collects the signals or alerts on them. | 🟡 Partial |
 | 43 | Can a deploy happen without downtime, and can a migration be reversed? | Partial. Every generated migration has a `down`, and `ash_strangler`'s four-phase cutover is built precisely so a legacy migration can be reversed at any phase. What is untested is the app's own rolling deploy: nothing proves an old and a new node can serve the same schema at once, which is the property zero-downtime actually needs. | 🟡 Partial |
@@ -428,7 +428,7 @@ permissive direction.
 | 2 | SLOs, disaster recovery and incident response | Committed RPO/RTO with a tested restore; error budgets | 🔵 Planned | — |
 | 3 | Bulk import and export | Ash bulk actions over a staged upload | 🔵 Planned | — |
 | 3 | Data inventory, classification and sub-processors | Derived from resource metadata, not maintained by hand | 🔵 Planned | — |
-| 3 | Feature flags and progressive delivery | FunWithFlags (Unleash rejected) | 🔵 Planned | [ADR 0016](docs/adr/0016-unleash-for-feature-flags.md) |
+| 3 | Feature flags and progressive delivery | Tenant flag rows resolved into ActorContext (FunWithFlags and Unleash not adopted) | 🟡 Partial | [ADR 0072](docs/adr/0072-ash-native-tenant-flags.md) |
 | 3 | Observability backend | SigNoz and GlitchTip | 🟡 Partial | [ADR 0065](docs/adr/0065-signoz-and-glitchtip-observability-backends.md) |
 | 3 | Outbound events and subscriptions | An Ash notifier over the existing event log | 🔵 Planned | — |
 | 4 | Master data and entity resolution | In-Ash resolution over CDM resources | 🟡 Partial | [ADR 0054](docs/adr/0054-mdm-stewardship-is-system-one.md) |

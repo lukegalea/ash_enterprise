@@ -278,6 +278,8 @@ a blessed path.
 No `ash_feature_flags`. Use `FunWithFlags` or build it; there is no Ash-native answer, and policies are not a
 substitute (they answer *may you*, not *is this on*).
 
+**→ Superseded:** [ADR 0072](../adr/0072-ash-native-tenant-flags.md) builds tenant flag rows resolved into `ActorContext` instead; the record below is kept for its comparison.
+
 **→ Roadmap:** [ADR 0016 — feature flags: FunWithFlags, not Unleash](../adr/0016-unleash-for-feature-flags.md).
 Unleash was expected to win the comparison and did not, for two reasons worth carrying forward. It **relicensed
 Apache-2.0 → AGPL-3.0 at v8.0.0** (released 2026-06-09), and the OSS edition is capped at **one project and two

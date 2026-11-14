@@ -2,10 +2,10 @@
   "format": "ash_enterprise.data_inventory/1",
   "note": "Generated from the resource declarations by `mix ash_enterprise.data_inventory`; do not edit. It describes the code, names no data steward, and attests nothing about a running deployment.",
   "summary": {
-    "resources": 173,
+    "resources": 174,
     "global_tables": 44,
     "egress_paths": 15,
-    "tenant_scoped": 98,
+    "tenant_scoped": 99,
     "unclassified_personal_attributes": 0,
     "with_sealed_attributes": 14,
     "with_sensitive_attributes": 33
@@ -2050,6 +2050,24 @@
           "sealing": "erasure_scope"
         }
       ],
+      "personal_looking_attributes": []
+    },
+    {
+      "resource": "AshEnterprise.Flags.Flag",
+      "domain": "AshEnterprise.Flags",
+      "data_layer": "AshPostgres.DataLayer",
+      "table": "feature_flags",
+      "platform_resource": true,
+      "ownership": "organization_owned",
+      "tenancy": "attribute",
+      "tenant_option": true,
+      "audit": true,
+      "archival": false,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [],
+      "sealed_attributes": [],
       "personal_looking_attributes": []
     },
     {

@@ -216,6 +216,14 @@ config :ash_enterprise, :system_one_subject_resources, [
 # The boot-time privilege sync (AshEnterprise.Platform.PrivilegeSync) writes
 # outside any test's sandbox; each test seeds the privileges it needs instead.
 config :ash_enterprise, privilege_sync?: false
+
+# SYNTHETIC feature flags for the flag tests (ADR 0072); no code path checks them.
+config :ash_enterprise, AshEnterprise.Flags.Catalogue,
+  flags: %{
+    "test.alpha" => "A synthetic flag the flag tests turn on and off.",
+    "test.beta" => "A second synthetic flag, for isolation between keys."
+  }
+
 # MDM proposals: tests stub the LLM MFA per test; no default model runs.
 config :ash_enterprise, :mdm_proposal_llm, nil
 

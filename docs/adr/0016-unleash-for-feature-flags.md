@@ -1,6 +1,6 @@
 # ADR 0016 — Feature flags: FunWithFlags, not Unleash
 
-- **Status:** proposed
+- **Status:** superseded by [ADR 0072](0072-ash-native-tenant-flags.md) (2026-11-14)
 - **Date:** 2026-08-18
 
 > This ADR was opened to adopt Unleash and to record its OSS end-of-life as the load-bearing risk.

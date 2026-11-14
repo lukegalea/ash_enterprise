@@ -47,7 +47,7 @@ The concrete exit: which files change, and how much work it is.
 | [0013](0013-openmetadata-as-catalog.md) | OpenMetadata as the catalog, populated from codegen | proposed |
 | [0014](0014-superset-over-metabase.md) | Superset over Metabase for BI | proposed |
 | [0015](0015-approvals-stay-in-ash.md) | Approvals and process modelling stay inside Ash | proposed |
-| [0016](0016-unleash-for-feature-flags.md) | Feature flags: FunWithFlags, not Unleash | proposed |
+| [0016](0016-unleash-for-feature-flags.md) | Feature flags: FunWithFlags, not Unleash | superseded by 0072 |
 | [0017](0017-entity-resolution-in-ash.md) | Entity resolution as Ash calculations over CDM resources | proposed |
 | [0018](0018-grafana-lgtm-observability-backend.md) | Grafana LGTM as the observability backend | superseded by 0065 |
 | [0019](0019-api-versioning-as-presentation-contract.md) | API versioning is a presentation contract, not a schema fork | proposed |
@@ -103,12 +103,13 @@ The concrete exit: which files change, and how much work it is.
 | [0069](0069-a-recipe-runs-on-an-authority-chosen-per-version.md) | A recipe runs on an authority chosen per version; a standing grant is a person's own act | accepted (2026-11-09); built (2026-11-12); amended 2026-11-12: the rows it is decided from are engine-only or written by publishing, and it covers only the diagrams its publisher saw |
 | [0070](0070-upstream-first-placement.md) | Upstream-first placement: code goes at the highest layer where it is true; find gaps first, stop at the second use | proposed (2026-11-11) |
 | [0071](0071-one-oidc-identity-provider-per-deployment.md) | One OpenID Connect identity provider per deployment, matched to verified accounts only; no provisioning | accepted (2026-11-14) |
+| [0072](0072-ash-native-tenant-flags.md) | Feature flags are tenant rows, resolved once into the actor's context; a deployment kill switch; never authorization | accepted (2026-11-14) |
 | [0073](0073-secured-columns-are-grants.md) | Secured columns are grants: a column a row grant does not hand over | accepted (2026-11-14), built for reads |
 
-Records 0001–0005, 0007–0009, 0020–0023, 0027–0031, 0033–0037, 0050–0054, 0059 and 0061 are `accepted` and describe code that exists. 0006 is superseded by 0050. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed. 0060 is accepted and in progress: its phases 1 (ash_a2ui) and 2 (this repository) have landed; the downstream host's phases and CLDR formatting are not built.
+Records 0001–0005, 0007–0009, 0020–0023, 0027–0031, 0033–0037, 0050–0054, 0059 and 0061 are `accepted` and describe code that exists. 0006 is superseded by 0050, and 0016 by 0072. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed. 0060 is accepted and in progress: its phases 1 (ash_a2ui) and 2 (this repository) have landed; the downstream host's phases and CLDR formatting are not built.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that
 status flips to plain `accepted` when its code lands, so `accepted` on its own keeps meaning code that exists.
-**0012–0019, 0025, 0026, 0032 and 0048 are `proposed`: none of them is built**, with the exception 0015 below. 0010 (ingestion), 0011 (the Nango edge) and 0024 (crypto-shredding) were accepted on 2026-10-12 when a deployment we operate began depending on them; each one's implementation note says what is built and where it differs from the Decision (0010 lands into an Ash resource rather than a staging schema; 0024's age half was built later as a verified move to archive tables rather than partitions). They are here because a decision is cheapest to reason about — and cheapest to
+**0012–0015, 0017–0019, 0025, 0026, 0032 and 0048 are `proposed`: none of them is built**, with the exception 0015 below. 0010 (ingestion), 0011 (the Nango edge) and 0024 (crypto-shredding) were accepted on 2026-10-12 when a deployment we operate began depending on them; each one's implementation note says what is built and where it differs from the Decision (0010 lands into an Ash resource rather than a staging schema; 0024's age half was built later as a verified move to archive tables rather than partitions). They are here because a decision is cheapest to reason about — and cheapest to
 *reverse* — while the alternatives are still fresh, and because
 [thesis 6](../manifesto/06-reversibility.md) asks for the exit before the entrance. Three of them
 record an answer that changed under verification, which is the main reason to write them down early.

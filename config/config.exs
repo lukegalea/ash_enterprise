@@ -551,9 +551,15 @@ config :ash_enterprise,
     AshEnterprise.Credentialing,
     AshEnterprise.Automation,
     AshEnterprise.Quality,
-    AshEnterprise.Planning
+    AshEnterprise.Planning,
+    AshEnterprise.Flags
   ],
   base_resources: [AshEnterprise.Platform.Resource]
+
+# ADR 0072: the feature flags this build declares, key => what it turns on. A tenant
+# decides who sees each one with an `AshEnterprise.Flags.Flag` row; an undeclared key
+# is off everywhere. `FLAGS_OFF` (config/runtime.exs) kills declared keys.
+config :ash_enterprise, AshEnterprise.Flags.Catalogue, flags: %{}
 
 # ADR 0051: the business-event ledger. `region` partitions its chain, lock and
 # feed; `residency_tag` is what every row declares. Runtime overrides both from
