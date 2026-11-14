@@ -10,8 +10,10 @@ defmodule AshEnterprise.Audit.RetentionTest do
 
   use AshEnterprise.DataCase, async: false
 
+  require Ash.Query
+
   alias AshCompliance.Ownership.Evidence
-  alias AshEnterprise.Audit.{ArchiveRun, EventLog, Retention}
+  alias AshEnterprise.Audit.{ArchiveRun, ChainVerifyWorker, EventLog, Retention, RetentionWorker}
   alias AshEnterprise.Repo
 
   setup do
@@ -85,6 +87,27 @@ defmodule AshEnterprise.Audit.RetentionTest do
       end
     end
 
+    # The immutability trigger compares every copied column, the temporal ones included
+    # (priv/repo/migrations/20261113091903_s7_audit_chain_on_package.exs).
+    test "of a row whose archived copy differs only in as_of", ctx do
+      id = event!(ctx.org, 120)
+      plant_copy!(id)
+
+      Repo.query!("ALTER TABLE audit_event_archive DISABLE TRIGGER USER")
+
+      try do
+        Repo.query!("UPDATE audit_event_archive SET as_of = now() WHERE id = $1::uuid", [
+          Ecto.UUID.dump!(id)
+        ])
+      after
+        Repo.query!("ALTER TABLE audit_event_archive ENABLE TRIGGER USER")
+      end
+
+      assert_raise Postgrex.Error, ~r/append-only/, fn ->
+        Repo.query!("DELETE FROM audit_events WHERE id = $1::uuid", [Ecto.UUID.dump!(id)])
+      end
+    end
+
     test "of a row younger than ninety days, even with an identical copy", ctx do
       id = event!(ctx.org, 89)
       plant_copy!(id)
@@ -124,6 +147,73 @@ defmodule AshEnterprise.Audit.RetentionTest do
       # Every hot row is still there, and nothing new reached the archive.
       assert hot_count(ctx.org) == 4
       assert archived_count(ctx.org) == 1
+    end
+
+    test "one tenant with a broken chain does not stop another tenant's archive or verification",
+         ctx do
+      broken = Ash.UUID.generate()
+
+      for org <- [ctx.org, broken] do
+        for days <- [200, 150], do: event!(org, days)
+        event!(org, 1)
+      end
+
+      verifier = fn log, partition ->
+        if partition == broken, do: raise("the chain could not be read")
+        AshEvents.Chain.verify(log, partition)
+      end
+
+      {:ok, result} = Retention.archive(verifier: verifier)
+
+      assert {:failed, %ArchiveRun{status: :failed, row_count: 0, reason: reason}} =
+               step_for(result, broken)
+
+      assert reason =~ "the chain could not be read"
+      assert hot_count(broken) == 3
+      assert archived_count(broken) == 0
+
+      assert {:archived, %ArchiveRun{status: :verified, row_count: 2}} =
+               step_for(result, ctx.org)
+
+      assert archived_count(ctx.org) == 2
+
+      # The daily verification: evidence for the healthy tenant, an error finding for the
+      # broken one, and no evidence that would read as the control operating there.
+      assert {:ok, outcomes} = ChainVerifyWorker.run(verifier: verifier)
+      assert {ctx.org, 0} in outcomes
+      assert {broken, {:error, "the chain could not be read"}} in outcomes
+
+      for control <- ChainVerifyWorker.evidence_controls() do
+        assert [_] =
+                 AshCompliance.Domain.evidence_for_control!(ctx.org, control, authorize?: false)
+
+        assert [] = AshCompliance.Domain.evidence_for_control!(broken, control, authorize?: false)
+      end
+
+      findings =
+        broken
+        |> AshCompliance.Domain.findings_for_organization!(authorize?: false)
+        |> Enum.filter(&(&1.subject_type == ChainVerifyWorker.subject_type()))
+
+      assert Enum.sort(Enum.map(findings, & &1.control_id)) ==
+               Enum.sort(ChainVerifyWorker.evidence_controls())
+
+      assert Enum.all?(findings, &(&1.status == :error and is_nil(&1.resolved_at)))
+      assert Enum.all?(findings, &(&1.explanation =~ "the chain could not be read"))
+
+      assert [] =
+               ctx.org
+               |> AshCompliance.Domain.findings_for_organization!(authorize?: false)
+               |> Enum.filter(&(&1.subject_type == ChainVerifyWorker.subject_type()))
+
+      # Read cleanly the next day, the broken tenant's findings are resolved.
+      assert {:ok, again} = ChainVerifyWorker.run()
+      assert {broken, 0} in again
+
+      assert broken
+             |> AshCompliance.Domain.findings_for_organization!(authorize?: false)
+             |> Enum.filter(&(&1.subject_type == ChainVerifyWorker.subject_type()))
+             |> Enum.all?(&match?(%DateTime{}, &1.resolved_at))
     end
 
     test "a chain with a verification finding, and moves nothing", ctx do
@@ -190,6 +280,35 @@ defmodule AshEnterprise.Audit.RetentionTest do
       {:ok, again} = Retention.archive()
 
       assert step_for(again, ctx.org) == :nothing
+    end
+
+    test "a backlog over the daily cap is reported", ctx do
+      for days <- [300, 250, 200, 150, 120], do: event!(ctx.org, days)
+      event!(ctx.org, 1)
+
+      ref = :telemetry_test.attach_event_handlers(self(), [RetentionWorker.event()])
+      on_exit(fn -> :telemetry.detach(ref) end)
+
+      assert {:ok, %{backlog: %{archive: 3, purge: 0}, archived: %{archived: 1}}} =
+               RetentionWorker.run(batch_size: 2, max_batches: 1)
+
+      assert_received {[:ash_enterprise, :audit, :retention], ^ref, %{backlog: 3, failed: 0}, _}
+
+      assert hot_count(ctx.org) == 4
+      assert archived_count(ctx.org) == 2
+
+      [run] =
+        ArchiveRun
+        |> Ash.Query.filter(chain_organization_id == ^ctx.org)
+        |> Ash.read!(authorize?: false)
+
+      assert run.status == :verified
+      assert run.reason =~ "3 eligible row(s) remain"
+
+      # Within a run's bound, the next run drains it.
+      assert {:ok, %{backlog: %{archive: 0}}} = RetentionWorker.run(batch_size: 2, max_batches: 2)
+      assert hot_count(ctx.org) == 1
+      assert %{findings: [], checked: 6} = AshEvents.Chain.verify(EventLog, ctx.org)
     end
 
     test "nothing younger than the hot window", ctx do
@@ -353,8 +472,40 @@ defmodule AshEnterprise.Audit.RetentionTest do
                AshEnterprise.Audit.ArchivedEvidence
     end
 
+    # `inserted_at` is set when an artifact is recorded and no caller can set it; here the
+    # artifact is made to have been recorded `days_ago` days ago.
+    defp recorded!(artifact, days_ago) do
+      Repo.query!(
+        "UPDATE ash_compliance_evidence_artifacts SET inserted_at = now() - make_interval(days => $2) " <>
+          "WHERE id = $1::uuid",
+        [Ecto.UUID.dump!(artifact.id), days_ago]
+      )
+
+      artifact
+    end
+
+    test "a back-dated artifact is kept four hundred days from when it was recorded", ctx do
+      # Its collector says 500 days ago; it was recorded today.
+      artifact!(ctx.org, 500, "back-dated")
+      artifact!(ctx.org, 1, "newest")
+      {:ok, %{evidence: {:archived, _}}} = Retention.archive()
+
+      {:ok, %{evidence: step}} = Retention.purge(days: 400)
+      assert step == :nothing
+
+      assert_raise Postgrex.Error, ~r/400 days/, fn ->
+        Repo.query!(
+          "DELETE FROM evidence_artifact_archive WHERE organization_id = $1::uuid",
+          [Ecto.UUID.dump!(ctx.org)]
+        )
+      end
+
+      assert {:ok, [%{content: "back-dated"}, %{content: "newest"}]} =
+               Evidence.for_control(ctx.org, "CC4.1")
+    end
+
     test "a purge past four hundred days removes archived evidence, recorded", ctx do
-      for days <- [500, 450], do: artifact!(ctx.org, days, "old #{days}")
+      for days <- [500, 450], do: ctx.org |> artifact!(days, "old #{days}") |> recorded!(days)
       artifact!(ctx.org, 1, "newest")
       {:ok, %{evidence: {:archived, _}}} = Retention.archive()
 

@@ -5,7 +5,9 @@ defmodule AshEnterprise.Audit.Retention do
       config :ash_enterprise, AshEnterprise.Audit.Retention,
         hot_days: 90,
         purge_after_days: nil,
-        batch_size: 10_000
+        batch_size: 10_000,
+        max_batches: 10,
+        deadline_ms: 600_000
 
   **Ninety days hot.** Audit events (`audit_events`) and evidence artifacts
   (`AshCompliance.Resources.EvidenceArtifact`) older than `hot_days` move to the archive
@@ -15,7 +17,14 @@ defmodule AshEnterprise.Audit.Retention do
   **The audit log's move is `ash_events_chain`'s** (`AshEvents.Chain.Retention`): each tenant
   chain is verified first, a chain with a finding is not moved, the tail of every chain stays
   hot, and a purge records the hash of the last purged event so `AshEvents.Chain.verify/2`
-  verifies what remains from that anchor.
+  verifies what remains from that anchor. A chain whose verification raises is recorded as a
+  `:failed` run with the error, and every other tenant's chain is still moved.
+
+  **A backlog drains over days.** One move takes at most `batch_size` events from a chain,
+  and a run takes up to `max_batches` moves from each chain, taking no further batch once
+  `deadline_ms` has passed. What is still eligible afterwards is the backlog: the next run
+  carries on, `backlog/1` counts it, the last run of the chain says so in its `reason`, and
+  `AshEnterprise.Audit.RetentionWorker` reports it (a telemetry metric and a log warning).
 
   **Evidence's move is `ash_compliance`'s** (`AshCompliance.Ownership.Retention`): each batch
   is copied, compared with the hot rows column by column and by hash, and only then deleted
@@ -28,10 +37,13 @@ defmodule AshEnterprise.Audit.Retention do
   (`AshEnterprise.Audit.ArchiveRun`) and the `oban` system actor that ledger allows. A failed
   comparison deletes nothing and is recorded as a `:failed` run.
 
-  **Never purged before four hundred days.** `purge/1` deletes from the archive only when a
-  deployment configures `purge_after_days`, which defaults to `nil` (never), and refuses a
-  value under 400. The archive tables' triggers refuse to delete a row younger than 400 days
-  whatever the configuration says.
+  **Never purged before four hundred days from when it was recorded.** `purge/1` deletes
+  from the archive only when a deployment configures `purge_after_days`, which defaults to
+  `nil` (never), and refuses a value under 400. The archive tables' triggers refuse to delete
+  a row younger than 400 days whatever the configuration says. An audit event's age is its
+  `occurred_at`, which the log sets. An evidence artifact's is the later of its
+  `collected_at`, which the collector supplies and may back-date, and its `inserted_at`, set
+  when it is recorded, so a back-dated artifact is still kept 400 days from when it arrived.
   """
 
   alias AshCompliance.Ownership.Retention, as: EvidenceRetention
@@ -61,9 +73,11 @@ defmodule AshEnterprise.Audit.Retention do
   Moves everything past the hot window to the archive store, verifying each move first.
 
   Options: `:now`, `:hot_days` (at least 90), `:batch_size` (rows per chain or per evidence
-  batch in one transaction). Returns `{:ok, %{audit: [step], evidence: step}}`, where each
-  step is `:nothing`, `{:archived, run}` or `{:failed, run}`, or `{:error, reason}` when the
-  window is below the floor.
+  batch in one transaction), `:max_batches` (moves per chain in one run), `:deadline_ms` (no
+  further batch after this long) and `:verifier` (the function that verifies one chain).
+  Returns `{:ok, %{audit: [step], evidence: step}}`, where each step is `:nothing`,
+  `{:archived, run}` or `{:failed, run}`, or `{:error, reason}` when the window is below the
+  floor.
   """
   @spec archive(keyword()) :: {:ok, map()} | {:error, term()}
   def archive(opts \\ []) do
@@ -72,11 +86,10 @@ defmodule AshEnterprise.Audit.Retention do
     batch = batch_size(opts)
 
     with {:ok, audit} <-
-           AshEvents.Chain.Retention.archive(EventLog,
-             now: now,
-             hot_days: days,
-             batch_size: batch,
-             actor: SystemActor.oban()
+           AshEvents.Chain.Retention.archive(
+             EventLog,
+             [now: now, hot_days: days, batch_size: batch, actor: SystemActor.oban()] ++
+               drain_opts(opts)
            ),
          {:ok, evidence} <-
            EvidenceRetention.archive([now: now, hot_days: days, batch_size: batch] ++ ledger()) do
@@ -99,11 +112,10 @@ defmodule AshEnterprise.Audit.Retention do
     days = Keyword.get(opts, :days, purge_after_days())
 
     with {:ok, audit} when audit != :disabled <-
-           AshEvents.Chain.Retention.purge(EventLog,
-             now: now,
-             purge_after_days: days,
-             batch_size: batch,
-             actor: SystemActor.oban()
+           AshEvents.Chain.Retention.purge(
+             EventLog,
+             [now: now, purge_after_days: days, batch_size: batch, actor: SystemActor.oban()] ++
+               drain_opts(opts)
            ),
          {:ok, evidence} <-
            EvidenceRetention.purge(
@@ -113,8 +125,24 @@ defmodule AshEnterprise.Audit.Retention do
     end
   end
 
+  @doc """
+  The audit events still eligible after a run's audit steps: what the next run will take
+  (`AshEvents.Chain.Retention.backlog/1`). Evidence moves one batch a run, so its backlog
+  is not counted here.
+  """
+  @spec backlog(:disabled | map()) :: non_neg_integer()
+  def backlog(%{audit: steps}), do: AshEvents.Chain.Retention.backlog(steps)
+  def backlog(_), do: 0
+
   defp batch_size(opts),
     do: Keyword.get(opts, :batch_size, Keyword.get(config(), :batch_size, @default_batch))
+
+  # How far one run drains each chain: the options given, else the configuration.
+  defp drain_opts(opts) do
+    [:max_batches, :deadline_ms, :verifier]
+    |> Enum.map(&{&1, Keyword.get(opts, &1, Keyword.get(config(), &1))})
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+  end
 
   # The archive is `config :ash_compliance, evidence_archive:`; each step is recorded in the
   # run ledger the audit log's moves are recorded in, by the actor it allows.

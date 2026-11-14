@@ -273,10 +273,14 @@ config :ash_enterprise, AshEnterprise.Lineage.Retention, days: 14
 # artifacts stay hot for 90 days, then move to the archive tables after the copy verifies.
 # `purge_after_days: nil` keeps the archive for ever; a deployment that purges sets a number,
 # and anything under 400 is refused (the archive's triggers refuse younger rows anyway).
+# A run moves up to `max_batches` batches of `batch_size` events from each chain, and no
+# further batch once `deadline_ms` has passed; what is left is reported and taken next run.
 config :ash_enterprise, AshEnterprise.Audit.Retention,
   hot_days: 90,
   purge_after_days: nil,
-  batch_size: 10_000
+  batch_size: 10_000,
+  max_batches: 10,
+  deadline_ms: 600_000
 
 # The freshness sweep's inputs (`AshEnterprise.Compliance.FreshnessSweepWorker`).
 config :ash_enterprise, AshEnterprise.Compliance.FreshnessSweepWorker,

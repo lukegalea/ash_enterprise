@@ -23,6 +23,7 @@ defmodule AshEnterpriseWeb.Telemetry do
     ash_metrics() ++
       operations_metrics() ++
       bpmn_metrics() ++
+      retention_metrics() ++
       [
         # Phoenix Metrics
         summary("phoenix.endpoint.start.system_time",
@@ -155,6 +156,21 @@ defmodule AshEnterpriseWeb.Telemetry do
         unit: {:native, :millisecond},
         tags: [:kind],
         description: "From an event happening to the dispatch that started its process"
+      )
+    ]
+  end
+
+  # Audit retention's daily run (`AshEnterprise.Audit.RetentionWorker`): the audit events
+  # left past the hot window for the next run, and the moves that did not verify. No tags:
+  # one series for the deployment.
+  @doc "The metrics the daily retention run feeds."
+  def retention_metrics do
+    [
+      last_value("ash_enterprise.audit.retention.backlog",
+        description: "Audit events past the hot window that the last retention run left"
+      ),
+      last_value("ash_enterprise.audit.retention.failed",
+        description: "Archive moves the last retention run recorded as failed"
       )
     ]
   end

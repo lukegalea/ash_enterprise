@@ -87,11 +87,20 @@ taken is unshredded by the restore (its wrapped key is back), so shred it again 
   younger than ninety days, whoever asks.
 - **What stays hot.** The tail of each audit chain (so the next event has a row to link to), and the newest artifact
   of each organization, control and collector (the freshness sweep reads the hot table). An audit chain with a
-  verification finding is not moved at all.
-- **Never purged before four hundred days.** Nothing is purged unless `purge_after_days` is configured, and a value
-  under 400 is refused. The archive tables' triggers refuse to delete anything younger than 400 days, and refuse
-  every `UPDATE`. A purge of the audit archive records the hash of the last event it removed, and the chain verifier
-  starts what remains from there.
+  verification finding is not moved at all. Nor is one whose verification raises: it is recorded as a failed run
+  with the error, and every other tenant's chain is still moved.
+- **A backlog drains over days.** A run moves at most `max_batches` batches of `batch_size` events from each chain
+  (10 of 10,000 by default) and takes no further batch after `deadline_ms` (ten minutes). What is left waits for the
+  next run. `AshEnterprise.Audit.RetentionWorker` reports it: the job's result carries `backlog`, the
+  `ash_enterprise.audit.retention.backlog` metric holds the last run's count, the chain's last run says so in its
+  `reason`, and a non-zero backlog logs a warning.
+- **Never purged before four hundred days from when it was recorded.** Nothing is purged unless `purge_after_days`
+  is configured, and a value under 400 is refused. The archive tables' triggers refuse to delete anything younger
+  than 400 days, and refuse every `UPDATE`. An audit event's age is its `occurred_at`, which the log sets. An
+  evidence artifact's is the later of its `collected_at`, which its collector supplies and may back-date, and its
+  `inserted_at`, set when it was recorded: a back-dated artifact is still kept 400 days from when it arrived. A
+  purge of the audit archive records the hash of the last event it removed, and the chain verifier starts what
+  remains from there.
 - **Not partitioned.** ADR 0024 accepted monthly partitions for this; none was ever created, so the archive is a
   pair of tables rather than detached partitions. A deployment that wants the archive on cheaper storage can move
   those tables to another tablespace, or dump them.
@@ -101,7 +110,9 @@ To see what retention has done: `AshEnterprise.Audit.list_archive_runs!/1`, or t
 ## The scheduled checks
 
 - `AshEnterprise.Audit.ChainVerifyWorker`, daily: verifies every chain and stores the result as an evidence artifact
-  for CC4.1 and CC7.2, findings included.
+  for CC4.1 and CC7.2, findings included. A chain whose verification raises gets no artifact: it files a finding
+  for each criterion instead (status `:error`, subject type `audit_chain`), the other tenants are still verified,
+  and the next clean verification resolves the finding.
 - `AshEnterprise.Compliance.FreshnessSweepWorker`, hourly: `ash_compliance`'s freshness sweep for every organization.
   A criterion whose evidence is missing or stale (a daily control with no artifact in the last day) becomes an
   `:unknown` finding with gap `evidence_freshness`, and is resolved when fresh evidence arrives.

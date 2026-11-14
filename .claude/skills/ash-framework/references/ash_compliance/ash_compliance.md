@@ -104,7 +104,13 @@ MFA. The hash on a finding must be traceable to an active `PolicyBundle` row
 8. **No API layer.** The package ships resources, actions, the compiler, the
    projector and the editor. Do not add JSON:API/GraphQL surfaces here; the
    host owns exposure and its policies (the package ships no policy blocks,
-   and `authorize?:`/`actor:` thread through every domain interface).
+   and `authorize?:`/`actor:` thread through every domain interface). Two
+   resources are the exception: `ApprovalAttempt` and `PolicyOverride` stand
+   as an approval on record, so they carry the policy authorizer, read open
+   and refuse every write from an actor. Write them through
+   `Processes.Approval`/`Processes.Gate`, or from your own authorized action
+   with `authorize?: false`. An attempt's `outcome` is never an input: the
+   row asks the separation-of-duties decision itself.
 
 ## Host wiring checklist
 

@@ -341,21 +341,27 @@ defmodule AshEnterprise.Compliance.Seeds do
       Logger.info("Waiver for kyc.review_required already in force; skipping.")
       :ok
     else
+      # An override names its own approver, so ash_compliance refuses one from any actor;
+      # seeding is trusted code and writes it unauthorized.
       {:ok, _} =
-        Ash.create(PolicyOverride, %{
-          organization_id: organization_id,
-          kind: :waive,
-          rule_id: "kyc.review_required",
-          reason:
-            "Legacy estate onboarding window: periodic review waived while the " <>
-              "e-mail domain migration completes",
-          requested_by: "kyc-onboarding",
-          approver: "compliance-office",
-          approved_at: now(),
-          starts_at: now(),
-          expires_at: DateTime.add(now(), 30 * 86_400, :second),
-          compensating_controls: ["manual-review-queue"]
-        })
+        Ash.create(
+          PolicyOverride,
+          %{
+            organization_id: organization_id,
+            kind: :waive,
+            rule_id: "kyc.review_required",
+            reason:
+              "Legacy estate onboarding window: periodic review waived while the " <>
+                "e-mail domain migration completes",
+            requested_by: "kyc-onboarding",
+            approver: "compliance-office",
+            approved_at: now(),
+            starts_at: now(),
+            expires_at: DateTime.add(now(), 30 * 86_400, :second),
+            compensating_controls: ["manual-review-queue"]
+          },
+          authorize?: false
+        )
 
       :ok
     end
