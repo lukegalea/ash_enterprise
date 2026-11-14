@@ -209,6 +209,12 @@ defmodule AshEnterprise.Platform.Resource do
         audit?(unquote(audit?))
 
         unquote(
+          if api_type do
+            quote do: api_type(unquote(api_type))
+          end
+        )
+
+        unquote(
           if cdm_entity do
             quote do: cdm_entity(unquote(cdm_entity))
           end

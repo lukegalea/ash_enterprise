@@ -517,6 +517,21 @@
       ]
     },
     {
+      "id": "data-inventory-and-egress-register",
+      "area": "enterprise",
+      "capability": "Data inventory and egress register",
+      "status": "partial",
+      "summary": "A generated inventory of every resource's declared schema and ownership kind (tenant-scoped or global, audit, archival, API exposure, sensitive and sealed attributes), checked in CI against the code, and a declared register of egress paths with the gate that governs each, or an explicit statement that none does.",
+      "gap": "No named data stewards and no push to an external catalogue; classification is derived from sensitive? and sealing and a narrow name heuristic, so it is a floor. The register names classes of recipient, not a deployment's vendors, and its coverage check is a text scan with a known list of egress shapes.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/governance/data_inventory_test.exs", "test": "a looks-personal attribute that is neither sensitive?, sealed nor listed with a reason fails"},
+        {"file": "test/ash_enterprise/governance/data_inventory_test.exs", "test": "tenant?: false resources are listed as global tables that cross the tenant boundary"},
+        {"file": "test/ash_enterprise/governance/data_flows_test.exs", "test": "a module in lib/ that calls an egress primitive (Req, ReqLLM, Swoosh delivery, use AshOperations, the lineage transport) and is not in the register fails"},
+        {"file": "test/ash_enterprise/governance/data_flows_test.exs", "test": "every declared ash_operations operation has a register row with a gate"}
+      ]
+    },
+    {
       "id": "secrets-and-connections",
       "area": "enterprise",
       "capability": "Secrets and connections",

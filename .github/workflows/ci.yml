@@ -178,6 +178,12 @@ jobs:
       - name: Check the roadmap tables are rendered
         run: mix ash_enterprise.roadmap --check
 
+      # docs/data-inventory.json is generated from the resource declarations and
+      # the egress register. A resource added or changed without regenerating it
+      # fails here, and so does a personal-looking attribute with no class.
+      - name: Check the data inventory is generated
+        run: mix ash_enterprise.data_inventory --check
+
       # docs/controls.json names an owner, an evidence producer, an operating
       # process and a test for each of the 61 SOC 2 criteria. Many are not
       # there yet, so this runs in report mode: it lists every missing piece

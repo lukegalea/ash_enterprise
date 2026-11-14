@@ -226,6 +226,18 @@ defmodule AshEnterprise.Platform.SystemAttributes do
         its source text.
         """
       ],
+      api_type: [
+        type: :atom,
+        default: nil,
+        doc: """
+        The type name this resource is exposed under through the JSON:API and GraphQL
+        blocks, or `nil` when it has no API surface. Set by
+        `AshEnterprise.Platform.Resource` from its `api_type` option; recorded here so
+        `AshEnterprise.Governance.DataInventory` can read a resource's exposure
+        from the declaration it was compiled with instead of inferring it from its
+        extension list. Metadata only: it changes no behaviour.
+        """
+      ],
       cdm_entity: [
         type: :string,
         required: false,

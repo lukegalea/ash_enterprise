@@ -215,10 +215,12 @@
       "id": "q19",
       "section": "flow",
       "question": "What data do you have, and who owns it?",
-      "answer": "A catalogue populated from codegen — every resource already declares its CDM provenance, ownership type and tenancy scope, so it is a read-only projection rather than a second source of truth. It is an internal tool only: its own RBAC resolves deny-wins, which is the inverse of this project's model.",
+      "answer": "A generated, read-only inventory of declared schema and ownership kind: `mix ash_enterprise.data_inventory` writes `docs/data-inventory.json` from the declarations every resource was compiled with, and CI fails when the file is stale. Each entry carries the domain, table, ownership kind, tenant-scoped or global, audit and archival switches, CDM provenance, API exposure, and which attributes are `sensitive?` or sealed. Classification is derived, never declared: a narrow name heuristic flags attributes that look personal, and one that is neither sensitive, sealed nor listed with a reason fails the check. It is a projection of the code, not a second source of truth, and it makes no claim of compatibility with any catalogue's schema. Not built: named data stewards (ownership here is a resource-level kind, which says who may be granted access, not who is accountable; accountable people are a deployment owner's input), a push to an external catalogue, and any attestation of what a running deployment holds.",
       "status": "planned",
       "adr": "0013",
-      "item": "catalog"
+      "item": "catalog",
+      "proof": "test/ash_enterprise/governance/data_inventory_test.exs",
+      "test": "every platform resource appears with ownership, tenancy, audit, archival, api exposure, sensitive and sealed attributes"
     },
     {
       "id": "q20",
@@ -417,9 +419,11 @@
       "id": "q39",
       "section": "tenancy",
       "question": "What crosses the tenant boundary, and to whom?",
-      "answer": "Open. There is no data inventory, no classification, and no published sub-processor list — which is the first artefact a security questionnaire asks for and the one that has to be current rather than merely written once.",
+      "answer": "A design-time register of egress paths, generated into `docs/data-inventory.json` beside the inventory: one row per way data leaves the database (the provider proxy, guarded and judgment model calls, the assistant runtime, lineage events, account mail, trace export, the golden-record and audit exports, and every operation declared through `AshOperations`, read from its DSL). Each row names the class of recipient, the classes of data it can carry, and the gate that governs it, or says `none` with the gap in prose: the provider proxy and account mail have no tenant-level gate, and the guarded model path consults the deployment-wide in-zone flag but not the tenant's recorded opt-in. A test scans `lib/` for egress shapes and fails on a module that holds one and is in no row; it is a text scan with a known list of shapes, so a client library outside the list passes unseen. Not built: a list of a deployment's live sub-processors (the register names classes of recipient; the deployment owner records the actual vendors), a tenant-facing report, and an attestation of what a running deployment sent.",
       "status": "open",
-      "item": "governance"
+      "item": "governance",
+      "proof": "test/ash_enterprise/governance/data_flows_test.exs",
+      "test": "a module in lib/ that calls an egress primitive (Req, ReqLLM, Swoosh delivery, use AshOperations, the lineage transport) and is not in the register fails"
     },
     {
       "id": "q40",

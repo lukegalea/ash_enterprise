@@ -78,6 +78,7 @@ step ash.codegen mix ash.codegen --check
 step gettext mix gettext.extract --check-up-to-date
 step a2ui-gettext mix ash_a2ui.gettext.extract_metadata --check-up-to-date
 step roadmap mix ash_enterprise.roadmap --check
+step data-inventory mix ash_enterprise.data_inventory --check
 step sobelow mix sobelow --config --skip --exit
 step hex.audit mix hex.audit
 step schema-replay env MIX_TEST_PARTITION="${MIX_TEST_PARTITION:-}_schema_portable" \

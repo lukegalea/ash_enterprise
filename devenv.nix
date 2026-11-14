@@ -334,6 +334,7 @@ in
       mix ash.codegen --check
       mix gettext.extract --check-up-to-date
       mix ash_a2ui.gettext.extract_metadata --check-up-to-date
+      mix ash_enterprise.data_inventory --check
       mix test
       mix test.durability
       "$DEVENV_ROOT"/scripts/iron-laws.sh

@@ -135,7 +135,7 @@
       "name": "Right of access",
       "asks": "A data subject can obtain confirmation of processing and a copy of their data.",
       "questions": ["q34", "q35", "q19"],
-      "note": "For audit data, yes and per tenant. For the subject's own records there is no assembled export — q19 is planned, and a data inventory is the prerequisite."
+      "note": "For audit data, yes and per tenant. For the subject's own records there is no assembled export. The data inventory the export needs now exists (q19, `docs/data-inventory.json`: which tables hold personal-looking, sensitive or sealed attributes), but it names no steward and assembles nobody's data."
     },
     {
       "id": "Art.17",
@@ -151,7 +151,7 @@
       "name": "Records of processing activities",
       "asks": "A controller maintains a record of processing activities, including categories of data and recipients.",
       "questions": ["q7", "q39", "q40", "q19"],
-      "note": "Every processing *event* is recorded in detail; the *register* of activities, categories and recipients is not. q39 is open, and a sub-processor list is the first thing a customer's privacy team asks for."
+      "note": "Every processing *event* is recorded in detail. The categories of data and the recipient classes are now a generated register (q19 and q39, `docs/data-inventory.json`), with each egress path's gate or the stated lack of one. Still not here: the register of processing activities with purposes and retention per activity, named controllers or stewards, and a deployment's live sub-processor list, which its owner records."
     },
     {
       "id": "Art.32",
