@@ -16,4 +16,22 @@ defmodule AshEnterprise.Secrets do
       ) do
     Application.fetch_env(:ash_enterprise, :token_signing_secret)
   end
+
+  # The deployment's OpenID Connect identity provider (ADR 0071), from
+  # `config :ash_enterprise, :oidc` (set in `config/runtime.exs` from the `OIDC_*`
+  # environment). Missing configuration is `:error`, and the sign-in is refused.
+  def secret_for(
+        [:authentication, :strategies, :oidc, key],
+        AshEnterprise.Accounts.User,
+        _opts,
+        _context
+      )
+      when key in [:base_url, :client_id, :client_secret, :redirect_uri] do
+    with {:ok, config} <- Application.fetch_env(:ash_enterprise, :oidc),
+         value when is_binary(value) and value != "" <- Keyword.get(config, key) do
+      {:ok, value}
+    else
+      _ -> :error
+    end
+  end
 end

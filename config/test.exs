@@ -35,6 +35,16 @@ config :ash_enterprise, self_registration?: true
 # (`AshEnterprise.Platform.Seeder.default_password!/0`); a test of the refusal turns this off.
 config :ash_enterprise, fixed_seed_password?: true
 
+# The OIDC strategy is declared under test (ADR 0071), against a provider that is never
+# called: the tests drive the sign-in action with what a provider would assert.
+config :ash_enterprise, oidc_sign_in?: true
+
+config :ash_enterprise, :oidc,
+  base_url: "https://idp.example.test",
+  client_id: "ash-enterprise-test",
+  client_secret: "not-a-secret",
+  redirect_uri: "http://localhost:4002/auth/user/oidc/callback"
+
 # A fresh crypto-shredding master key every run (ADR 0024). Nothing sealed in
 # a test outlives the sandbox transaction, so nothing needs a stable key.
 config :ash_enterprise, AshEnterprise.Erasure,

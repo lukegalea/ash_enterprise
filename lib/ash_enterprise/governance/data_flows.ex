@@ -205,6 +205,23 @@ defmodule AshEnterprise.Governance.DataFlows do
       notes: nil
     },
     %{
+      id: :oidc_identity_provider,
+      name: "Sign-in through the deployment's OpenID Connect identity provider (ADR 0071)",
+      recipient_class: :identity_provider,
+      data_classes: [:account_identity, :credentials_reference],
+      modules: [AshEnterprise.Accounts.User, AshEnterprise.Secrets],
+      gate: %{
+        name:
+          "The strategy is declared only in a build that sets OIDC_BASE_URL, and talks only to the issuer configured at runtime",
+        enforced_by: AshEnterprise.Secrets
+      },
+      known_gap: nil,
+      notes:
+        "ash_authentication's oidc strategy (through assent) fetches the issuer's discovery document and keys, and " <>
+          "exchanges the authorization code with this application's client id and secret and a PKCE verifier. The " <>
+          "provider returns the person's claims; no tenant data is sent to it."
+    },
+    %{
       id: :standards_runtime_probe,
       name: "Standards check: model runtime version probe",
       recipient_class: :in_zone_model_runtime,

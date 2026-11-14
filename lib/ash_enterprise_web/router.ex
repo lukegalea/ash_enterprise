@@ -510,18 +510,6 @@ defmodule AshEnterpriseWeb.Router do
         AshEnterpriseWeb.AuthOverrides,
         Elixir.AshAuthentication.Phoenix.Overrides.Default
       ]
-
-    # Remove this if you do not use the magic link strategy.
-    magic_sign_in_route(AshEnterprise.Accounts.User, :magic_link,
-      auth_routes_prefix: "/auth",
-      on_mount: [AshEnterpriseWeb.LiveLocale],
-      gettext_backend: {AshEnterpriseWeb.Gettext, "auth"},
-      overrides: [
-        AshEnterpriseWeb.AuthOverrides.Brand,
-        AshEnterpriseWeb.AuthOverrides,
-        Elixir.AshAuthentication.Phoenix.Overrides.Default
-      ]
-    )
   end
 
   # --- MCP: this application's actions as tools for external agents ------------

@@ -275,6 +275,10 @@ msgstr ""
 msgid "Ash events replay share update"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Ash events replay upsert update"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 msgid "Ask for more information"
 msgstr ""
@@ -2775,6 +2779,10 @@ msgid "Sign in with api key"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Sign in with oidc"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Sign in with password"
 msgstr ""
 
@@ -3196,12 +3204,20 @@ msgid "Update"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Upsert"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/user_ui.ex:1
 msgid "User"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/user_ui.ex:1
 msgid "User detail"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "User identity"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2

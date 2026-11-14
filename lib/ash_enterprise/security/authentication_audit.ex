@@ -20,12 +20,14 @@ defmodule AshEnterprise.Security.AuthenticationAudit do
   require Ash.Query
   require Logger
 
-  alias AshEnterprise.Accounts.User
+  alias AshAuthentication.Strategy.OAuth2
+  alias AshEnterprise.Accounts.Preparations.MatchFederatedAccount
+  alias AshEnterprise.Accounts.{User, UserIdentity}
   alias AshEnterprise.Faults
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Security
 
-  @type door :: :password | :password_reset | :confirmation | :api_key
+  @type door :: :password | :password_reset | :confirmation | :api_key | :oidc
 
   @doc "Records an admission of `user_id` at `door`."
   @spec admitted(door(), Ash.UUID.t()) :: :ok | {:error, term()}
@@ -72,10 +74,65 @@ defmodule AshEnterprise.Security.AuthenticationAudit do
     refused(:password, reason, user_id)
   end
 
+  @doc """
+  Records a refused OIDC sign-in from what the identity provider asserted (`user_info`),
+  with its reason, worked out the way the door decides:
+
+    * `:unknown_identity`: no account has the asserted email, or none was asserted;
+    * `:inactive`: the account is deactivated;
+    * `:unconfirmed`: the account has not confirmed its address here;
+    * `:identity_mismatch`: the provider subject is linked to another user, the account
+      is linked to another subject, or the provider gave no stable subject;
+    * `:unverified_email`: a first link the provider does not mark verified.
+
+  Neither the email nor the subject is recorded, only the user the email belongs to.
+  """
+  @spec oidc_refused(map() | term()) :: :ok
+  def oidc_refused(user_info) do
+    email = MatchFederatedAccount.asserted_email(user_info)
+
+    {reason, user_id} =
+      case email && find_user(email) do
+        nil -> {:unknown_identity, nil}
+        %{lifecycle_status: status} = user when status != :active -> {:inactive, user.id}
+        %{confirmed_at: nil} = user -> {:unconfirmed, user.id}
+        user -> {link_refusal(user, user_info), user.id}
+      end
+
+    refused(:oidc, reason, user_id)
+  end
+
+  # The account was a candidate, so the strategy refused the link itself.
+  defp link_refusal(user, user_info) do
+    uid = if is_map(user_info), do: OAuth2.uid_from_user_info(user_info)
+
+    cond do
+      is_nil(uid) -> :identity_mismatch
+      linked_elsewhere?(uid, user) -> :identity_mismatch
+      email_verified?(user_info) -> :identity_mismatch
+      true -> :unverified_email
+    end
+  end
+
+  defp email_verified?(user_info) do
+    Map.get(user_info, "email_verified", Map.get(user_info, :email_verified)) in [true, "true"]
+  end
+
+  defp linked_elsewhere?(uid, user) do
+    UserIdentity
+    |> Ash.Query.filter(strategy == "oidc" and (uid == ^uid or user_id == ^user.id))
+    |> Ash.Query.select([:user_id, :uid])
+    |> Ash.read(actor: SystemActor.sign_in())
+    |> case do
+      {:ok, identities} -> Enum.any?(identities, &(&1.user_id != user.id or &1.uid != uid))
+      {:error, _} -> false
+    end
+  end
+
   defp find_user(identity) when is_binary(identity) or is_struct(identity, Ash.CiString) do
     User
     |> Ash.Query.filter(email == ^identity)
-    |> Ash.Query.select([:id, :lifecycle_status])
+    |> Ash.Query.select([:id, :lifecycle_status, :confirmed_at])
     |> Ash.read_one(actor: SystemActor.sign_in())
     |> case do
       {:ok, user} -> user

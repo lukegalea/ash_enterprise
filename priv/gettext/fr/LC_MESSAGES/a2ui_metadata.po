@@ -275,6 +275,10 @@ msgstr "Relecture des événements Ash : mise à jour de projection"
 msgid "Ash events replay share update"
 msgstr "Relecture des événements Ash : mise à jour de partage"
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Ash events replay upsert update"
+msgstr "Relecture des événements Ash : mise à jour par insertion ou mise à jour"
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 msgid "Ask for more information"
 msgstr "Demander plus d’informations"
@@ -2775,6 +2779,10 @@ msgid "Sign in with api key"
 msgstr "Se connecter avec une clé d'API"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Sign in with oidc"
+msgstr "Se connecter avec le fournisseur d’identité"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Sign in with password"
 msgstr "Se connecter avec un mot de passe"
 
@@ -3196,6 +3204,10 @@ msgid "Update"
 msgstr "Mettre à jour"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Upsert"
+msgstr "Insérer ou mettre à jour"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/user_ui.ex:1
 msgid "User"
 msgstr "Utilisateur"
@@ -3203,6 +3215,10 @@ msgstr "Utilisateur"
 #: lib/ash_enterprise_web/a2ui/user_ui.ex:1
 msgid "User detail"
 msgstr "Détail de l’utilisateur"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "User identity"
+msgstr "Identité de l’utilisateur"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "User role"

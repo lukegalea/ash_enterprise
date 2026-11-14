@@ -73,6 +73,26 @@ if config_env() != :test and System.get_env("FIXED_SEED_PASSWORD") in ~w(false 0
   config :ash_enterprise, fixed_seed_password?: false
 end
 
+# The deployment's OpenID Connect identity provider (ADR 0071): its issuer URL, this
+# application's client id and secret there, and the callback it redirects to
+# (`<origin>/auth/user/oidc/callback`). Used only when the build declared the strategy
+# (OIDC_BASE_URL set at compile time, config/config.exs); a missing value refuses every
+# sign-in through it. Not read under test, which configures a provider of its own.
+if config_env() != :test do
+  oidc =
+    for {key, variable} <- [
+          base_url: "OIDC_BASE_URL",
+          client_id: "OIDC_CLIENT_ID",
+          client_secret: "OIDC_CLIENT_SECRET",
+          redirect_uri: "OIDC_REDIRECT_URI"
+        ],
+        value = System.get_env(variable),
+        value not in [nil, ""],
+        do: {key, value}
+
+  if oidc != [], do: config(:ash_enterprise, oidc: oidc)
+end
+
 # Dev's :debug level logs every query with its parameters, and on an instance holding real
 # data those parameters are names and addresses. `LOG_LEVEL=info` keeps them out of the log.
 case System.get_env("LOG_LEVEL") do

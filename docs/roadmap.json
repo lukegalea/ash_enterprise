@@ -44,7 +44,7 @@
       "id": "q1",
       "section": "identity",
       "question": "How do people prove who they are?",
-      "answer": "Password sign-in through `ash_authentication`, with remember-me, email confirmation and password reset: the user resource declares the password and remember-me strategies and no others. Sign-in issues a token that is stored server-side and expires after 8 hours (set explicitly, not the library's 14 days), and changing a password logs the user out everywhere. Five failed sign-ins for one address lock it for 15 minutes, counted atomically in Postgres whether or not the address exists. The API and MCP pipelines read either an ordinary user token or a hashed API key from the bearer header; a key must carry an expiry (90 days at most), can be revoked, and stops working when its owner is deactivated. Not built: magic link (a route and a confirmation hook exist with no strategy behind them), OAuth2/OIDC, SAML and WebAuthn. Bringing an enterprise identity provider is q29.",
+      "answer": "Password sign-in through `ash_authentication`, with remember-me, email confirmation and password reset; sign-in through the deployment's OpenID Connect identity provider when the build configures one (q29, ADR 0071); and API keys for the API and MCP pipelines. Sign-in issues a token that is stored server-side and expires after 8 hours (set explicitly, not the library's 14 days), the session cookie expires with it, and changing a password logs the user out everywhere. Five failed password sign-ins for one address lock it for 15 minutes, counted atomically in Postgres whether or not the address exists. The API and MCP pipelines read either an ordinary user token or a hashed API key from the bearer header; a key must carry an expiry (90 days at most), can be revoked, and stops working when its owner is deactivated. The unused magic-link route and its confirmation hook are removed. Not built: SAML and WebAuthn. OIDC sign-in is built and tested but not yet running in a deployment we operate.",
       "status": "partial",
       "proof": "test/ash_enterprise/accounts/sign_in_test.exs",
       "test": "a correct password signs the user in and issues a token",
@@ -316,9 +316,11 @@
       "id": "q29",
       "section": "identity",
       "question": "How do enterprise customers bring their own identity provider?",
-      "answer": "Not built. `ash_authentication` can federate through its OAuth2 and OIDC strategies, but this host declares none: the user resource has password and remember-me strategies only, no provider is configured and no test signs in through one (checked 2026-11-09). Once wired, Okta, Entra ID or Keycloak would own MFA, password policy and directory truth. SAML is the one protocol that needs a first-party strategy, and it has not been started.",
-      "status": "open",
-      "item": "sso"
+      "answer": "One identity provider per deployment, over OpenID Connect (ADR 0071). The user resource declares an `oidc` strategy when the build sets `OIDC_BASE_URL`; the issuer, client and secret are read at runtime, and a build without them shows no provider button. A first sign-in links the provider's subject only to an existing user who is active, has confirmed the address here, and whose email the provider marks verified. An unknown address, an unverified email, an unconfirmed or deactivated user, a subject already linked to someone else and a second subject for one user are all refused, and no user is ever created. Each attempt is recorded at the `oidc` sign-in door without the email, and the provider's access and refresh tokens are not kept. The provider then owns the second factor, password policy and when a person leaves. Not built: SAML, a provider per organisation, and SCIM provisioning. Not yet running in a deployment we operate.",
+      "status": "partial",
+      "item": "sso",
+      "proof": "test/ash_enterprise/accounts/oidc_sign_in_test.exs",
+      "test": "a verified, confirmed, active user signs in, the identity is recorded, and the token lives the configured 8 hours"
     },
     {
       "id": "q30",
@@ -335,12 +337,11 @@
       "id": "q31",
       "section": "identity",
       "question": "What second factor is required, and how are sessions bounded?",
-      "answer": "Sessions are bounded; a second factor is not built. The session token lives 8 hours, set explicitly (`Accounts.TokenPolicy`, host-configurable, a malformed setting raises rather than defaulting), is stored server-side so it can be revoked, and is revoked on deactivation and on a password change. Five failed sign-ins lock an identity for 15 minutes. The browser session cookie still sets no max age. No in-app strategy requires a second factor: the user resource declares password and remember-me and no TOTP or WebAuthn. With enterprise SSO the second factor, step-up and session lifetime would be the provider's, once q29 is built.",
+      "answer": "Sessions are bounded at the token, the cookie and the socket; the second factor is the identity provider's. The session token lives 8 hours, set explicitly (`Accounts.TokenPolicy`, host-configurable, a malformed setting raises rather than defaulting), is stored server-side so it can be revoked, and is revoked on deactivation and on a password change. The browser session cookie's max age is the same lifetime, and a LiveView connected before the token expired stops at its expiry rather than acting on. Five failed password sign-ins lock an identity for 15 minutes. No in-app strategy requires a second factor: with sign-in through the deployment's OIDC provider (q29) the second factor and step-up are the provider's, and this application does not require the provider to assert one.",
       "status": "partial",
       "item": "sso",
-      "proof": "test/ash_enterprise/accounts/deactivation_test.exs",
-      "test": "a token lives for the configured lifetime, not the library's 14 days",
-      "built": "88bde1cd"
+      "proof": "test/ash_enterprise_web/session_bounds_test.exs",
+      "test": "a live view connected before the token expired stops acting after it"
     },
     {
       "id": "q32",
@@ -727,7 +728,7 @@
       "priority": 1,
       "choice": "Federate to the enterprise IdP over OIDC today; SAML and SCIM as planned strategies on the same seam",
       "status": "planned",
-      "effort": "OIDC through the existing OAuth2 strategy is small. SAML needs a new strategy and an XML signature story. SCIM is the larger piece and the more interesting one here: provisioning maps onto ordinary create and lifecycle actions, so it is an endpoint over existing actions rather than a parallel user store.",
+      "effort": "OIDC with one provider per deployment is built through the library's strategy (ADR 0071), with no provisioning: a first sign-in links only to a confirmed account whose email the provider verifies. SAML needs a new strategy and an XML signature story. SCIM is the larger piece and the more interesting one here: provisioning maps onto ordinary create and lifecycle actions, so it is an endpoint over existing actions rather than a parallel user store.",
       "bar": "Yes. An identity provider authenticates; it never authorizes. Group-to-role mapping stays here as `(role, privilege, depth)` rows, which is the difference between an IdP telling us who you are and an IdP telling us what you may do."
     },
     {

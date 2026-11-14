@@ -85,3 +85,6 @@ msgstr "Se déconnecter"
 
 msgid "or"
 msgstr "ou"
+
+msgid "Sign in with Oidc"
+msgstr "Se connecter par authentification unique"

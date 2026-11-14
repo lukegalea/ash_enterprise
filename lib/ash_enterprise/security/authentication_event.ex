@@ -11,6 +11,7 @@ defmodule AshEnterprise.Security.AuthenticationEvent do
   | `:password_reset` | every reset that signs the user in (`:reset_password_with_token`) | none |
   | `:confirmation` | every confirmation that signs the user in (`:confirm`) | none |
   | `:api_key` | none: a request it admits is not an event, or the chain would hold one row per API call | every key it refuses (unknown, expired, revoked, malformed, or a deactivated owner's): `:api_key_rejected` |
+  | `:oidc` | every sign-in through the deployment's identity provider (`User :sign_in_with_oidc`, ADR 0071) | every one: `:unknown_identity`, `:inactive`, `:unconfirmed`, `:unverified_email`, `:identity_mismatch` |
 
   A reset or confirmation link that does not verify, and a session bearer token that does
   not, identify nobody and reach the log only. Registration is refused in a deployment
@@ -19,9 +20,10 @@ defmodule AshEnterprise.Security.AuthenticationEvent do
   ## What it carries
 
   The door, the outcome, a reason from a closed set, and the `user_id` the attempt
-  resolved to when it resolved to one. Never an email, a password, a token or an API
-  key: an attempt on an address that is no account is `:unknown_identity` with no
-  `user_id`, so the table is not a list of every string typed into the sign-in box.
+  resolved to when it resolved to one. Never an email, a password, a token, an API key
+  or an identity provider's subject: an attempt on an address that is no account is
+  `:unknown_identity` with no `user_id`, so the table is not a list of every string
+  typed into the sign-in box.
 
   ## Which chain
 
@@ -44,9 +46,18 @@ defmodule AshEnterprise.Security.AuthenticationEvent do
     # create grant here write a sign-in that never happened.
     policies?: false
 
-  @doors [:password, :password_reset, :confirmation, :api_key]
+  @doors [:password, :password_reset, :confirmation, :api_key, :oidc]
 
-  @reasons [:wrong_password, :unknown_identity, :inactive, :locked, :api_key_rejected]
+  @reasons [
+    :wrong_password,
+    :unknown_identity,
+    :inactive,
+    :locked,
+    :api_key_rejected,
+    :unconfirmed,
+    :unverified_email,
+    :identity_mismatch
+  ]
 
   @doc "The doors that record events."
   @spec doors() :: [atom()]

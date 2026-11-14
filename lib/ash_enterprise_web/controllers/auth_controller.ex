@@ -46,6 +46,12 @@ defmodule AshEnterpriseWeb.AuthController do
           address - confirm it to finish linking this provider to your account.
           """
 
+        # The identity provider's door (ADR 0071) names no password, and says no more
+        # than that: not which of its rules refused, so it does not tell a caller whether
+        # an address has an account here.
+        {{:oidc, _phase}, _reason} ->
+          gettext("This identity provider account is not linked to a confirmed account here.")
+
         _ ->
           "Incorrect email or password"
       end

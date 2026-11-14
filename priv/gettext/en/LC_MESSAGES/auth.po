@@ -85,3 +85,6 @@ msgstr ""
 
 msgid "or"
 msgstr ""
+
+msgid "Sign in with Oidc"
+msgstr "Sign in with single sign-on"

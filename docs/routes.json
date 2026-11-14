@@ -523,13 +523,6 @@
       "verb": "*"
     },
     {
-      "action": "sign_in",
-      "kind": "live",
-      "module": "AshAuthentication.Phoenix.MagicSignInLive",
-      "path": "/magic_link/:token",
-      "verb": "GET"
-    },
-    {
       "action": null,
       "kind": "forward",
       "module": "AshAi.Mcp.Router",

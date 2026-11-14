@@ -755,6 +755,14 @@ config :ash_enterprise, AshEnterprise.Showcase, fault_controls?: false, model_mo
 # config/test.exs turn it on; config/runtime.exs reads SELF_REGISTRATION.
 config :ash_enterprise, self_registration?: false
 
+# Sign-in through the deployment's OpenID Connect identity provider (ADR 0071). Read at
+# compile time, because it decides whether `AshEnterprise.Accounts.User` declares the
+# strategy at all: a build whose environment sets OIDC_BASE_URL gets the provider's
+# sign-in button, and any other build gets none, rather than a button that cannot work.
+# The provider's address, client and secret are read at runtime (config/runtime.exs).
+# config/test.exs turns it on.
+config :ash_enterprise, oidc_sign_in?: System.get_env("OIDC_BASE_URL", "") != ""
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

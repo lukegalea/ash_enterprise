@@ -7,13 +7,17 @@ defmodule AshEnterpriseWeb.Endpoint do
   #
   # The signing salt is runtime configuration (`:session_signing_salt`, from the
   # environment in production), so the options are built per use, not at compile time.
+  #
+  # The cookie expires with the session token it carries (`Accounts.TokenPolicy`, 8 hours
+  # by default), so a browser does not keep a session cookie past the token in it.
   @doc "The session cookie options, with the signing salt read from configuration now."
   def session_options do
     [
       store: :cookie,
       key: "_ash_enterprise_key",
       signing_salt: Application.fetch_env!(:ash_enterprise, :session_signing_salt),
-      same_site: "Lax"
+      same_site: "Lax",
+      max_age: AshEnterprise.Accounts.TokenPolicy.seconds()
     ]
   end
 

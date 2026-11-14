@@ -94,3 +94,8 @@ msgstr ""
 
 msgid "or"
 msgstr ""
+
+# The OIDC strategy's button (ADR 0071): ash_authentication_phoenix builds this
+# msgid at runtime from the strategy name, so it cannot be extracted.
+msgid "Sign in with Oidc"
+msgstr ""

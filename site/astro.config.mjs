@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 /** @type {[string, string[]][]} */
 const ADR_CONCERNS = [
   ['Data model and tenancy', ['0001', '0003', '0049', '0051', '0053', '0059']],
-  ['Authorization and identity', ['0023', '0043', '0052', '0066']],
+  ['Authorization and identity', ['0023', '0043', '0052', '0066', '0071']],
   ['Audit, retention and compliance', ['0002', '0020', '0021', '0022', '0024', '0025', '0035', '0037', '0064']],
   ['Processes and decisions', ['0004', '0009', '0015', '0027', '0028', '0029', '0030', '0036', '0062', '0069']],
   [

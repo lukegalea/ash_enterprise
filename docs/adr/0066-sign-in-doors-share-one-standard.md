@@ -2,7 +2,7 @@
 
 - **Status:** accepted (2026-11-09)
 - **Date:** 2026-11-09
-- **Related:** ADR 0043 (automation principals), 0052 (self-service), 0055 (governed invocations), 0059 (human-only actions)
+- **Related:** ADR 0043 (automation principals), 0052 (self-service), 0055 (governed invocations), 0059 (human-only actions), 0071 (the OIDC door)
 
 ## Context
 
@@ -15,10 +15,12 @@ impersonation recorded who acted but not whether it was allowed.
 
 1. **Deactivation ends access at every door.** `Preparations.ActiveOnly` is on each read that finds a user for
    authentication: password and token sign-in, `get_by_subject` (session and bearer tokens), the lookup behind a
-   password reset and API key sign-in. `deactivate` revokes the user's stored tokens in the same transaction
-   (`Changes.RevokeTokensOnDeactivation`), so reactivating does not revive an old token.
+   password reset, API key sign-in and, since ADR 0071, OIDC sign-in. `deactivate` revokes the user's stored tokens
+   in the same transaction (`Changes.RevokeTokensOnDeactivation`), so reactivating does not revive an old token.
 2. **A session token lives 8 hours**, set explicitly in `Accounts.TokenPolicy`; a host overrides it with
    `config :ash_enterprise, :token_lifetime`. The DSL is compiled, so the value is read when `User` compiles.
+   Since 2026-11-14 the session cookie's `max_age` is the same lifetime (`TokenPolicy.seconds/0`), and a connected
+   LiveView stops acting at its token's expiry (`LiveUserAuth`).
 3. **Both signing salts come from the environment in production** (`SESSION_SIGNING_SALT`, `LIVE_VIEW_SIGNING_SALT`),
    and `config/runtime.exs` stops the boot when either is missing, short, equal to the other, or one of the built-in dev/test salts. Dev and test boot with those built-ins and need no setup.
 4. **Lockout is a Postgres row**, advanced by one atomic upsert (`SignInLockout.record_failure`), so the count holds

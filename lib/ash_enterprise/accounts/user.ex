@@ -34,6 +34,14 @@ defmodule AshEnterprise.Accounts.User do
     authorizers: [Ash.Policy.Authorizer],
     extensions: [AshAuthentication, AshAgent.Effects]
 
+  # Sign-in through the deployment's OpenID Connect identity provider (ADR 0071) is
+  # declared only when the deployment configures one, so an unconfigured deployment
+  # shows no provider button that cannot work. `config/config.exs` sets it from
+  # `OIDC_BASE_URL` at compile time; the endpoints and secrets themselves are read at
+  # runtime (`AshEnterprise.Secrets`). Turning it on or off needs a recompile, as
+  # with `Accounts.TokenPolicy`.
+  @oidc_sign_in? Application.compile_env(:ash_enterprise, :oidc_sign_in?, false)
+
   authentication do
     add_ons do
       log_out_everywhere do
@@ -49,7 +57,6 @@ defmodule AshEnterprise.Accounts.User do
         # `:provision_with_password` is the seeder's: confirmed on creation, no
         # email sent, system actors only (`Validations.ProvisionedBySystemActor`).
         auto_confirm_actions [
-          :sign_in_with_magic_link,
           :reset_password_with_token,
           :provision_with_password
         ]
@@ -84,6 +91,25 @@ defmodule AshEnterprise.Accounts.User do
 
       api_key :api_key do
         api_key_relationship :valid_api_keys
+      end
+
+      # One identity provider for the deployment. No registration: the first sign-in
+      # links only to an existing, confirmed, active user whose email the provider
+      # asserts as verified, and anything else is refused (`:sign_in_with_oidc`).
+      if @oidc_sign_in? do
+        oidc :oidc do
+          base_url AshEnterprise.Secrets
+          client_id AshEnterprise.Secrets
+          client_secret AshEnterprise.Secrets
+          redirect_uri AshEnterprise.Secrets
+          registration_enabled? false
+          identity_resource AshEnterprise.Accounts.UserIdentity
+          trust_email_verified? true
+          email_field :email
+          nonce true
+          code_verifier true
+          authorization_params scope: "openid email profile"
+        end
       end
     end
   end
@@ -314,6 +340,31 @@ defmodule AshEnterprise.Accounts.User do
       run {AshAuthentication.Strategy.Password.RequestPasswordReset, action: :get_active_by_email}
     end
 
+    read :sign_in_with_oidc do
+      description """
+      Signs in through the deployment's OpenID Connect identity provider (ADR 0071).
+
+      The candidate is the one confirmed, active user whose email the provider asserted;
+      the strategy then admits the provider's subject only if it is already linked to that
+      user, or links it now when the provider marks the email verified and the user has no
+      other link. No user is ever created here. Every attempt is recorded at the `:oidc`
+      door. Unusable unless the deployment declares the strategy.
+      """
+
+      argument :user_info, :map, allow_nil?: false, sensitive?: true
+      argument :oauth_tokens, :map, allow_nil?: false, sensitive?: true
+
+      prepare AshEnterprise.Accounts.Preparations.RecordOidcSignIn
+      prepare AshEnterprise.Accounts.Preparations.MatchFederatedAccount
+      prepare AshEnterprise.Accounts.Preparations.ActiveOnly
+      prepare AshAuthentication.Strategy.OAuth2.SignInPreparation
+
+      metadata :token, :string do
+        description "A JWT that can be used to authenticate the user."
+        allow_nil? false
+      end
+    end
+
     read :sign_in_with_api_key do
       description "Signs in the owner of a live bearer key. A deactivated owner is not found."
       argument :api_key, :string, allow_nil?: false, sensitive?: true
@@ -478,6 +529,13 @@ defmodule AshEnterprise.Accounts.User do
     has_many :valid_api_keys, AshEnterprise.Accounts.ApiKey do
       destination_attribute :user_id
       filter expr(expires_at > now() and user.lifecycle_status == :active)
+    end
+
+    # The user's link to the deployment's identity provider, when they have signed in
+    # through it (`AshEnterprise.Accounts.UserIdentity`). Declared here rather than left
+    # to the OIDC strategy so the relationship exists whether or not it is configured.
+    has_many :identities, AshEnterprise.Accounts.UserIdentity do
+      destination_attribute :user_id
     end
 
     has_many :direct_reports, __MODULE__ do

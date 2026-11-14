@@ -1617,3 +1617,13 @@ msgstr "Cette recette n’a pas été modifiée : %{reason}"
 #, elixir-autogen, elixir-format
 msgid "You may not change this recipe."
 msgstr "Vous ne pouvez pas modifier cette recette."
+
+#: lib/ash_enterprise_web/controllers/auth_controller.ex:53
+#, elixir-autogen, elixir-format
+msgid "This identity provider account is not linked to a confirmed account here."
+msgstr "Ce compte du fournisseur d’identité n’est lié à aucun compte confirmé ici."
+
+#: lib/ash_enterprise_web/live_user_auth.ex:139
+#, elixir-autogen, elixir-format
+msgid "Your session has expired. Sign in again."
+msgstr "Votre session a expiré. Reconnectez-vous."
