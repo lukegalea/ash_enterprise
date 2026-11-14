@@ -4,7 +4,19 @@
 msgid ""
 msgstr ""
 
+msgid "%{outcome}: %{count}"
+msgstr ""
+
+msgid "Against recorded cases"
+msgstr ""
+
+msgid "Changed"
+msgstr ""
+
 msgid "Choose which decision to evaluate."
+msgstr ""
+
+msgid "Could not be reproduced"
 msgstr ""
 
 msgid "Could not customize %{key}: %{reason}"
@@ -46,13 +58,37 @@ msgstr ""
 msgid "Fit"
 msgstr ""
 
+msgid "No replayed case changes under this version."
+msgstr ""
+
 msgid "No rule matched."
+msgstr ""
+
+msgid "Now answers"
+msgstr ""
+
+msgid "Now fails"
+msgstr ""
+
+msgid "Outcome"
 msgstr ""
 
 msgid "Publish"
 msgstr ""
 
 msgid "Published v%{version}"
+msgstr ""
+
+msgid "Re-run the most recent recorded decisions against this version and see which would change. Nothing is recorded."
+msgstr ""
+
+msgid "Recorded answer"
+msgstr ""
+
+msgid "Recorded under"
+msgstr ""
+
+msgid "Replay recorded cases"
 msgstr ""
 
 msgid "Result"
@@ -70,16 +106,25 @@ msgstr ""
 msgid "Run a version against sample inputs. Nothing is recorded: a trial is not a decision about a case."
 msgstr ""
 
+msgid "Same answer, different rules"
+msgstr ""
+
 msgid "Save"
 msgstr ""
 
 msgid "Saved"
 msgstr ""
 
+msgid "Skipped"
+msgstr ""
+
 msgid "The decision could not be evaluated: %{reason}"
 msgstr ""
 
 msgid "The decision took too long to evaluate."
+msgstr ""
+
+msgid "There are no recorded cases of this decision that you can replay."
 msgstr ""
 
 msgid "There is no draft to discard."
@@ -97,6 +142,9 @@ msgstr ""
 msgid "This is a baseline and is read-only. Customize it to edit a copy of your own."
 msgstr ""
 
+msgid "This version"
+msgstr ""
+
 msgid "This version could not be loaded. Fix it in the editor first."
 msgstr ""
 
@@ -112,7 +160,13 @@ msgstr ""
 msgid "Try it"
 msgstr ""
 
+msgid "Unchanged"
+msgstr ""
+
 msgid "Version"
+msgstr ""
+
+msgid "and %{count} more"
 msgstr ""
 
 msgid "baseline v%{version} · read-only"
@@ -125,6 +179,9 @@ msgid "draft"
 msgstr ""
 
 msgid "draft v%{version}"
+msgstr ""
+
+msgid "failed"
 msgstr ""
 
 msgid "hit policy %{policy}"
@@ -143,6 +200,9 @@ msgid "retired"
 msgstr ""
 
 msgid "unsaved changes"
+msgstr ""
+
+msgid "v%{version}"
 msgstr ""
 
 msgid "v%{version} (%{status})"

@@ -208,4 +208,47 @@ defmodule AshEnterpriseWeb.Decisions.TryLiveTest do
 
     assert has_element?(view, "[id='try-decision-#{@key}']")
   end
+
+  describe "against recorded cases" do
+    # A recorded decision, written the way `AshEnterprise.Decisions.evaluate/3` writes one.
+    defp decide!(published, tenant, tier, length) do
+      {:ok, _result} =
+        AshDecisions.Evaluator.evaluate(
+          published,
+          %{"requestedRoleTier" => tier, "justificationLength" => length},
+          record: :required,
+          evaluation_resource: Evaluation,
+          scope: %AshDecisions.Scope{actor: SystemActor.process(), tenant: tenant}
+        )
+    end
+
+    test "replaying the draft lists the recorded case it would decide differently", %{
+      admin: admin,
+      published: published
+    } do
+      decide!(published, admin.tenant, "privileged", 10)
+      decide!(published, admin.tenant, "elevated", 50)
+      {:ok, view, _html} = live(sign_in(admin.user), path())
+
+      view |> element("#decision-try-replay-run") |> render_click()
+
+      assert has_element?(view, "#decision-try-replay-count-changed", "1")
+      assert has_element?(view, "#decision-try-replay-count-unchanged", "1")
+      assert has_element?(view, "#decision-try-replay-cases", "high")
+      assert has_element?(view, "#decision-try-replay-cases", "medium")
+      assert length(evaluations(admin.tenant)) == 2
+    end
+
+    test "another tenant's recorded cases are not replayed", %{admin: admin, published: published} do
+      decide!(published, admin.tenant, "privileged", 10)
+      other = AssistantFixtures.tenant!()
+      system = [actor: SystemActor.process(), tenant: other.tenant]
+      definition!(@key, @xml, system)
+
+      {:ok, view, _html} = live(sign_in(other.user), path())
+      view |> element("#decision-try-replay-run") |> render_click()
+
+      assert has_element?(view, "#decision-try-replay-none")
+    end
+  end
 end

@@ -11,8 +11,20 @@ msgstr ""
 "Language: fr\n"
 "Plural-Forms: nplurals=2; plural=(n>1);\n"
 
+msgid "%{outcome}: %{count}"
+msgstr "%{outcome} : %{count}"
+
+msgid "Against recorded cases"
+msgstr "Sur les cas enregistrés"
+
+msgid "Changed"
+msgstr "Modifié"
+
 msgid "Choose which decision to evaluate."
 msgstr "Choisissez la décision à évaluer."
+
+msgid "Could not be reproduced"
+msgstr "Impossible à reproduire"
 
 msgid "Could not customize %{key}: %{reason}"
 msgstr "Impossible de personnaliser %{key} : %{reason}"
@@ -53,14 +65,38 @@ msgstr "Saisissez true ou false."
 msgid "Fit"
 msgstr "Ajuster"
 
+msgid "No replayed case changes under this version."
+msgstr "Aucun cas rejoué ne change avec cette version."
+
 msgid "No rule matched."
 msgstr "Aucune règle ne correspond."
+
+msgid "Now answers"
+msgstr "Répond désormais"
+
+msgid "Now fails"
+msgstr "Échoue désormais"
+
+msgid "Outcome"
+msgstr "Résultat de la comparaison"
 
 msgid "Publish"
 msgstr "Publier"
 
 msgid "Published v%{version}"
 msgstr "v%{version} publiée"
+
+msgid "Re-run the most recent recorded decisions against this version and see which would change. Nothing is recorded."
+msgstr "Rejouez les décisions enregistrées les plus récentes avec cette version et voyez lesquelles changeraient. Rien n’est enregistré."
+
+msgid "Recorded answer"
+msgstr "Réponse enregistrée"
+
+msgid "Recorded under"
+msgstr "Enregistré avec"
+
+msgid "Replay recorded cases"
+msgstr "Rejouer les cas enregistrés"
 
 msgid "Result"
 msgstr "Résultat"
@@ -77,17 +113,26 @@ msgstr "Règles qui correspondent"
 msgid "Run a version against sample inputs. Nothing is recorded: a trial is not a decision about a case."
 msgstr "Exécutez une version sur des entrées d’exemple. Rien n’est enregistré : un essai n’est pas une décision sur un dossier."
 
+msgid "Same answer, different rules"
+msgstr "Même réponse, autres règles"
+
 msgid "Save"
 msgstr "Enregistrer"
 
 msgid "Saved"
 msgstr "Enregistré"
 
+msgid "Skipped"
+msgstr "Ignoré"
+
 msgid "The decision could not be evaluated: %{reason}"
 msgstr "La décision n’a pas pu être évaluée : %{reason}"
 
 msgid "The decision took too long to evaluate."
 msgstr "L’évaluation de la décision a pris trop de temps."
+
+msgid "There are no recorded cases of this decision that you can replay."
+msgstr "Il n’y a aucun cas enregistré de cette décision que vous pouvez rejouer."
 
 msgid "There is no draft to discard."
 msgstr "Il n’y a aucun brouillon à abandonner."
@@ -104,6 +149,9 @@ msgstr "Cette décision ne déclare aucune entrée."
 msgid "This is a baseline and is read-only. Customize it to edit a copy of your own."
 msgstr "Ceci est un modèle de base, en lecture seule. Personnalisez-le pour modifier votre propre copie."
 
+msgid "This version"
+msgstr "Cette version"
+
 msgid "This version could not be loaded. Fix it in the editor first."
 msgstr "Cette version n’a pas pu être chargée. Corrigez-la d’abord dans l’éditeur."
 
@@ -119,8 +167,14 @@ msgstr "Essayer %{key}"
 msgid "Try it"
 msgstr "Essayer"
 
+msgid "Unchanged"
+msgstr "Inchangé"
+
 msgid "Version"
 msgstr "Version"
+
+msgid "and %{count} more"
+msgstr "et %{count} de plus"
 
 msgid "baseline v%{version} · read-only"
 msgstr "modèle de base v%{version} · lecture seule"
@@ -133,6 +187,9 @@ msgstr "brouillon"
 
 msgid "draft v%{version}"
 msgstr "brouillon v%{version}"
+
+msgid "failed"
+msgstr "échec"
 
 msgid "hit policy %{policy}"
 msgstr "politique de résultat %{policy}"
@@ -151,6 +208,9 @@ msgstr "retirée"
 
 msgid "unsaved changes"
 msgstr "modifications non enregistrées"
+
+msgid "v%{version}"
+msgstr "v%{version}"
 
 msgid "v%{version} (%{status})"
 msgstr "v%{version} (%{status})"
