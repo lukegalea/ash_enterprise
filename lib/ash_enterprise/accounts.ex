@@ -26,12 +26,17 @@ defmodule AshEnterprise.Accounts do
   # Security domain (a filterable public API over the authorization tables is a
   # map of the security model). Both are reachable through the admin UI and MCP
   # tools, which run through the same policies.
+  #
+  # Lists are served by each resource's `:list`, whose paging is required: an index or
+  # list request that names no page gets 50 rows and a cursor, never the whole table
+  # (test/ash_enterprise/platform/bounded_reads_test.exs). `:read` stays the primary,
+  # unpaged read for internal callers and single-record gets.
   graphql do
     queries do
       get AshEnterprise.Accounts.Organization, :get_organization, :read
-      list AshEnterprise.Accounts.BusinessUnit, :list_business_units, :read
-      list AshEnterprise.Accounts.Team, :list_teams, :read
-      list AshEnterprise.Accounts.Position, :list_positions, :read
+      list AshEnterprise.Accounts.BusinessUnit, :list_business_units, :list
+      list AshEnterprise.Accounts.Team, :list_teams, :list
+      list AshEnterprise.Accounts.Position, :list_positions, :list
     end
   end
 
@@ -39,19 +44,19 @@ defmodule AshEnterprise.Accounts do
     routes do
       base_route "/business_units", AshEnterprise.Accounts.BusinessUnit do
         get :read
-        index :read
+        index :list
         post :create
       end
 
       base_route "/teams", AshEnterprise.Accounts.Team do
         get :read
-        index :read
+        index :list
         post :create
       end
 
       base_route "/positions", AshEnterprise.Accounts.Position do
         get :read
-        index :read
+        index :list
       end
     end
   end

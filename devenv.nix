@@ -337,6 +337,7 @@ in
       mix ash_enterprise.data_inventory --check
       mix test
       mix test.durability
+      mix test --only scale test/ash_enterprise/scale
       "$DEVENV_ROOT"/scripts/iron-laws.sh
       "$DEVENV_ROOT"/scripts/extra-docs.sh
       "$DEVENV_ROOT"/scripts/usage-rules-check.sh

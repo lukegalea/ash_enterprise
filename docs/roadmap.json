@@ -463,9 +463,11 @@
       "id": "q44",
       "section": "change",
       "question": "Does it still work for a customer with fifty thousand of something?",
-      "answer": "Open. No load test, no query budget, and no pagination requirement on read actions — the audit export is the only place in the codebase that streams rather than loads. A reference architecture that has never met a large tenant is making an untested claim.",
+      "answer": "Built and measured on CI; not yet running in a deployment we operate, so the status waits for that. Every list read on a platform resource names a page size: a transformer gives each read that is not a get or a manual read a `default_limit` of 50 and a `max_page_size` of 250, so a page asked for without a limit gets 50 rows and no request gets more than 250, while an internal read that asks for no page still returns a list. The JSON:API index and the GraphQL list on business units, teams and positions serve a `:list` read whose paging is required, so a request that names no page gets 50 rows and a next link, never the table; a test walks every index route, list query and AI read tool and fails on one that could return a table. The `scale` CI job seeds 50,000 audited teams in one tenant: an unpaged JSON:API index, its next page and a GraphQL list each issue the same 12 queries at 1,000 rows and at 50,000 (at 50,000 rows the index and its next page took 83 ms each and the list 59 ms on a CI runner, against ceilings of three times the first CI measurement), and a business-unit-depth role's page is one query, on teams (25 ms). Seeding the 50,000 took 92 s. The numbers are the template's own seeded fixture on CI hardware, not any deployment's. Not measured at that size: writes, exports, the A2UI surfaces, the AI lookups that read a window before keeping their first rows, and every resource other than teams.",
       "status": "open",
-      "item": "scale"
+      "item": "scale",
+      "proof": "test/ash_enterprise/platform/bounded_reads_test.exs",
+      "test": "every JSON:API index, GraphQL list and AshAi read tool pages by default"
     },
     {
       "id": "q45",

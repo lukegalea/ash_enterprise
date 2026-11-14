@@ -106,6 +106,32 @@ defmodule AshEnterprise.Test.DailyFixtures do
     %{actor: actor(user), user: user, tenant: tenant, email: email}
   end
 
+  @doc """
+  `count` SYNTHETIC teams in `admin`'s tenant and business unit, named
+  `"<prefix> <n>"`, inserted in bulk batches of `batch_size` without returning
+  them. Audited like any team create.
+  """
+  def teams!(admin, count, opts \\ []) do
+    prefix = Keyword.get(opts, :prefix, "Team")
+    first = Keyword.get(opts, :from, 1)
+    unit_id = admin.user.owning_business_unit_id
+
+    %Ash.BulkResult{status: :success} =
+      first..(first + count - 1)//1
+      |> Stream.map(&%{name: "#{prefix} #{&1}", owning_business_unit_id: unit_id})
+      |> Ash.bulk_create!(AshEnterprise.Accounts.Team, :create,
+        tenant: admin.tenant,
+        actor: SystemActor.seed(),
+        authorize?: false,
+        batch_size: Keyword.get(opts, :batch_size, 500),
+        return_records?: false,
+        return_errors?: true,
+        stop_on_error?: true
+      )
+
+    :ok
+  end
+
   @doc "Deactivates a member's account (offboarding) and returns them with a fresh actor."
   def deactivate!(%{user: user} = member) do
     user =

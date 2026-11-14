@@ -9,6 +9,8 @@ defmodule AshEnterpriseWeb.ApiSurfacesTest do
 
   use AshEnterpriseWeb.ConnCase, async: false
 
+  alias AshEnterprise.Test.DailyFixtures
+
   describe "JSON:API" do
     test "an unauthenticated read returns an empty collection, not a 403", %{conn: conn} do
       conn =
@@ -23,6 +25,39 @@ defmodule AshEnterpriseWeb.ApiSurfacesTest do
       # it pushes clients toward treating authorization failures as exceptional
       # rather than as ordinary empty results.
       assert %{"data" => []} = json_response(conn, 200)
+    end
+
+    # An index pages whether or not the client asks (`:list`, required paging): a client
+    # that sends no page parameters gets the first page and a link, not the table.
+    test "an unpaged GET /api/json/teams never returns the whole table: at most 50 rows and a next link" do
+      admin = DailyFixtures.tenant!()
+      DailyFixtures.teams!(admin, 60)
+
+      body = admin.user |> bearer() |> get("/api/json/teams") |> json_response(200)
+
+      assert length(body["data"]) == 50
+      assert is_binary(body["links"]["next"]), "no next link: #{inspect(body["links"])}"
+
+      first_ids = body["data"] |> Enum.map(& &1["id"]) |> MapSet.new()
+
+      rest =
+        admin.user
+        |> bearer()
+        |> get(URI.parse(body["links"]["next"]) |> then(&"#{&1.path}?#{&1.query}"))
+        |> json_response(200)
+
+      assert rest["data"] != []
+      assert MapSet.disjoint?(first_ids, rest["data"] |> Enum.map(& &1["id"]) |> MapSet.new())
+    end
+
+    test "page[limit]=10000 is clamped to 250, not honoured" do
+      admin = DailyFixtures.tenant!()
+      DailyFixtures.teams!(admin, 260)
+
+      body =
+        admin.user |> bearer() |> get("/api/json/teams?page[limit]=10000") |> json_response(200)
+
+      assert length(body["data"]) == 250
     end
 
     test "publishes an OpenAPI document covering exactly the exposed resources", %{conn: conn} do
@@ -72,6 +107,20 @@ defmodule AshEnterpriseWeb.ApiSurfacesTest do
 
       refute Enum.any?(fields, &String.contains?(String.downcase(&1), "role"))
       refute Enum.any?(fields, &String.contains?(String.downcase(&1), "audit"))
+    end
+
+    test "a list that names no page gets 50 rows, not the table" do
+      admin = DailyFixtures.tenant!()
+      DailyFixtures.teams!(admin, 60)
+
+      results =
+        admin.user
+        |> bearer()
+        |> post("/gql", %{query: "{ listTeams { results { id } } }"})
+        |> json_response(200)
+        |> get_in(["data", "listTeams", "results"])
+
+      assert length(results) == 50
     end
 
     # The websocket used to connect anyone, with no actor and no tenant, beside an
@@ -202,6 +251,14 @@ defmodule AshEnterpriseWeb.ApiSurfacesTest do
       assert conn.status == 401
       assert %{"error" => "unauthenticated"} = Jason.decode!(conn.resp_body)
     end
+  end
+
+  defp bearer(user) do
+    {:ok, token, _claims} = AshAuthentication.Jwt.token_for_user(user)
+
+    build_conn()
+    |> put_req_header("accept", "application/vnd.api+json")
+    |> put_req_header("authorization", "Bearer " <> token)
   end
 
   defp route_info(method, path),

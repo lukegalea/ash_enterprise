@@ -204,8 +204,9 @@ jobs:
       - name: Retired Hex packages
         run: mix hex.audit
 
-      # The suite itself runs in the `test-shards` jobs below, and the durability
-      # tier in the `durability` job, both alongside this one.
+      # The suite itself runs in the `test-shards` jobs below, the durability
+      # tier in the `durability` job and the scale budget in the `scale` job, all
+      # alongside this one.
 
       # The suite migrates into `public`. The private workspace hosts this app
       # in a schema of its own (ASH_SCHEMA), and a regenerated migration that
@@ -416,6 +417,59 @@ jobs:
 
       - name: Durability tier
         run: mix test.durability
+
+  scale:
+    name: Scale budget (50k rows)
+    runs-on: ubuntu-latest
+    # The page budget (test/ash_enterprise/scale/): one tenant seeded with 1,000
+    # and then 50,000 audited teams, and a page read through JSON:API, GraphQL and
+    # a business-unit-depth role must issue the same queries at both sizes and stay
+    # under its wall-clock ceiling. The suite excludes the `:scale` tag, because
+    # the seed takes minutes; a job of its own so nothing else waits on it.
+    # Blocking.
+
+    # pgvector on pg18, for the reasons given on the main job's service.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: beam
+        uses: ./.github/actions/setup-beam
+
+      # Restore only: the main job saves this cache.
+      - name: Restore dependency and build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-
+
+      # boxic_dmn shells out to `xmllint`; see the main job's step.
+      - name: Install xmllint
+        run: sudo apt-get update -y && sudo apt-get install -y libxml2-utils
+
+      - run: mix deps.get
+
+      # Dependencies first, so their warnings stay in their own step; the
+      # main job holds the --warnings-as-errors gate.
+      - run: mix deps.compile
+
+      - name: Scale budget
+        run: mix test --only scale test/ash_enterprise/scale
 
   backup-restore-drill:
     name: Backup and restore drill

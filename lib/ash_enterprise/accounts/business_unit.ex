@@ -160,6 +160,21 @@ defmodule AshEnterprise.Accounts.BusinessUnit do
     defaults [:read, :destroy]
     default_accept [:name, :division_name, :cost_center, :parent_business_unit_id]
 
+    # What the JSON:API index and the GraphQL list serve. Paging is required, so a
+    # request that names no page gets the first 50 rows and a link to the next, never
+    # the table, and no requested page is larger than 250. The primary `:read` stays
+    # unpaged for internal callers.
+    read :list do
+      description "Business units, a page at a time: 50 by default, 250 at most."
+
+      pagination keyset?: true,
+                 offset?: true,
+                 required?: true,
+                 countable: true,
+                 default_limit: 50,
+                 max_page_size: 250
+    end
+
     create :create do
       primary? true
       change AshEnterprise.Accounts.Changes.MaintainBusinessUnitPath

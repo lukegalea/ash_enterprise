@@ -98,6 +98,8 @@ const gates = describe<string>({
   tests: 'One result for the whole suite. It fails when any shard failed or was cancelled.',
   durability:
     'Races between connections, jobs killed between two commits and leases taken over: what the SQL sandbox in the suite cannot show.',
+  scale:
+    'Seeds 1,000 and then 50,000 audited teams in one tenant, and checks that a page through JSON:API, GraphQL and a business-unit-depth role issues the same queries at both sizes and stays under a time ceiling.',
   'backup-restore-drill':
     'Backs up a seeded database, restores it into a fresh one, and checks every table’s row count and every audit chain on the copy.',
   e2e: 'Every Playwright spec in assets/e2e, in Chromium, against a seeded development server.',

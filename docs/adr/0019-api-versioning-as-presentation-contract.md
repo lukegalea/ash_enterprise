@@ -2,6 +2,7 @@
 
 - **Status:** proposed
 - **Date:** 2026-08-18
+- **Amended:** 2026-11-14 — list surfaces page by default
 
 ## Context
 
@@ -152,3 +153,25 @@ transform must be printed in (view body, trigger body, reverse view) have no ana
 no SQL. Budget a rewrite of the entity definitions rather than a merge. The signal would be commitment
 1 failing repeatedly in practice: if real version deltas keep needing database objects, there was only
 ever one tool.
+
+## Amendment, 2026-11-14 — a list is a page, whether or not the client asks
+
+The decision above has not changed. One part of the document shape has: the JSON:API index on
+`/business_units`, `/teams` and `/positions` now pages by default, and so do the GraphQL lists over
+the same three. Each serves the resource's `:list` read, whose paging is required: a request that
+names no page gets the first 50 rows and a `next` link (a keyset cursor on GraphQL, as before), and a
+requested page larger than 250 is served as 250. Before this, an index request with no page
+parameters returned every row the caller could see, because ash_json_api applies a page only when the
+request carries one.
+
+That is a visible change for any client that read a whole collection in one request. No external
+client of this template is known; a deployment that has one should tell it before taking the change.
+The primary `:read` is unchanged and still answers single-record `get` routes and internal callers
+unpaged.
+
+Every other list read on a platform resource now names a page size too
+(`AshEnterprise.Platform.Transformers.DefaultPagination`: `default_limit` 50, `max_page_size` 250),
+without being required, so internal reads still return lists. Which surfaces must page is checked by
+`test/ash_enterprise/platform/bounded_reads_test.exs`, and the cost of a page at 50,000 rows by the
+`scale` CI job (`test/ash_enterprise/scale/fifty_thousand_test.exs`). If versioning is adopted, the
+unpaged index is not a version to keep: there is nothing to translate back to, only a table to send.

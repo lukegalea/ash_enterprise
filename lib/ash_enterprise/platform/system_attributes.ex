@@ -253,7 +253,10 @@ defmodule AshEnterprise.Platform.SystemAttributes do
 
   use Spark.Dsl.Extension,
     sections: [@platform],
-    transformers: [AshEnterprise.Platform.Transformers.AddSystemAttributes],
+    transformers: [
+      AshEnterprise.Platform.Transformers.AddSystemAttributes,
+      AshEnterprise.Platform.Transformers.DefaultPagination
+    ],
     verifiers: [
       AshEnterprise.Platform.Verifiers.SelfServiceActions,
       AshEnterprise.Platform.Verifiers.NarrowedActions,
