@@ -236,11 +236,13 @@ table, both live, both on screen — which is the demonstration §6.3 of the pla
   `allow_nil? false` and is rendered on the surface, because the projection happens on commit through a
   notification and a surface that hid the delay would be claiming a guarantee the design does not make.
   Watching the two surfaces update a beat apart is the honest picture.
-- **A row that fails to project is silently absent until the backfill is re-run.** There is no retry and
-  no dead-letter queue. `Projection.log_failure/2` says so in the log message itself — *"there is no
-  retry"* — and a test captures the log and asserts on that text, because "did not raise" alone would
-  also pass if the failure were swallowed without a trace. The reconciliation job that would close the
-  gap is **step 6** of the plan, and this is not that.
+- **A row that fails to project is retried, and audited nightly.** The live path is the durable change ledger
+  (ADR 0035): the legacy write leaves a ledger row in its own transaction, `Ledger.UserDrainWorker` ingests it
+  in one transaction with ten attempts, and a five-minute sweep recovers a missed wake. A row the drain cannot
+  ingest stays in the ledger rather than vanishing. `Legacy.ReconcileWorker` runs nightly and compares the view
+  with `projected_users` by checksum over key ranges, repairs a disagreeing range through `UserBackfill.project_row/1`,
+  and reports counts and key ranges as telemetry. It never deletes a projected row whose legacy row was
+  hard-deleted; it reports it. A stored run record is not built yet. See `docs/runbooks/legacy-migration.md`.
 - **Containment lives in the notifier and is not optional.** A notifier that raises takes the listener's
   process with it, and the listener holds the only `LISTEN` connection — so one bad row would stop
   reactivity on *every* surface, including the read model's. Hence `project_row/1` returns

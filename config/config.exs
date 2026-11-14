@@ -118,6 +118,10 @@ config :ash_enterprise, Oban,
          # collapses the overlap with wake-driven jobs.
          {"*/5 * * * *", AshEnterprise.Ledger.UserDrainWorker,
           queue: :ash_strangler_ledger, max_attempts: 1},
+         # The audit of that path, nightly: legacy vs view vs `projected_users`, repairing
+         # what disagrees and reporting counts and key ranges (see the worker's moduledoc).
+         {"23 3 * * *", AshEnterprise.Legacy.ReconcileWorker,
+          queue: :ash_strangler_ledger, max_attempts: 1},
          # One sync step per active linked account per vertical. The
          # scheduler only enqueues; each vertical's worker is unique per linked
          # account, so a tick that lands while a step is still queued, running
