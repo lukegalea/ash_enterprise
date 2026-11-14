@@ -2,7 +2,8 @@
 
 Written 2026-11-12 for q48 (coming back from losing the database), q36 (how long evidence is kept and where it
 lives after ninety days), q11 (rebuilding state from the log) and q51 (a control that runs on a schedule).
-Code: `mix ash_enterprise.backup.drill` (`scripts/backup-restore-drill`), `AshEnterprise.Audit.Retention`,
+Code: `mix ash_enterprise.backup.drill` (`scripts/backup-restore-drill`), `AshEnterprise.Release.audit_verify/2`,
+`AshEnterprise.Release.audit_export/1`, `AshEnterprise.Audit.Retention`,
 `AshEnterprise.Audit.ChainVerifyWorker`, `AshEnterprise.Compliance.FreshnessSweepWorker`,
 `AshEnterprise.Audit.ClearRecordsForReplay`. Tests and checks: the `backup-restore-drill` CI job,
 `test/ash_enterprise/audit/retention_test.exs`, `test/ash_enterprise/audit/replay_drill_test.exs`,
@@ -39,17 +40,34 @@ seed scale, so its timings say nothing about a real database's recovery time.
 
 ### Running it on a deployment
 
-Run it where the data is, on a schedule the deployment chooses, with `--dump` pointing at the backup store and
+The drill is an operator-host task. It needs `pg_dump`, `pg_restore`, a role that can create databases and a source
+checkout (it is a Mix task), and the release image has none of them: it carries no Mix and no PostgreSQL client.
+Run it from a host that has the checkout and the client tools, pointed at the deployment's database or at a restored
+copy of it (`DATABASE_URL`), on a schedule the deployment chooses, with `--dump` pointing at the backup store and
 `--json` kept as the record of the drill. The JSON is the evidence for A1.3 (recovery testing). Its timings are this
 database's restore time on this server; the recovery point is how often the dump runs, plus WAL archiving if the
 deployment adds it. Neither is set here.
 
+What a release does run is the audit checks, as release commands:
+
+```bash
+bin/ash_enterprise eval "AshEnterprise.Release.audit_verify()"
+bin/ash_enterprise eval 'AshEnterprise.Release.audit_verify(nil, halt?: true)'   # exit 1 on a break
+bin/ash_enterprise eval 'AshEnterprise.Release.audit_export(tenant: "<organization id>", as: "<auditor email>", from: "2026-01-01", to: "2027-01-01", out: "/tmp/audit-2026")'
+```
+
+They are what `mix ash_enterprise.audit.verify` and `mix ash_enterprise.audit.export` do (one body each, called from
+both), and they write nothing but the export's directory.
+
 ### Restoring for real
 
 1. Stop the application, so nothing writes while you restore.
-2. `createdb <name>` and `pg_restore --exit-on-error --no-owner --no-acl --dbname=<name> <dump>`.
-3. Verify before pointing anything at it: `DB_NAME=<name> mix ash_enterprise.audit.verify` must report no
-   findings, and the row counts should match the drill report for that dump.
+2. `createdb <name>` and `pg_restore --exit-on-error --no-owner --no-acl --dbname=<name> <dump>`, from a host
+   with the PostgreSQL client tools.
+3. Verify before pointing anything at it: start the release against the restored database
+   (`DATABASE_URL=... bin/ash_enterprise eval "AshEnterprise.Release.audit_verify(nil, halt?: true)"`) and
+   expect no findings; the row counts should match the drill report for that dump. From a source checkout,
+   `DB_NAME=<name> mix ash_enterprise.audit.verify` does the same.
 4. Point the application at it (`DATABASE_URL`, or `DB_NAME` in development) and start it.
 
 A restore brings back what the dump held. Erasure keys are rows like any other: a scope shredded after the dump was

@@ -220,6 +220,34 @@ defmodule AshEnterpriseWeb.AlertWebhookTest do
       refute inspect(occurrence) =~ "never kept"
     end
 
+    test "two firings of one rule with offset startsAt timestamps record two occurrences", %{
+      a: a
+    } do
+      first = signoz(%{"fingerprint" => "fp-off", "startsAt" => "2026-11-12T10:00:00+05:00"})
+      second = signoz(%{"fingerprint" => "fp-off", "startsAt" => "2026-11-12T11:00:00+05:00"})
+
+      assert deliver(first) |> response(204)
+      assert deliver(second) |> response(204)
+
+      assert [
+               "signoz:fp-off:2026-11-12T05:00:00Z:firing",
+               "signoz:fp-off:2026-11-12T06:00:00Z:firing"
+             ] =
+               a |> occurrences() |> Enum.map(& &1.event_id) |> Enum.sort()
+    end
+
+    test "a startsAt that is not a timestamp does not collapse distinct firings", %{a: a} do
+      first = signoz(%{"fingerprint" => "fp-raw", "startsAt" => "yesterday at noon"})
+      second = signoz(%{"fingerprint" => "fp-raw", "startsAt" => "yesterday at one"})
+
+      assert deliver(first) |> response(204)
+      assert deliver(second) |> response(204)
+
+      ids = a |> occurrences() |> Enum.map(& &1.event_id)
+      assert length(Enum.uniq(ids)) == 2
+      refute Enum.any?(ids, &(&1 =~ "unknown"))
+    end
+
     test "its resolution is a second occurrence", %{a: a} do
       firing = signoz(%{"fingerprint" => "fp-two"})
       resolved = signoz(%{"fingerprint" => "fp-two", "status" => "resolved"})

@@ -134,7 +134,7 @@ defmodule AshEnterprise.Compliance.ContinuousVerificationTest do
   end
 
   describe "the schedule" do
-    test "verification, retention and the freshness sweep are on the crontab" do
+    test "verification, retention, the freshness sweep and the scheduled review are on the crontab" do
       crontab =
         :ash_enterprise
         |> Application.fetch_env!(Oban)
@@ -145,14 +145,18 @@ defmodule AshEnterprise.Compliance.ContinuousVerificationTest do
         end)
 
       scheduled = MapSet.new(crontab, &elem(&1, 1))
+      schedules = Map.new(crontab, fn entry -> {elem(entry, 1), elem(entry, 0)} end)
 
       for worker <- [
             AshEnterprise.Audit.ChainVerifyWorker,
             AshEnterprise.Audit.RetentionWorker,
-            AshEnterprise.Compliance.FreshnessSweepWorker
+            AshEnterprise.Compliance.FreshnessSweepWorker,
+            AshEnterprise.Compliance.ScheduledReviewWorker
           ] do
         assert worker in scheduled, "#{inspect(worker)} is not scheduled"
       end
+
+      assert schedules[AshEnterprise.Compliance.ScheduledReviewWorker] == "25 5 * * *"
     end
   end
 end

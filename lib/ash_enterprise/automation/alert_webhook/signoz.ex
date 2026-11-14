@@ -44,7 +44,7 @@ defmodule AshEnterprise.Automation.AlertWebhook.Signoz do
 
   defp alert(%{"status" => status, "fingerprint" => fingerprint} = alert) do
     labels = if is_map(alert["labels"]), do: alert["labels"], else: %{}
-    starts_at = AlertWebhook.id(alert["startsAt"]) || "unknown"
+    starts_at = starts_key(alert["startsAt"])
 
     with {:ok, type} <- Map.fetch(@statuses, status),
          fingerprint when is_binary(fingerprint) <- AlertWebhook.id(fingerprint) do
@@ -74,6 +74,22 @@ defmodule AshEnterprise.Automation.AlertWebhook.Signoz do
   end
 
   defp alert(_alert), do: []
+
+  # The firing's start as an id-safe string. A timestamp is normalised to UTC, so an
+  # offset form ("+05:00", which `AlertWebhook.id/1` would refuse) still names the firing.
+  # What is not a timestamp is named by a hash of itself, so distinct firings stay distinct.
+  defp starts_key(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, at, _offset} ->
+        DateTime.to_iso8601(at)
+
+      _ ->
+        "raw-" <>
+          (:crypto.hash(:sha256, value) |> Base.encode16(case: :lower) |> binary_part(0, 16))
+    end
+  end
+
+  defp starts_key(_value), do: "unknown"
 
   defp time(value) when is_binary(value) do
     case DateTime.from_iso8601(value) do

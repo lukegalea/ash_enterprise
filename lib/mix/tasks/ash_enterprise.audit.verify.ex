@@ -9,14 +9,14 @@ defmodule Mix.Tasks.AshEnterprise.Audit.Verify do
       mix ash_enterprise.audit.verify --tenant 0198f3a4-...
 
   Exits non-zero when any chain has a finding, so it can be a scheduled check
-  rather than something someone remembers to run. See `AshEvents.Chain`
-  for what each kind of finding means and why rows predating the chain are
-  skipped rather than reported.
+  rather than something someone remembers to run. The check itself is
+  `AshEnterprise.Audit.Verify`, which a release runs as
+  `AshEnterprise.Release.audit_verify/2`.
   """
 
   use Mix.Task
 
-  alias AshEnterprise.Audit.EventLog
+  alias AshEnterprise.Audit.Verify
   alias AshEnterprise.Mix.Helpers
 
   @requirements ["app.config"]
@@ -38,42 +38,12 @@ defmodule Mix.Tasks.AshEnterprise.Audit.Verify do
     # checking (iron law #23; docs/reviews/iron-law-audit.md, fix item 3).
     Helpers.boot_repo()
 
-    results =
-      case opts[:tenant] do
-        nil -> AshEvents.Chain.verify_all(EventLog)
-        tenant -> [AshEvents.Chain.verify(EventLog, tenant)]
-      end
+    report = Verify.report(opts[:tenant])
+    Enum.each(Verify.lines(report), &print(&1, report.status))
 
-    Enum.each(results, &report/1)
-
-    total = results |> Enum.flat_map(& &1.findings) |> length()
-
-    if total == 0 do
-      Mix.shell().info([
-        :green,
-        "\n#{Enum.sum(Enum.map(results, & &1.checked))} events across " <>
-          "#{length(results)} chain(s) verified. No breaks.",
-        :reset
-      ])
-    else
-      Mix.shell().error("\n#{total} finding(s). The audit log has been modified.")
-      exit({:shutdown, 1})
-    end
+    if report.status == :broken, do: exit({:shutdown, 1})
   end
 
-  defp report(%{partition: org, checked: checked} = result) do
-    Mix.shell().info("\nChain #{org || "(no tenant)"} — #{checked} event(s) checked")
-
-    if result.skipped_unchained_prefix > 0 do
-      Mix.shell().info([
-        :yellow,
-        "  #{result.skipped_unchained_prefix} event(s) predate the chain and were skipped.",
-        :reset
-      ])
-    end
-
-    Enum.each(result.findings, fn f ->
-      Mix.shell().error("  seq #{f.sequence}  #{f.problem}  #{f.id}  #{f.occurred_at}")
-    end)
-  end
+  defp print(line, :broken), do: Mix.shell().error(line)
+  defp print(line, :ok), do: Mix.shell().info(line)
 end
