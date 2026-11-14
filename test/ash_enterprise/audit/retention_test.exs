@@ -62,6 +62,28 @@ defmodule AshEnterprise.Audit.RetentionTest do
     )
   end
 
+  # Sets the action of `org`'s first event behind the immutability trigger's back, which the
+  # chain's hash catches.
+  defp quietly_change_first!(org, action) do
+    Repo.query!("ALTER TABLE audit_events DISABLE TRIGGER audit_events_immutable")
+
+    try do
+      Repo.query!(
+        "UPDATE audit_events SET action = $2 WHERE organization_id = $1::uuid " <>
+          "AND sequence = (SELECT min(sequence) FROM audit_events WHERE organization_id = $1::uuid)",
+        [Ecto.UUID.dump!(org), action]
+      )
+    after
+      Repo.query!("ALTER TABLE audit_events ENABLE TRIGGER audit_events_immutable")
+    end
+  end
+
+  defp chain_findings(org) do
+    org
+    |> AshCompliance.Domain.findings_for_organization!(authorize?: false)
+    |> Enum.filter(&(&1.subject_type == ChainVerifyWorker.subject_type()))
+  end
+
   defp step_for(%{audit: steps}, org) do
     Enum.find(steps, fn
       {_, %ArchiveRun{chain_organization_id: ^org}} -> true
@@ -214,6 +236,53 @@ defmodule AshEnterprise.Audit.RetentionTest do
              |> AshCompliance.Domain.findings_for_organization!(authorize?: false)
              |> Enum.filter(&(&1.subject_type == ChainVerifyWorker.subject_type()))
              |> Enum.all?(&match?(%DateTime{}, &1.resolved_at))
+    end
+
+    test "a chain read with breaks keeps its finding open, and a break opens one", ctx do
+      once_unreadable = ctx.org
+      first_broken = Ash.UUID.generate()
+
+      for org <- [once_unreadable, first_broken] do
+        for days <- [200, 150], do: event!(org, days)
+        event!(org, 1)
+      end
+
+      raising = fn log, partition ->
+        if partition == once_unreadable, do: raise("the chain could not be read")
+        AshEvents.Chain.verify(log, partition)
+      end
+
+      assert {:ok, _} = ChainVerifyWorker.run(verifier: raising)
+      assert Enum.all?(chain_findings(once_unreadable), &(&1.status == :error))
+
+      for org <- [once_unreadable, first_broken], do: quietly_change_first!(org, "tampered")
+
+      assert {:ok, outcomes} = ChainVerifyWorker.run()
+
+      for org <- [once_unreadable, first_broken] do
+        assert {^org, breaks} = List.keyfind(outcomes, org, 0)
+        assert breaks > 0
+
+        findings = chain_findings(org)
+
+        assert Enum.sort(Enum.map(findings, & &1.control_id)) ==
+                 Enum.sort(ChainVerifyWorker.evidence_controls())
+
+        # Read with breaks is not "verified again": the finding stays open, and says why.
+        assert Enum.all?(findings, &is_nil(&1.resolved_at))
+        assert Enum.all?(findings, &(&1.status == :noncompliant and &1.severity == :critical))
+        assert Enum.all?(findings, &(&1.explanation =~ "fail verification"))
+      end
+
+      # Put back, the chain verifies cleanly, and only then are the findings resolved.
+      for org <- [once_unreadable, first_broken], do: quietly_change_first!(org, "create")
+
+      assert {:ok, clean} = ChainVerifyWorker.run()
+
+      for org <- [once_unreadable, first_broken] do
+        assert {org, 0} in clean
+        assert Enum.all?(chain_findings(org), &match?(%DateTime{}, &1.resolved_at))
+      end
     end
 
     test "a chain with a verification finding, and moves nothing", ctx do

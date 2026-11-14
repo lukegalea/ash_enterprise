@@ -11,11 +11,19 @@ defmodule AshEnterprise.Audit.ChainVerifyWorker do
   reason to leave no trace that it ran. The chain with no tenant is verified too, but an
   artifact belongs to an organization, so its result is only in the job's return value.
 
+  **A chain that fails verification is a finding.** The artifact says the verification
+  ran; it does not say the chain is intact, and the freshness sweep reads only that it ran.
+  So a chain read with breaks (a row whose hash or link does not verify) also files a
+  finding for each criterion, status `:noncompliant` and severity `:critical`, at the grain
+  `{organization, criterion, "audit_chain", organization}`, saying how many rows fail and
+  where the first one is. It stays open, run after run, until the chain verifies with no
+  finding at all.
+
   **One chain that cannot be verified does not stop the others.** A verification that
   raises (the chain could not be read) records no evidence for that tenant: it files a
-  finding for each criterion instead, status `:error`, at the grain
-  `{organization, criterion, "audit_chain", organization}`, and every other chain is still
-  verified and recorded. The next clean verification of that chain resolves the finding.
+  finding for each criterion instead, status `:error`, at the same grain, and every other
+  chain is still verified and recorded. Only a clean verification of that chain resolves
+  the finding: one that reads the chain and finds breaks turns it into the breaks' finding.
   The job succeeds either way: the finding is the record someone reads, and a retry the same
   hour would duplicate the healthy tenants' evidence.
 
@@ -34,6 +42,7 @@ defmodule AshEnterprise.Audit.ChainVerifyWorker do
   @producer "module:#{inspect(__MODULE__)}"
   @subject_type "audit_chain"
   @gap "audit_chain_verification"
+  @broken_gap "audit_chain_broken"
 
   @doc """
   The SOC 2 criteria this module records evidence for (the chain verification).
@@ -80,9 +89,10 @@ defmodule AshEnterprise.Audit.ChainVerifyWorker do
   defp outcome(result), do: length(result.findings)
 
   @doc """
-  Records one chain's verification result: evidence for each criterion, or, for a
-  verification that raised, a finding for each criterion. Returns `:skipped` for the chain
-  with no tenant.
+  Records one chain's verification result: evidence for each criterion, and a finding for
+  each when the chain fails verification; for a verification that raised, the finding
+  alone. Only a clean result resolves the chain's open findings. Returns `:skipped` for the
+  chain with no tenant.
   """
   @spec record(AshEvents.Chain.result(), DateTime.t()) :: :ok | :skipped | {:error, term()}
   def record(%{partition: nil} = result, _now) do
@@ -97,17 +107,41 @@ defmodule AshEnterprise.Audit.ChainVerifyWorker do
     Logger.error("The audit chain of #{org} could not be verified: #{error}")
 
     each_control(fn control ->
-      file_unverified(org, control, "The chain could not be verified: #{error}", now)
+      file_finding(org, control, unreadable(error), now)
     end)
   end
 
-  def record(%{partition: org} = result, now) do
-    content = summary(result, now)
-
-    with :ok <- record_evidence(org, content, now) do
+  def record(%{partition: org, findings: []} = result, now) do
+    with :ok <- record_evidence(org, summary(result, now), now) do
       resolve_unverified(org, now)
     end
   end
+
+  def record(%{partition: org, findings: findings} = result, now) do
+    Logger.error("The audit chain of #{org} fails verification at #{length(findings)} row(s)")
+
+    with :ok <- record_evidence(org, summary(result, now), now) do
+      each_control(fn control -> file_finding(org, control, broken(findings), now) end)
+    end
+  end
+
+  defp unreadable(error),
+    do: %{
+      status: :error,
+      severity: :high,
+      gap: @gap,
+      explanation: "The chain could not be verified: #{error}"
+    }
+
+  defp broken([first | _] = findings),
+    do: %{
+      status: :noncompliant,
+      severity: :critical,
+      gap: @broken_gap,
+      explanation:
+        "#{length(findings)} row(s) of the chain fail verification; the first is " <>
+          "sequence #{first.sequence} (#{first.problem})."
+    }
 
   defp record_evidence(org, content, now) do
     each_control(fn control ->
@@ -136,7 +170,7 @@ defmodule AshEnterprise.Audit.ChainVerifyWorker do
     end)
   end
 
-  defp file_unverified(org, control, explanation, now) do
+  defp file_finding(org, control, finding, now) do
     grain = %{
       organization_id: org,
       control_id: control,
@@ -150,12 +184,12 @@ defmodule AshEnterprise.Audit.ChainVerifyWorker do
       ops =
         first_seen ++
           [
-            {:set, :status, :error},
-            {:set, :severity, :high},
-            {:set, :gap, @gap},
+            {:set, :status, finding.status},
+            {:set, :severity, finding.severity},
+            {:set, :gap, finding.gap},
             {:set, :last_seen_at, now},
             {:set, :resolved_at, nil},
-            {:set, :explanation, String.slice(explanation, 0, 1_000)}
+            {:set, :explanation, String.slice(finding.explanation, 0, 1_000)}
           ]
 
       case AshCompliance.Domain.apply_finding_ops(row, ops, authorize?: false) do
@@ -165,8 +199,8 @@ defmodule AshEnterprise.Audit.ChainVerifyWorker do
     end
   end
 
-  # A clean read of the chain again closes the finding an earlier failure opened. The
-  # finding keeps its status; resolved_at says when the chain was read again.
+  # A clean verification closes the finding an earlier failure or break opened. The
+  # finding keeps its status; resolved_at says when the chain verified again.
   defp resolve_unverified(org, now) do
     with {:ok, findings} <-
            AshCompliance.Domain.findings_for_organization(org, authorize?: false) do
