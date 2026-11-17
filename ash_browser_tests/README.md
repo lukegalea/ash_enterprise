@@ -18,6 +18,7 @@ What it gives a host, as `AshBrowserTests.*`:
 | `Backend` | One `spans_for/3` over the in-VM sink, SigNoz and GlitchTip |
 | `Fake`, `Fake.LLM`, `Fake.DSN` | Bandit-served stand-ins for outbound HTTP, which record requests and propagated headers |
 | `Surfaces`, `Ledger`, `A2uiManifest` | A generated test per declared surface and action; anything neither exercised nor waived fails |
+| `Reporter`, `Report` | An ExUnit formatter recording each outcome, and the renderer behind `mix ash_browser_tests.report` |
 
 ## Adopting it
 
@@ -71,7 +72,15 @@ config :phoenix_test,
     ],
     assets_dir: "./assets",
     timeout: 15_000,
-    browser_launch_timeout: 30_000
+    browser_launch_timeout: 30_000,
+    # One screenshot per test, and a trace when PW_TRACE is set. Set both halves
+    # of each pair: `screenshot_dir` without `screenshot: true` writes nothing,
+    # which is an easy way to upload an empty directory for months without
+    # noticing.
+    screenshot: true,
+    screenshot_dir: "tmp/playwright/screenshots",
+    trace: System.get_env("PW_TRACE") == "1",
+    trace_dir: "tmp/playwright/traces"
   ]
 
 # The in-VM trace ring must hold a whole run.
@@ -103,13 +112,19 @@ the port above, so either skip it for `:test` or run through
 
 ```elixir
 ExUnit.configure(exclude: [:e2e])   # keep browser tests out of plain `mix test`
-ExUnit.start()
+ExUnit.start(formatters: [ExUnit.CLIFormatter, AshBrowserTests.Reporter])
 
 if System.get_env("E2E") == "1" do
   AshEnterprise.Telemetry.setup(otp_app: :my_app, browser_context: true, db_statement: :enabled)
   AshBrowserTests.start!(endpoint: MyAppWeb.Endpoint)
 end
 ```
+
+`AshBrowserTests.Reporter` records each test's outcome so
+`mix ash_browser_tests.report` can join it to the screenshot and trace. Without
+it the report still builds, but every row reads "no result" — the media
+filenames carry no outcome of their own. It is harmless in a suite with no
+browser tests.
 
 Skip the `setup/1` call if the application already makes it at start. It needs
 `browser_context: true` in the test environment, or the server never adopts the browser's
@@ -239,6 +254,38 @@ visible and locators become ambiguous. It allocates a free port, sets `E2E=1`,
 
 Or in a host's mix project: `def cli, do: [preferred_envs: ["ash_browser_tests.test": :test]]`
 and `mix ash_browser_tests.test ...`.
+
+## The report
+
+```bash
+MIX_ENV=test mix ash_browser_tests.report
+```
+
+Reads the screenshots, the traces and `Reporter`'s results, and writes one
+`index.html` beside them: a row per test with its status, duration, screenshot
+and a link to its trace, failures first. Inline CSS, no JavaScript, no external
+request and only relative links, so it opens from an unzipped CI artifact on a
+machine with no network.
+
+When `GITHUB_STEP_SUMMARY` is set it also appends a markdown table there, with
+the failure messages in a `<details>` block. A step summary **cannot render a
+local image** — only absolute URLs — so the table says which tests have media
+and leaves the looking to the page.
+
+In CI, upload on success as well as failure. A screenshot of a page that passed
+but looks wrong is the one worth having, and it is the case a failure-only
+upload never captures:
+
+```yaml
+- name: Report
+  if: always()
+  run: MIX_ENV=test mix ash_browser_tests.report
+- uses: actions/upload-artifact@v4
+  if: always()
+  with:
+    name: browser-tier
+    path: tmp/playwright/
+```
 
 ## This package's own suite
 
