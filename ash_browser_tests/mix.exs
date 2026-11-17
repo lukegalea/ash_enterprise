@@ -51,7 +51,24 @@ defmodule AshBrowserTests.MixProject do
       {:req, "~> 0.5"},
       {:jason, "~> 1.4"},
       {:nimble_options, "~> 1.1"},
-      {:opentelemetry_api, "~> 1.4"}
+      {:opentelemetry_api, "~> 1.4"},
+
+      # --- A2UI, optional ------------------------------------------------------------
+      # `Rows` and `Tables` call `AshA2ui.Manifest.visible?/2` and
+      # `filter_input/1` — pure functions over manifest data — so the table and
+      # row generators need it present. `optional: true` keeps it out of the
+      # dependency graph of a host driving a plain Phoenix application, and
+      # defers to the host's own pin where there is one rather than forcing this
+      # version on it.
+      #
+      # `only: :test` to match `:ash` below, which `ash_a2ui` itself requires
+      # unrestricted: an environment that has `ash_a2ui` and not `ash` does not
+      # resolve. Everything here is test-only in a host anyway.
+      #
+      # Deliberately a dependency of the *test harness* on the UI library, never
+      # the reverse: `ash_a2ui` must not grow a dependency on
+      # `phoenix_test_playwright` and `bandit` in order to be testable.
+      {:ash_a2ui, github: "lukegalea/ash_a2ui", optional: true, only: :test}
     ] ++ telemetry_dep() ++ fixture_deps()
   end
 

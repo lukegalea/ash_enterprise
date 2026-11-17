@@ -18,6 +18,7 @@ What it gives a host, as `AshBrowserTests.*`:
 | `Backend` | One `spans_for/3` over the in-VM sink, SigNoz and GlitchTip |
 | `Fake`, `Fake.LLM`, `Fake.DSN` | Bandit-served stand-ins for outbound HTTP, which record requests and propagated headers |
 | `Surfaces`, `Ledger`, `A2uiManifest` | A generated test per declared surface and action; anything neither exercised nor waived fails |
+| `Tables`, `Rows`, `RowActions` | A generated test per A2UI table and preset, with its own ledger; and the row-level helpers (locate by `data-a2ui-row-id`, switch presets, fill prompt widgets) |
 | `Reporter`, `Report` | An ExUnit formatter recording each outcome, and the renderer behind `mix ash_browser_tests.report` |
 
 ## Adopting it
@@ -229,16 +230,43 @@ reason, or if a waiver names something no longer declared.
 
 ### A2UI row actions
 
-`AshBrowserTests.A2uiManifest` is the interface; `A2uiManifest.Stub` is the placeholder
-until `ash_a2ui` ships a manifest. What this package needs from `ash_a2ui`, built on
-`AshA2ui.Info`, per surface:
+`AshBrowserTests.A2uiManifest` is the interface the generator consumes: a `manifest/1`
+returning, per surface, `row_actions` (a stable `id`, the button's accessible `label`,
+the Ash action and resource, `visible_when`, `prompt_fields`, and a confirm label if
+there is one) and `tables` with their presets.
 
-- `row_actions`: for each, a stable `id`, the button's accessible `label`, the Ash
-  `action` and resource, the `visible_when` condition, `prompt_fields` (name, label,
-  type, required, options) and, if there is one, the confirm control's label.
-- `tables` and presets, so rows can be matched against the Ash read.
-- A row selector stable across renders, if `tr`/`[role=row]` turns out not to be enough
-  once it is exercised on a real page.
+`ash_a2ui` now builds that — `AshA2ui.Manifest.for_surface/2` — so a host's module is
+usually one line per surface over its own registry. `A2uiManifest.Stub` answers `nil`
+for every surface, for a host with no A2UI; `Static` serves a hand-written map.
+
+### The derived table suite
+
+```elixir
+defmodule MyAppWeb.E2E.TablesTest do
+  use AshBrowserTests.Tables, host: MyAppWeb.E2E.Surfaces, async: true
+end
+```
+
+A test per A2UI table and per preset: the rows the page shows must equal the rows the
+table's read returns for the same actor, compared by `data-a2ui-row-id` and never by
+text. Tables that read nothing until a `require_context` is chosen open through the
+surface's own deep link (`?ctx[<name>]=<id>`). It has its own ledger
+(`table_waivers/0`), on the same terms as the surface ledger.
+
+`AshBrowserTests.Tables.Host` adds the callbacks: `manifests/0`, `row_opts/2`,
+`table_waivers/0`, `context_record/3` and the optional `seed_table/3`. `Rows` and
+`RowActions` are the row-level helpers underneath — locating a row by
+`data-a2ui-row-id`, switching presets through the picker, filling choice-picker,
+checkbox and date prompt widgets — and a host can use them directly when it wants to
+declare a row action's `run` itself rather than take the generated one.
+
+> #### Two row-action paths {: .warning}
+>
+> `Surfaces` generates row actions with its own `run_row_action/3`, which clicks by row
+> text and fills prompts with `PhoenixTest.fill_in/3`. `RowActions.perform/3` waits for
+> the row, locates it by `data-a2ui-row-id` and handles the widget types. They overlap,
+> and a host currently picks one by either taking the generated action or declaring its
+> own `run:`. Reconciling them is a follow-up, not a thing to discover mid-debugging.
 
 ## Running
 
