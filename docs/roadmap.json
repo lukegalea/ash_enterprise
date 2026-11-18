@@ -577,6 +577,15 @@
       "item": "anonymization",
       "proof": "test/ash_enterprise/anonymization/greenmask_config_test.exs",
       "test": "every sensitive? attribute across the domains has a transform or a keep with a reason"
+    },
+    {
+      "id": "q56",
+      "section": "evidence",
+      "question": "Can a document issued here be stood behind years later, and who decides what it asks and says?",
+      "answer": "Planned, and not built in this repository, which does not issue documents yet. The rendering package (`ash_paper`, MIT) is public. A document is a pure function of recorded inputs (ADR 0067): its payload and typed facts are frozen at issue, the issued bytes are the record, and a snapshot pins every definition, the engine and the fonts by hash, so a re-render within that pinned environment is digest-equal. Schema, layout, theme and wording are separate axes (ADR 0068): a tenant changes wording and theme as data, and a layout is reviewed code. What a person must confirm before a document issues is derived from the requirement's `unknown` verdicts, never designed as a form, and an answer is a person-grade fact that is not asked for again while the state it answered still holds (ADR 0076). A wording or decision-table change is measured against the documents already issued before a second person admits it, and the admission is refused on a missing, stale, errored or failed measurement (ADR 0077).",
+      "status": "planned",
+      "adr": "0067",
+      "item": "documents"
     }
   ],
   "items": [
@@ -843,6 +852,16 @@
       "status": "partial",
       "effort": "A first-party extension in the ash_api_versioning shape: a `greenmask` block on the resource is the single declaration of what may leave production and how, `mix ash_greenmask.gen.config` emits greenmask's YAML from it plus what the model already knows (`sensitive?`, types, the ash_postgres table mapping), and CI gates both the drift between declarations and config and greenmask's own `validate` in a CI drill that fails when a planted value survives the copy. No database objects, nothing running in the application itself.",
       "bar": "Cleanly, by construction: greenmask is handed a thin generated declaration and holds no authorization model — it never serves a query. The control that stands in for ActorContext is the pipeline itself, the only door production bytes leave through, transformed before anything person-like sees them. The residuals are stated rather than wrapped away: the salt is load-bearing key material, hashed keys are not guaranteed unique, and what the config does not name passes through — which is why generation is refuse-by-default over `sensitive?`."
+    },
+    {
+      "id": "documents",
+      "title": "Issued documents that hold up later",
+      "priority": 2,
+      "choice": "ash_paper: a document rendered from recorded inputs; questions derived from requirements; changes measured against issued documents",
+      "adr": "0067",
+      "status": "planned",
+      "effort": "The kernel is public and built (ADRs 0067 and 0068). What remains is here: issuing a document from a tenant's own rows, with shredding that destroys its bytes; versioned clauses and the decision tables that select them; drafts; the interview (ADR 0076), on a planned `AshCompliance.Status.questions/2`; and the impact gate (ADR 0077), on the public `AshDecisions.Replay` and a planned `mix paper.impact` for layouts.",
+      "bar": "Yes. Rendering takes no actor: it is a pure function over frozen inputs. The payload is read as the issuing actor, so a document cannot state what its issuer could not read; questions are answered self-service by the person they were asked of; and measuring a change is a granted action whose read of the tenant's other documents is a disclosure ADR 0077 states rather than hides."
     }
   ]
 }

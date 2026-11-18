@@ -107,8 +107,14 @@ The concrete exit: which files change, and how much work it is.
 | [0073](0073-secured-columns-are-grants.md) | Secured columns are grants: a column a row grant does not hand over | accepted (2026-11-14), built for reads |
 | [0074](0074-signatures-are-a-package.md) | Signatures are a package (`ash_signatures`): a request over hashed document versions, signed in-platform, with providers behind one asynchronous seam | accepted, not built (2026-11-16) |
 | [0075](0075-outbound-webhooks-are-a-declared-operation.md) | Outbound webhooks are a declared operation: a signed CloudEvent nudge per audited write | accepted (2026-11-17), built |
+| [0076](0076-what-to-ask-is-what-a-requirement-cannot-yet-decide.md) | What to ask is what a requirement cannot yet decide | accepted, not built (2026-11-18) |
+| [0077](0077-a-candidate-is-judged-against-recorded-history.md) | A candidate is judged against recorded history | accepted, not built (2026-11-18) |
 
 Records 0001–0005, 0007–0009, 0020–0023, 0026 (as amended 2026-11-16: a metadata-only call record and the tenant's opt-in at the one model-call guard), 0027–0031, 0033–0037, 0050–0054, 0059 and 0061 are `accepted` and describe code that exists. 0006 is superseded by 0050, and 0016 by 0072. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed. 0060 is accepted and in progress: its phases 1 (ash_a2ui) and 2 (this repository) have landed; the downstream host's phases and CLDR formatting are not built.
+0076 and 0077 are `accepted, not built (2026-11-18)`: they extend 0067 and 0068 to the two acts around an issued
+document, asking a person only what a requirement cannot yet decide, and measuring a wording or decision-table change
+against the documents already issued before a second person admits it. This repository does not issue documents yet,
+so both land with document issue.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that
 status flips to plain `accepted` when its code lands, so `accepted` on its own keeps meaning code that exists.
 **0012–0015, 0017–0019 and 0048 are `proposed`: none of them is built**, with the exception 0015 below. 0025 is accepted for its internal half (audit events reach SigNoz as log records, 2026-11-16); its customer SIEM half is still proposed and not built. 0010 (ingestion), 0011 (the Nango edge) and 0024 (crypto-shredding) were accepted on 2026-10-12 when a deployment we operate began depending on them, and 0032 (the generated greenmask config) on 2026-11-17 when it was adopted and gated in CI; each one's implementation note says what is built and where it differs from the Decision (0010 lands into an Ash resource rather than a staging schema; 0024's age half was built later as a verified move to archive tables rather than partitions). They are here because a decision is cheapest to reason about — and cheapest to

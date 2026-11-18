@@ -27,6 +27,7 @@ the missing forward half.
 | 2 | API versioning and deprecation | ash_api_versioning | 🔵 Planned | [ADR 0019](adr/0019-api-versioning-as-presentation-contract.md) |
 | 2 | Break-glass and impersonation control | In-Ash: a session resource with a stated reason | 🟡 Partial | — |
 | 2 | Data catalog and governance | OpenMetadata (DataHub is the closer call it looks) | 🔵 Planned | [ADR 0013](adr/0013-openmetadata-as-catalog.md) |
+| 2 | Issued documents that hold up later | ash_paper: a document rendered from recorded inputs; questions derived from requirements; changes measured against issued documents | 🔵 Planned | [ADR 0067](adr/0067-a-document-is-a-pure-function-of-recorded-inputs.md) |
 | 2 | Log shipping, review and alerting | Structured export to the customer's SIEM; SigNoz for ours (ADR 0065) | 🔵 Planned | [ADR 0025](adr/0025-log-shipping-and-review.md) |
 | 2 | Pseudoanonymization of production data | ash_greenmask — config generated from the resource declarations (greenmask, Apache-2.0, adopted not written). Adopted here: greenmask.yml is generated, gated by --check, and drilled in CI | 🟡 Partial | [ADR 0032](adr/0032-anonymization-config-is-generated.md) |
 | 2 | Reporting and embedded analytics | Apache Superset over Metabase | 🔵 Planned | [ADR 0014](adr/0014-superset-over-metabase.md) |
