@@ -241,4 +241,12 @@ defmodule AshEnterprise.Ingestion.SourceObject do
       args: [:external_system, :external_id],
       not_found_error?: false
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    keep(:encrypted_raw_payload,
+      because:
+        "ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there"
+    )
+  end
 end

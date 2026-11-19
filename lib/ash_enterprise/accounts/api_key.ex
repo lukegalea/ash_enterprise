@@ -104,4 +104,11 @@ defmodule AshEnterprise.Accounts.ApiKey do
       change AshEnterprise.Accounts.Changes.RecordApiKeyIssue
     end
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    exclude_data(
+      because: "API keys are credentials; a copy issues its own and holds none of production's"
+    )
+  end
 end

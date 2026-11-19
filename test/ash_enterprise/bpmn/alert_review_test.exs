@@ -1,17 +1,23 @@
 defmodule AshEnterprise.Bpmn.AlertReviewTest do
   @moduledoc """
   The `security_alerts` pack (q38: alerts on declared audited events, and a record that a
-  person reviewed each one). Its recipes open a review when an Administrator or a Platform
-  Operator is made, directly or through a team (the role assigned to a team, a person
-  joining a team that holds it, such a team restored), a break-glass session is approved, an API key is issued, a known
-  person's sign-in is refused a third time in a row, or an inbound alert labelled security
-  fires. Every other audited write is only logged.
+  person reviewed each one). Its recipes open a review when a privileged role reaches
+  someone, directly or through a team (the role assigned to a team, a person joining a team
+  that holds it, such a team restored), or a role people hold is granted its first
+  privileged privilege; when a break-glass session is approved, an API key is issued, a
+  known person's sign-in is refused a third time in a row, or an inbound alert labelled
+  security fires. Every other audited write is only logged.
+
+  A role is privileged by what it grants (`AshEnterprise.Security.Privilege.privileged?/3`),
+  not by its name: a custom role that can assign roles is reviewed, a renamed operator role
+  still is, and a role called "Administrator" that grants nothing is not.
 
   Refusals and near misses first: drafts run nothing, a published pack does nothing for
   another tenant's events, and the event next to each alarm (a role that is not
-  privileged, a session opened but not approved, a key revoked, two refusals, an alert of
-  another category or one resolving) opens nothing. Then each alarm opens exactly one
-  review, which goes to an administrator other than the people involved.
+  privileged, a privilege that changes nothing, a session opened but not approved, a key
+  revoked, two refusals, an alert of another category or one resolving) opens nothing. Then
+  each alarm opens exactly one review, which goes to an administrator other than the people
+  involved.
 
   The SigNoz rules for the same signals (`devenv/observability/security/alerts/`) read the
   audit chain's OTLP log records (`AshEnterprise.Audit.ExportWorker`): the watched actions
@@ -39,13 +45,30 @@ defmodule AshEnterprise.Bpmn.AlertReviewTest do
     TaskCandidate
   }
 
-  alias AshEnterprise.Platform.SystemActor
-  alias AshEnterprise.Security.{ActorContext, BreakGlassSession, Role, TeamRole, UserRole}
+  alias AshEnterprise.Platform.{Seeder, SystemActor}
+
+  alias AshEnterprise.Security.{
+    ActorContext,
+    BreakGlassSession,
+    Privilege,
+    Role,
+    RolePrivilege,
+    TeamRole,
+    UserRole
+  }
+
   alias AshEnterprise.Test.DailyFixtures
 
   @pack "security_alerts"
   @process "security.review_alert"
   @password "password1234"
+  # What lets a role administer authority, short of the Administrator's every privilege.
+  @authority_grants [
+    {UserRole, :create},
+    {UserRole, :write},
+    {Role, :write},
+    {RolePrivilege, :create}
+  ]
   @break_glass_grants [
     {BreakGlassSession, :create, :global},
     {BreakGlassSession, :write, :global}
@@ -105,6 +128,31 @@ defmodule AshEnterprise.Bpmn.AlertReviewTest do
     |> Ash.create!()
   end
 
+  # A role holding `grants`, each written by the tenant's administrator at its widest depth.
+  defp role_with!(ctx, name, grants) do
+    role = role!(ctx, name)
+    for {resource, verb} <- grants, do: grant!(ctx, role, resource, verb)
+    role
+  end
+
+  defp grant!(ctx, role, resource, verb) do
+    name = inspect(resource)
+
+    privilege =
+      Privilege
+      |> Ash.Query.filter(resource_name == ^name and access_right == ^verb)
+      |> Ash.read_one!(authorize?: false)
+
+    RolePrivilege
+    |> Ash.Changeset.for_create(
+      :create,
+      %{role_id: role.id, privilege_id: privilege.id, depth: Privilege.widest_depth(privilege)},
+      actor: ctx.admin.actor,
+      tenant: ctx.tenant
+    )
+    |> Ash.create!()
+  end
+
   defp administrator_role!(ctx) do
     Role
     |> Ash.Query.filter(name == "Administrator")
@@ -144,10 +192,47 @@ defmodule AshEnterprise.Bpmn.AlertReviewTest do
     |> Ash.create!()
   end
 
+  # An assignment that ended an hour ago, made before the pack is published so its own
+  # create opens nothing.
+  defp ended_assignment!(ctx, resource, holder, role) do
+    holder_key = if resource == TeamRole, do: :team_id, else: :user_id
+
+    resource
+    |> Ash.Changeset.for_create(
+      :assign,
+      %{holder_key => holder.id, :role_id => role.id, :valid_until => hours_from_now(-1)},
+      actor: ctx.admin.actor,
+      tenant: ctx.tenant
+    )
+    |> Ash.create!()
+  end
+
+  defp set_valid_until!(ctx, assignment, valid_until) do
+    assignment
+    |> Ash.Changeset.for_update(:set_valid_until, %{valid_until: valid_until},
+      actor: ctx.admin.actor,
+      tenant: ctx.tenant
+    )
+    |> Ash.update!()
+  end
+
+  defp hours_from_now(hours), do: DateTime.add(DateTime.utc_now(), hours * 3600, :second)
+
   defp join!(ctx, team, user) do
     TeamMembership
     |> Ash.Changeset.for_create(:create, %{team_id: team.id, user_id: user.id},
       actor: ctx.admin.actor,
+      tenant: ctx.tenant
+    )
+    |> Ash.create!()
+  end
+
+  defp child_unit!(ctx) do
+    AshEnterprise.Accounts.BusinessUnit
+    |> Ash.Changeset.for_create(
+      :create,
+      %{name: "Branch #{unique()}", parent_business_unit_id: ctx.admin.business_unit.id},
+      actor: SystemActor.seed(),
       tenant: ctx.tenant
     )
     |> Ash.create!()
@@ -339,19 +424,89 @@ defmodule AshEnterprise.Bpmn.AlertReviewTest do
       assert Ash.read!(Occurrence, actor: SystemActor.oban(), tenant: published.tenant) == []
     end
 
-    test "for a role that is neither Administrator nor Platform Operator" do
+    test "for a role that grants nothing privileged, whatever it is called" do
       ctx = installed!() |> publish!()
 
       for name <- [
             "Report Reader #{unique()}",
             "Administrator Assistant #{unique()}",
-            "Platform Operator Deputy #{unique()}"
+            "Platform Operator Deputy #{unique()}",
+            "Platform Operator"
           ] do
         assign!(ctx, ctx.newcomer.user, role!(ctx, name))
       end
 
+      # Reading who holds what is not administering it.
+      auditor =
+        role_with!(ctx, "Access Auditor #{unique()}", [
+          {Role, :read},
+          {UserRole, :read},
+          {RolePrivilege, :read}
+        ])
+
+      assign!(ctx, ctx.newcomer.user, auditor)
+
       sweep!(ctx.tenant)
       nothing!(ctx.tenant)
+    end
+
+    test "a role named Administrator with no privileged privileges opens nothing" do
+      ctx = installed!() |> publish!()
+      unit = child_unit!(ctx)
+
+      impostor =
+        Role
+        |> Ash.Changeset.for_create(
+          :create,
+          %{name: "Administrator", owning_business_unit_id: unit.id},
+          actor: SystemActor.seed(),
+          tenant: ctx.tenant
+        )
+        |> Ash.create!()
+
+      assign!(ctx, ctx.newcomer.user, impostor)
+      team = owner_team!(ctx)
+      assign_to_team!(ctx, team, impostor)
+      join!(ctx, team, colleague!(ctx.admin).user)
+
+      sweep!(ctx.tenant)
+      nothing!(ctx.tenant)
+    end
+
+    test "for a privilege that makes no held role newly privileged" do
+      ctx = installed!()
+      held = role!(ctx, "Report Reader #{unique()}")
+      assign!(ctx, ctx.newcomer.user, held)
+      already = role_with!(ctx, "Directory Steward #{unique()}", [{UserRole, :create}])
+      assign!(ctx, colleague!(ctx.admin).user, already)
+      publish!(ctx)
+
+      # A role nobody holds: its assignment is what raises the alarm, later.
+      grant!(ctx, role!(ctx, "Unassigned #{unique()}"), UserRole, :create)
+      # A held role given a privilege that is not privileged.
+      grant!(ctx, held, Role, :read)
+      # Held roles that already were privileged: the Administrator's repeat, another grant.
+      grant!(ctx, administrator_role!(ctx), UserRole, :create)
+      grant!(ctx, already, Role, :write)
+
+      sweep!(ctx.tenant)
+      nothing!(ctx.tenant)
+    end
+
+    test "another tenant's privileged assignment opens nothing here" do
+      published = installed!() |> publish!()
+      other = installed!()
+
+      custom = role_with!(other, "Directory Steward #{unique()}", @authority_grants)
+      assign!(other, other.newcomer.user, custom)
+      held = role!(other, "Report Reader #{unique()}")
+      assign!(other, colleague!(other.admin).user, held)
+      grant!(other, held, UserRole, :create)
+
+      sweep!(other.tenant)
+      sweep!(published.tenant)
+
+      nothing!(published.tenant)
     end
 
     test "for a team given a role that is not privileged, and a person joining it" do
@@ -380,10 +535,43 @@ defmodule AshEnterprise.Bpmn.AlertReviewTest do
       nothing!(ctx.tenant)
     end
 
+    test "for an ended grant of a role that grants nothing privileged brought back, or a privileged grant's end moved while it is in force" do
+      ctx = installed!()
+      team = owner_team!(ctx)
+      join!(ctx, team, ctx.newcomer.user)
+      plain = role!(ctx, "Report Reader #{unique()}")
+      ended_plain = ended_assignment!(ctx, TeamRole, team, plain)
+      ended_plain_direct = ended_assignment!(ctx, UserRole, ctx.newcomer.user, plain)
+
+      # Privileged and in force: moving the end hands nobody anything new.
+      in_force_team =
+        ctx
+        |> assign_to_team!(owner_team!(ctx), administrator_role!(ctx))
+        |> then(&set_valid_until!(ctx, &1, hours_from_now(24)))
+
+      in_force_direct =
+        ctx
+        |> assign!(colleague!(ctx.admin).user, administrator_role!(ctx))
+        |> then(&set_valid_until!(ctx, &1, hours_from_now(24)))
+
+      publish!(ctx)
+
+      set_valid_until!(ctx, ended_plain, nil)
+      set_valid_until!(ctx, ended_plain_direct, hours_from_now(48))
+      set_valid_until!(ctx, in_force_team, nil)
+      set_valid_until!(ctx, in_force_direct, hours_from_now(1))
+      sweep!(ctx.tenant)
+
+      nothing!(ctx.tenant)
+    end
+
     test "for a break-glass session opened but not approved" do
-      ctx = installed!() |> publish!()
+      ctx = installed!()
+      # Before publishing: a role that opens break-glass sessions is privileged, and making
+      # these two is reviewed on its own.
       operator = break_glass_member!(ctx, "Operator")
       approver = break_glass_member!(ctx, "Approver")
+      publish!(ctx)
 
       open_session!(ctx, operator, approver, ctx.newcomer)
       sweep!(ctx.tenant)
@@ -513,13 +701,82 @@ defmodule AshEnterprise.Bpmn.AlertReviewTest do
                Ash.get!(Instance, instance_id, authorize?: false, tenant: ctx.tenant)
     end
 
-    test "when a Platform Operator is made" do
-      ctx = installed!() |> publish!()
+    test "a custom role with Administrator's privileges opens a review" do
+      ctx = installed!()
+      custom = role_with!(ctx, "Directory Steward #{unique()}", @authority_grants)
+      publish!(ctx)
 
-      assign!(ctx, ctx.newcomer.user, role!(ctx, "Platform Operator"))
+      assign!(ctx, ctx.newcomer.user, custom)
       sweep!(ctx.tenant)
 
       one_review!(ctx, "security_alerts.privileged_role_assigned", [ctx.admin, ctx.newcomer])
+    end
+
+    # The Administrator keeps its name (`AdministratorKeepsItsName`); any other role may be
+    # renamed, and the operator's is the one a rename would hide.
+    test "a renamed Platform Operator role still opens a review" do
+      ctx = installed!()
+      operator = colleague!(ctx.admin)
+      %{role: role} = Seeder.grant_platform_operator(operator.user)
+
+      renamed =
+        role
+        |> Ash.Changeset.for_update(:update, %{name: "Platform Staff #{unique()}"},
+          actor: ctx.admin.actor,
+          tenant: ctx.tenant
+        )
+        |> Ash.update!()
+
+      publish!(ctx)
+
+      assign!(ctx, ctx.newcomer.user, renamed)
+      sweep!(ctx.tenant)
+
+      one_review!(ctx, "security_alerts.privileged_role_assigned", [ctx.admin, ctx.newcomer])
+    end
+
+    test "granting a privileged privilege to an already-assigned role opens a review" do
+      ctx = installed!()
+      role = role!(ctx, "Report Reader #{unique()}")
+      assign!(ctx, ctx.newcomer.user, role)
+      # Held through a team too, by an administrator: leaving them out is the exclusion's doing.
+      member = colleague!(ctx.admin, admin?: true)
+      team = owner_team!(ctx)
+      assign_to_team!(ctx, team, role)
+      join!(ctx, team, member.user)
+      publish!(ctx)
+
+      grant = grant!(ctx, role, UserRole, :create)
+      sweep!(ctx.tenant)
+
+      one_review!(ctx, "security_alerts.held_role_made_privileged", [
+        ctx.admin,
+        ctx.newcomer,
+        member
+      ])
+
+      assert [%{instance_id: instance_id}] = started(ctx.tenant)
+
+      assert Ash.get!(Instance, instance_id, authorize?: false, tenant: ctx.tenant).subject_id ==
+               grant.id
+    end
+
+    test "when a person joins a team holding a custom privileged role" do
+      ctx = installed!()
+      team = owner_team!(ctx)
+
+      assign_to_team!(
+        ctx,
+        team,
+        role_with!(ctx, "Directory Steward #{unique()}", @authority_grants)
+      )
+
+      publish!(ctx)
+
+      join!(ctx, team, ctx.newcomer.user)
+      sweep!(ctx.tenant)
+
+      one_review!(ctx, "security_alerts.privileged_team_joined", [ctx.admin, ctx.newcomer])
     end
 
     test "when Administrator is assigned to a team, offered to neither the granter nor its members" do
@@ -581,6 +838,45 @@ defmodule AshEnterprise.Bpmn.AlertReviewTest do
       sweep!(ctx.tenant)
 
       one_review!(ctx, "security_alerts.privileged_team_restored", [ctx.admin, ctx.newcomer])
+    end
+
+    test "when an ended Administrator team grant is brought back into force, offered to neither the reviver nor its members" do
+      ctx = installed!()
+      team = owner_team!(ctx)
+      # A member who is already an administrator: leaving them out is the exclusion's doing.
+      member = colleague!(ctx.admin, admin?: true)
+      join!(ctx, team, member.user)
+      join!(ctx, team, ctx.newcomer.user)
+      ended = ended_assignment!(ctx, TeamRole, team, administrator_role!(ctx))
+      refute administrator_of?(ctx, ctx.newcomer.user)
+      publish!(ctx)
+
+      revived = set_valid_until!(ctx, ended, nil)
+      assert administrator_of?(ctx, ctx.newcomer.user)
+      sweep!(ctx.tenant)
+
+      one_review!(ctx, "security_alerts.privileged_team_role_revived", [
+        ctx.admin,
+        member,
+        ctx.newcomer
+      ])
+
+      assert [%{instance_id: instance_id}] = started(ctx.tenant)
+
+      assert Ash.get!(Instance, instance_id, authorize?: false, tenant: ctx.tenant).subject_id ==
+               revived.id
+    end
+
+    test "when a person's ended privileged grant is moved past now, offered to neither the reviver nor them" do
+      ctx = installed!()
+      custom = role_with!(ctx, "Directory Steward #{unique()}", @authority_grants)
+      ended = ended_assignment!(ctx, UserRole, ctx.newcomer.user, custom)
+      publish!(ctx)
+
+      set_valid_until!(ctx, ended, hours_from_now(24))
+      sweep!(ctx.tenant)
+
+      one_review!(ctx, "security_alerts.privileged_role_revived", [ctx.admin, ctx.newcomer])
     end
 
     test "when a break-glass session is approved, offered to anyone but its operator" do

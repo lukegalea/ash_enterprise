@@ -17,6 +17,7 @@ defmodule AshEnterprise.Mdm do
     resource AshEnterprise.Mdm.Mapping
     resource AshEnterprise.Mdm.ImportBatch
     resource AshEnterprise.Mdm.StagedRecord
+    resource AshEnterprise.Mdm.ImportRowRefusal
     resource AshEnterprise.Mdm.SourceRecord
     resource AshEnterprise.Mdm.MatchRuleSet
     resource AshEnterprise.Mdm.MatchCandidate

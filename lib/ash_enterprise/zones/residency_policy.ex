@@ -23,6 +23,14 @@ defmodule AshEnterprise.Zones.ResidencyPolicy do
     `REQUIRE_IN_ZONE_MODELS` set (`AshEnterprise.AI.Models.require_in_zone?/0`)
     a recorded opt-in no longer suffices: the deployment has said nothing
     leaves the zone for inference.
+  - **A tenant-designated destination is allowed for that tenant.** An
+    outbound webhook endpoint (`AshEnterprise.Integration.Outbound.Endpoint`)
+    is a URL the tenant registered itself, so the registration is the
+    recorded authorization, audited like any other write. The class is
+    `:tenant_designated`; it is allowed for a tenant that resolves to an
+    organization, and only for that tenant's own endpoints (the outbound
+    disclosure gate checks the endpoint is the tenant's). The flow guard does
+    not apply: it is about inference, and the tenant chose this destination.
   - **Everything unknown is refused.** No tenant, an unresolvable tenant id,
     or a failed read is a refusal — a tenant never opts in by silence. A
     residency class this policy does not know is a refusal too, so a future
@@ -55,6 +63,9 @@ defmodule AshEnterprise.Zones.ResidencyPolicy do
   def allow?(tenant, :sub_processor, _family),
     do: not AshEnterprise.AI.Models.require_in_zone?() and opted_in?(tenant)
 
+  # A destination the tenant registered itself: allowed for a tenant that exists.
+  def allow?(tenant, :tenant_designated, _family), do: organization?(tenant)
+
   # Fail closed: a residency class this host has not ruled on is refused,
   # whatever the tenant has recorded.
   def allow?(_tenant, _residency, _family), do: false
@@ -69,6 +80,14 @@ defmodule AshEnterprise.Zones.ResidencyPolicy do
   # nil (no tenant on the action), an integer, or anything else: nothing
   # recorded, nothing allowed.
   defp opted_in?(_), do: false
+
+  defp organization?(%Organization{}), do: true
+
+  defp organization?(id) when is_binary(id) do
+    match?({:ok, %Organization{}}, Ash.get(Organization, id, authorize?: false))
+  end
+
+  defp organization?(_), do: false
 
   defp fetch_opt_in(id) do
     case Ash.get(Organization, id, authorize?: false) do

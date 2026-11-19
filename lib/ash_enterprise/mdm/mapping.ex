@@ -24,6 +24,14 @@ defmodule AshEnterprise.Mdm.Mapping do
   use AshMdm.Resources,
       {:mapping, repo: AshEnterprise.Repo, table: "mdm_mappings", tenant?: true}
 
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml). The rules
+  # and the observed headers are configuration and stay. The findings keep a proposer's raw
+  # output (`validation_findings["proposal"]`), which can quote the field samples it was
+  # shown, so they are replaced; validating the draft again rewrites them.
+  greenmask do
+    transform(:validation_findings, :replace, value: "{}")
+  end
+
   changes do
     # The validator accounts the target's attributes; a sealed value (the
     # address) is a calculation, accounted here after it.

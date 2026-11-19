@@ -47,6 +47,7 @@ defmodule AshEnterprise.Platform.DataStewardRoleTest do
                {"AshEnterprise.Mdm.MatchCandidate", :write, :global},
                {"AshEnterprise.Mdm.StagedRecord", :read, :global},
                {"AshEnterprise.Mdm.ImportBatch", :read, :global},
+               {"AshEnterprise.Mdm.ImportRowRefusal", :read, :global},
                {"AshEnterprise.Mdm.Mapping", :read, :global},
                {"AshEnterprise.Mdm.SourceIdentity", :read, :global},
                # Person is owner-only: a steward reads the goldens they own.

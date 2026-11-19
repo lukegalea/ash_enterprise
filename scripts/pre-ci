@@ -75,9 +75,11 @@ step unused-deps mix deps.unlock --check-unused
 step compile mix compile --warnings-as-errors
 step credo mix credo --strict
 step ash.codegen mix ash.codegen --check
+step greenmask mix ash_greenmask.gen.config --check
 step gettext mix gettext.extract --check-up-to-date
 step a2ui-gettext mix ash_a2ui.gettext.extract_metadata --check-up-to-date
 step roadmap mix ash_enterprise.roadmap --check
+step api-contract mix ash_enterprise.api.contract --check --base origin/main
 step data-inventory mix ash_enterprise.data_inventory --check
 step sobelow mix sobelow --config --skip --exit
 step hex.audit mix hex.audit

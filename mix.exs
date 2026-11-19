@@ -164,6 +164,8 @@ defmodule AshEnterprise.MixProject do
         # Specialised: matters only when declaring or changing a provider's operations
         # or its webhook ingress.
         {:ash_operations, link: :markdown},
+        # Matters only when adding or changing a `sensitive?` attribute or a greenmask block.
+        {:ash_greenmask, link: :markdown},
         {:ash_open_lineage, link: :markdown},
         # The rest of the first-party extensions, linked for the same reason.
         # ash_events_projections is absent on purpose: it reaches this app only
@@ -331,6 +333,10 @@ defmodule AshEnterprise.MixProject do
       # Declared provider operations over Req (ADR 0063): the credential registry's
       # connector and the provider webhook ingress. mix.lock pins the SHA.
       {:ash_operations, github: "lukegalea/ash_operations"},
+      # ADR 0032: the greenmask config is generated from the `greenmask` blocks
+      # the platform base enables on every resource. Metadata only, no runtime;
+      # `mix ash_greenmask.gen.config --check` gates drift.
+      {:ash_greenmask, github: "lukegalea/ash_greenmask"},
       # Wave 2 (ADR 0062): the Solverl adapter for the planning kernel's
       # MiniZinc backend. Governance is prlimit + Solverl timeouts (ADR 0062 §6).
       {:solverl, "~> 1.1"},

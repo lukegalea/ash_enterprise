@@ -14,6 +14,8 @@ declaring anything.
 - `in: :body` params need `request :json`; `in: :part` params need `request :multipart`; a `get`
   sends no body.
 - Declare `param :x, :type, as: "providerName"` when the wire name differs from the argument name.
+- An `in: :context` param never goes on the wire: the transport reads it from
+  `meta.call.context_params` (to choose a per-call URL or credential).
 - Use `response :binary` for downloads and `response :none` when the body is not wanted.
 - Do not declare a param named like a credential (key, token, secret, authorization, bearer).
   The compiler refuses it. The transport owns the credential.
@@ -34,9 +36,13 @@ declaring anything.
 
 ## Transports
 
-- Write one transport per provider with `use AshOperations.Http`. Implement `config/0`; override
-  `classify/1` to read the provider's error code and request id. Never copy a message or body into
-  the classification.
+- Write one transport per provider with `use AshOperations.Http`. Implement `config/0`, or
+  `config/1` when the destination or credential depends on the call (`meta.call` holds the actor,
+  tenant and `in: :context` params); override `classify/1` to read the provider's error code and
+  request id. Never copy a message or body into the classification, and never copy `meta.call`
+  into telemetry or an error.
+- Implement `sign/3` to sign a request: it receives the exact body bytes sent and returns headers.
+- Set `redirect: false` in the config when sending to an address you vetted yourself.
 - In tests, pass `req_options: [plug: {Req.Test, MyTransport}]` and a `sleep:` function.
 
 ## Disclosure

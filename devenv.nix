@@ -332,6 +332,7 @@ in
       mix credo --strict
       mix sobelow --config --skip --exit
       mix ash.codegen --check
+      mix ash_greenmask.gen.config --check
       mix gettext.extract --check-up-to-date
       mix ash_a2ui.gettext.extract_metadata --check-up-to-date
       mix ash_enterprise.data_inventory --check

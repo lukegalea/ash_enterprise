@@ -10,7 +10,8 @@ defmodule AshEnterprise.Scale.FiftyThousandTest do
 
   The measured reads: an unpaged JSON:API index, the keyset page its `next` link
   names, an unpaged GraphQL list, and the `:list` read by a member whose only
-  grant is a local-depth team read.
+  grant is a local-depth team read. The bulk export (`GET /api/exports/teams`) then
+  writes all 50,000 rows in keyset pages, and its time is printed.
 
   Tagged `:scale` and excluded from the suite; CI runs it as its own job
   (`mix test --only scale`). The numbers are this fixture on CI hardware, not a
@@ -104,6 +105,70 @@ defmodule AshEnterprise.Scale.FiftyThousandTest do
       ceiling = Map.fetch!(@ceilings, read)
       assert ms <= ceiling, "#{read} took #{ms}ms at #{@rows} rows; the ceiling is #{ceiling}ms"
     end
+  end
+
+  # The bulk export out (`GET /api/exports/teams`, AshEnterprise.Exports.Csv) over the
+  # same 50,000 teams: every row, in keyset pages of 250, never the set in memory. The
+  # wall-clock time is printed for the q42 answer and docs/runbooks/exports.md, not
+  # asserted.
+  test "streams 50_000 rows in keyset pages without loading the set", %{admin: admin} do
+    total = Ash.count!(Team, tenant: admin.tenant, authorize?: false)
+    assert total >= @rows
+
+    key =
+      AshEnterprise.Accounts.ApiKey
+      |> Ash.Changeset.for_create(
+        :issue,
+        %{
+          user_id: admin.user.id,
+          name: "scale export",
+          expires_at: DateTime.add(DateTime.utc_now(), 3600)
+        },
+        authorize?: false
+      )
+      |> Ash.create!()
+      |> then(& &1.__metadata__.plaintext_api_key)
+
+    {ms, {conn, sources}} =
+      timed(fn ->
+        counting(fn ->
+          build_conn()
+          |> put_req_header("authorization", "Bearer " <> key)
+          |> get("/api/exports/teams")
+        end)
+      end)
+
+    assert conn.status == 200
+    assert conn.state == :chunked
+
+    # The header and one line per team.
+    lines = :binary.matches(conn.resp_body, "\r\n") |> length()
+    assert lines == total + 1
+
+    # One bounded read of teams per page of 250: as many reads as pages, never one.
+    team_reads = Enum.count(sources, &(&1 == "teams"))
+    assert team_reads >= div(total, AshEnterprise.Exports.Csv.batch_size())
+
+    # Bounded memory: the reading process, collected after each page, never holds
+    # more than a page or so. Fifty thousand loaded records would hold far more.
+    peak = peak_stream_memory(admin)
+    assert peak < 32 * 1024 * 1024, "the stream held #{peak} bytes at its peak"
+
+    IO.puts(
+      "[scale] export of #{total} teams: #{ms}ms, #{byte_size(conn.resp_body)} bytes, " <>
+        "#{team_reads} team reads, peak #{div(peak, 1024)}KB while streaming"
+    )
+  end
+
+  defp peak_stream_memory(admin) do
+    Team
+    |> AshEnterprise.Exports.Csv.stream(actor: admin.actor, tenant: admin.tenant)
+    |> Stream.chunk_every(AshEnterprise.Exports.Csv.batch_size())
+    |> Enum.reduce(0, fn _lines, peak ->
+      :erlang.garbage_collect()
+      {:memory, bytes} = Process.info(self(), :memory)
+      max(peak, bytes)
+    end)
   end
 
   # --- the reads ---------------------------------------------------------------

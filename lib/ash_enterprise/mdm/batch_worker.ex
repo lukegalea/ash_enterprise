@@ -10,9 +10,24 @@ defmodule AshEnterprise.Mdm.BatchWorker do
 
   Idempotent by construction: re-running a batch re-lands nothing (bizev's
   temporal landing is a no-op on identical content) and re-stages nothing
-  (StagedRecord's `one_per_source_record` identity). A crash marks the
-  batch :failed, emits the lineage :fail event, and re-raises for Oban's
-  retry machinery.
+  (StagedRecord's `one_per_source_record` identity). A crash re-raises for
+  Oban's retry machinery, and the retry carries on where the failed execution
+  stopped: the batch keeps its status and its landing cursor. Only the last
+  attempt's crash ends the batch: it is marked :failed, the lineage :fail
+  event is emitted, and the stored upload is removed, since nothing will read
+  it again. A snooze is not an attempt (Oban gives it back), so the slices of
+  a long import do not use up the retries.
+
+  A bulk upload (`AshEnterprise.Mdm.BulkImport`) arrives as an `"upload_id"`
+  argument: the worker lands the file first, a chunk at a time, in slices of
+  about a minute. After a slice that did not reach the end of the file the
+  job snoozes and the next execution carries on from the cursor the batch
+  records, so no execution runs long enough for Oban's Lifeline (5 minutes)
+  to rescue it as an orphan and run a second copy beside it. Once every row
+  is done the worker stages as of the instant landing finished, so every row
+  it landed is seen, and removes the stored file. Without an upload the rows
+  were landed before the batch opened, and staging reads as of the batch's
+  open instant.
   """
 
   use Oban.Worker,
@@ -23,66 +38,141 @@ defmodule AshEnterprise.Mdm.BatchWorker do
   require Ash.Query
 
   @impl true
-  def perform(%Oban.Job{args: %{"batch_id" => batch_id, "tenant" => tenant}}) do
+  def perform(%Oban.Job{args: %{"batch_id" => batch_id, "tenant" => tenant} = args} = job) do
     batch = AshEnterprise.Mdm.ImportBatch.by_id!(batch_id, tenant: tenant, authorize?: false)
+    upload_id = args["upload_id"]
+    deadline = System.monotonic_time(:millisecond) + AshEnterprise.Mdm.BulkImport.slice_ms()
 
     try do
       AshEnterprise.Platform.Correlation.with_correlation(batch.correlation_id, fn ->
-        AshEnterprise.Lineage.ingestion_event(:start, "mdm", "batch:#{batch.id}",
-          run_id: batch.correlation_id,
-          inputs: ["bizev:#{batch.source_slug}"],
-          outputs: ["mdm_staged_records"]
-        )
+        # Once per run, on its first execution, not once per slice.
+        if batch.status == :open do
+          AshEnterprise.Lineage.ingestion_event(:start, "mdm", "batch:#{batch.id}",
+            run_id: batch.correlation_id,
+            inputs: ["bizev:#{batch.source_slug}"],
+            outputs: ["mdm_staged_records"]
+          )
+        end
 
-        {:ok, staged_count} = stage_batch(batch)
+        case land_upload(batch, upload_id) do
+          :more ->
+            {:snooze, 1}
 
-        AshEnterprise.Lineage.ingestion_event(:complete, "mdm", "batch:#{batch.id}",
-          run_id: batch.correlation_id,
-          inputs: ["bizev:#{batch.source_slug}"],
-          outputs: ["mdm_staged_records"]
-        )
+          landing ->
+            case stage_batch(batch, landing, deadline) do
+              {:more, _staged} ->
+                {:snooze, 1}
 
-        {:ok, %{staged: staged_count}}
+              {:ok, staged_count} ->
+                AshEnterprise.Lineage.ingestion_event(:complete, "mdm", "batch:#{batch.id}",
+                  run_id: batch.correlation_id,
+                  inputs: ["bizev:#{batch.source_slug}"],
+                  outputs: ["mdm_staged_records"]
+                )
+
+                AshEnterprise.Mdm.BulkImport.discard(upload_id)
+                {:ok, %{staged: staged_count}}
+            end
+        end
       end)
     rescue
       reason ->
-        AshEnterprise.Lineage.ingestion_event(:fail, "mdm", "batch:#{batch.id}",
-          run_id: batch.correlation_id,
-          inputs: ["bizev:#{batch.source_slug}"]
-        )
-
-        # The batch as it now stands: staging may already have written it, and
-        # `version_number` is an optimistic lock (ADR 0059).
-        batch_id
-        |> AshEnterprise.Mdm.ImportBatch.by_id!(tenant: tenant, authorize?: false)
-        |> Ash.Changeset.for_update(:fail, %{failure_reason: inspect(reason)},
-          tenant: batch.organization_id,
-          authorize?: false
-        )
-        |> Ash.update!(tenant: batch.organization_id, authorize?: false)
-
+        if last_attempt?(job), do: fail!(batch, upload_id, reason)
         reraise reason, __STACKTRACE__
     end
   end
 
-  defp stage_batch(batch) do
+  defp last_attempt?(%Oban.Job{attempt: attempt, max_attempts: max}), do: attempt >= max
+
+  # No retry follows: the batch ends as :failed, the lineage run fails, and the
+  # stored file goes, since nothing will land from it again.
+  defp fail!(batch, upload_id, reason) do
+    AshEnterprise.Lineage.ingestion_event(:fail, "mdm", "batch:#{batch.id}",
+      run_id: batch.correlation_id,
+      inputs: ["bizev:#{batch.source_slug}"]
+    )
+
+    # The batch as it now stands: staging may already have written it, and
+    # `version_number` is an optimistic lock (ADR 0059).
+    batch.id
+    |> AshEnterprise.Mdm.ImportBatch.by_id!(tenant: batch.organization_id, authorize?: false)
+    |> Ash.Changeset.for_update(:fail, %{failure_reason: inspect(reason)},
+      tenant: batch.organization_id,
+      authorize?: false
+    )
+    |> Ash.update!(tenant: batch.organization_id, authorize?: false)
+
+    AshEnterprise.Mdm.BulkImport.discard(upload_id)
+  end
+
+  # No upload: the rows landed before the batch opened.
+  defp land_upload(_batch, nil), do: nil
+
+  # A slice of the upload; `BulkImport.land/3` keeps the cursor on the batch.
+  defp land_upload(batch, upload_id) do
+    case AshEnterprise.Mdm.BulkImport.land(batch, upload_id) do
+      {:ok, totals} ->
+        totals
+
+      {:more, _totals} ->
+        :more
+
+      {:error, reason} ->
+        raise AshEnterprise.Mdm.MatchError,
+          message: "the upload for batch #{batch.id} could not be landed: #{inspect(reason)}"
+    end
+  end
+
+  # Staging and matching share the execution's deadline with landing. Both
+  # carry on where an earlier execution stopped: a row already staged is not
+  # staged again, and a matched row has left `:staged`. Past the deadline the
+  # step returns `{:more, n}` and the job snoozes, so no execution outlives
+  # Oban's Lifeline.
+  defp stage_batch(batch, landing, deadline) do
     tenant = batch.organization_id
 
-    batch
-    |> Ash.Changeset.for_update(:begin_staging, %{}, tenant: tenant, authorize?: false)
-    |> Ash.update!(tenant: tenant, authorize?: false)
+    # Landing wrote its counters onto the batch since it was read.
+    batch =
+      if landing,
+        do: AshEnterprise.Mdm.ImportBatch.by_id!(batch.id, tenant: tenant, authorize?: false),
+        else: batch
 
-    mapping =
-      AshEnterprise.Mdm.Mapping
-      |> Ash.Query.filter(id == ^batch.mapping_id)
-      |> Ash.read_one!(tenant: tenant, authorize?: false)
+    batch =
+      batch
+      |> Ash.Changeset.for_update(:begin_staging, %{}, tenant: tenant, authorize?: false)
+      |> Ash.update!(tenant: tenant, authorize?: false)
 
-    rules =
-      case mapping do
-        %{field_rules: rules} -> rules
-        nil -> raise AshEnterprise.Mdm.MappingMissing, batch_id: batch.id
-      end
+    rules = mapping_rules!(batch, tenant)
 
+    {state, staged} =
+      batch
+      |> unstaged_source_records(tenant, landing)
+      |> Enum.reduce_while({:done, 0}, fn record, {_state, staged} ->
+        staged = if stage_one(batch, tenant, rules, record), do: staged + 1, else: staged
+        if past?(deadline), do: {:halt, {:more, staged}}, else: {:cont, {:done, staged}}
+      end)
+
+    transition = if state == :more, do: :begin_staging, else: :begin_matching
+    record_staged!(batch, tenant, staged, transition)
+
+    cond do
+      state == :more -> {:more, staged}
+      run_match(batch, tenant, deadline) == :more -> {:more, staged}
+      true -> {:ok, staged}
+    end
+  end
+
+  defp mapping_rules!(batch, tenant) do
+    AshEnterprise.Mdm.Mapping
+    |> Ash.Query.filter(id == ^batch.mapping_id)
+    |> Ash.read_one!(tenant: tenant, authorize?: false)
+    |> case do
+      %{field_rules: rules} -> rules
+      nil -> raise AshEnterprise.Mdm.MappingMissing, batch_id: batch.id
+    end
+  end
+
+  defp unstaged_source_records(batch, tenant, landing) do
     already_staged =
       AshEnterprise.Mdm.StagedRecord
       |> Ash.Query.filter(batch_id == ^batch.id)
@@ -94,43 +184,45 @@ defmodule AshEnterprise.Mdm.BatchWorker do
     # Equality on the payload-carried tenant/slug — NOT a text range over
     # external_id (Postgres collation ignores punctuation like ":" at the
     # first level, so a range could pull in another org's or slug's rows).
-    source_records =
-      AshEnterprise.Mdm.SourceRecord
-      |> Ash.Query.filter(
-        source == :manual_csv and stream == :upload and
-          source_metadata["tenant"] == ^tenant and source_metadata["slug"] == ^batch.source_slug
-      )
-      # As-of the batch's open instant: a changed re-land produces multiple
-      # periods for one identity, and staging must see exactly ONE of them
-      # — the version that was current when the batch pinned its mapping.
-      |> Ash.Query.as_of(batch.inserted_at)
-      |> Ash.read!(authorize?: false)
-      |> Enum.reject(&MapSet.member?(already_staged, &1.id))
+    AshEnterprise.Mdm.SourceRecord
+    |> Ash.Query.filter(
+      source == :manual_csv and stream == :upload and
+        source_metadata["tenant"] == ^tenant and source_metadata["slug"] == ^batch.source_slug
+    )
+    # As-of the batch's open instant: a changed re-land produces multiple
+    # periods for one identity, and staging must see exactly ONE of them
+    # — the version that was current when the batch pinned its mapping.
+    |> Ash.Query.as_of(staging_instant(batch, landing))
+    |> Ash.read!(authorize?: false)
+    |> Enum.reject(&MapSet.member?(already_staged, &1.id))
+  end
 
-    staged =
-      Enum.count(source_records, fn record ->
-        stage_one(batch, tenant, rules, record)
-      end)
-
+  # Adds this execution's staged rows to the batch's counter, and moves the
+  # batch on (`:begin_matching`) or keeps it staging (`:begin_staging`).
+  defp record_staged!(batch, tenant, staged, transition) do
     prior = (batch.counts || %{})["staged"] || 0
     counts = Map.put(batch.counts || %{}, "staged", prior + staged)
 
     AshEnterprise.Mdm.ImportBatch
     |> Ash.Query.filter(id == ^batch.id)
     |> Ash.read_one!(tenant: tenant, authorize?: false)
-    |> Ash.Changeset.for_update(:begin_matching, %{}, tenant: tenant, authorize?: false)
+    |> Ash.Changeset.for_update(transition, %{}, tenant: tenant, authorize?: false)
     |> Ash.Changeset.force_change_attribute(:counts, counts)
     |> Ash.update!(tenant: tenant, authorize?: false)
-
-    run_match(batch, tenant)
-    {:ok, staged}
   end
+
+  defp past?(deadline), do: System.monotonic_time(:millisecond) >= deadline
+
+  # An upload landed inside this run, after the batch opened: stage as of the
+  # instant it finished. Otherwise the version current when the batch opened.
+  defp staging_instant(_batch, %{as_of: as_of}), do: as_of
+  defp staging_instant(batch, nil), do: batch.inserted_at
 
   # MDM-3: blocking + scoring. Candidate generation is SYSTEM work
   # (ADR 0017's first sharp edge): it must see across the actors' grant
   # boundaries, and the review surface — not this step — is what is
   # filtered per viewer.
-  defp run_match(batch, tenant) do
+  defp run_match(batch, tenant, deadline) do
     rule_set =
       batch.rule_set_id &&
         AshEnterprise.Mdm.MatchRuleSet.by_id(batch.rule_set_id, tenant: tenant, authorize?: false)
@@ -145,11 +237,20 @@ defmodule AshEnterprise.Mdm.BatchWorker do
       |> Ash.Query.filter(batch_id == ^batch.id and status == :staged)
       |> Ash.read!(tenant: tenant, authorize?: false)
 
-    with %AshEnterprise.Mdm.MatchRuleSet{} <- rule_set do
-      Enum.each(staged_records, &match_staged(&1, batch, rule_set, tenant))
-    end
+    case rule_set do
+      %AshEnterprise.Mdm.MatchRuleSet{} ->
+        match_until(staged_records, batch, rule_set, tenant, deadline)
 
-    rule_set
+      _skipped ->
+        :done
+    end
+  end
+
+  defp match_until(staged_records, batch, rule_set, tenant, deadline) do
+    Enum.reduce_while(staged_records, :done, fn staged, :done ->
+      match_staged(staged, batch, rule_set, tenant)
+      if past?(deadline), do: {:halt, :more}, else: {:cont, :done}
+    end)
   end
 
   defp match_staged(staged, batch, rule_set, tenant) do

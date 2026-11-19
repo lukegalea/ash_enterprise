@@ -225,6 +225,81 @@ defmodule AshEnterprise.Security.Privilege do
   @spec owner_only_resources() :: [String.t()]
   def owner_only_resources, do: @owner_only
 
+  # The domains whose rows are who may do what: users, teams, business units and keys
+  # (Accounts), roles, grants and sessions (Security). A verb that writes one of
+  # them is privileged; reading one is not.
+  @authority_domains [AshEnterprise.Accounts, AshEnterprise.Security]
+  @writing_verbs [:create, :write, :delete, :assign, :share]
+
+  @doc """
+  Whether a privilege makes the role that holds it privileged: what the `security_alerts`
+  pack alarms on when the role reaches someone, whatever the role is called.
+
+  A privilege is privileged when one of these holds:
+
+    * its resource is operator-only (`operator_only?/1`), at any verb: reading another
+      tenant's landings is the platform operator's alone;
+    * its verb reaches an action the resource declares `changes_authority`
+      (`AshEnterprise.Security.ActionReach`), through `AccessRight.for_action_type/1`:
+      write on `UserRole` reaches `set_valid_until`, read on a resource reaches a generic
+      action declared there;
+    * its verb writes (`create`, `write`, `delete`, `assign` or `share`) a resource of the
+      Accounts or Security domain, whose rows are who may do what.
+
+  A secured column's privilege (`"Resource#field"`) is privileged only when its resource is
+  operator-only: it grants a read of one column and reaches no action.
+
+  Derived from the resource declarations, never from a role's name. `pairs` is
+  `privileged_pairs/0`, passed when many privileges are asked about at once.
+  """
+  @spec privileged?(String.t(), atom(), MapSet.t()) :: boolean()
+  def privileged?(resource_name, access_right, pairs \\ privileged_pairs())
+      when is_binary(resource_name) and is_atom(access_right) do
+    operator_only?(resource_name) or MapSet.member?(pairs, {resource_name, access_right})
+  end
+
+  @doc """
+  Every `{resource_name, access_right}` pair `privileged?/3` is true for through a
+  resource's declarations, from the privilege catalogue's resource list
+  (`AshEnterprise.Platform.Seeder.platform_resources/0`). Operator-only resources are
+  privileged at every verb on their own and are not listed.
+
+  The declarations are compile-time DSL, so the set is computed once per node and kept in
+  `:persistent_term`: a tenant's seeding grants every privilege, and each grant asks.
+  """
+  @spec privileged_pairs() :: MapSet.t({String.t(), atom()})
+  def privileged_pairs do
+    case :persistent_term.get({__MODULE__, :privileged_pairs}, nil) do
+      nil ->
+        pairs = compute_privileged_pairs()
+        :persistent_term.put({__MODULE__, :privileged_pairs}, pairs)
+        pairs
+
+      pairs ->
+        pairs
+    end
+  end
+
+  defp compute_privileged_pairs do
+    for resource <- AshEnterprise.Platform.Seeder.platform_resources(),
+        verb <- privileged_verbs(resource),
+        into: MapSet.new(),
+        do: {inspect(resource), verb}
+  end
+
+  defp privileged_verbs(resource) do
+    reaching =
+      for name <- AshEnterprise.Security.ActionReach.changes_authority(resource),
+          action = Ash.Resource.Info.action(resource, name),
+          not is_nil(action),
+          do: AshEnterprise.Security.AccessRight.for_action_type(action.type)
+
+    writing =
+      if Ash.Resource.Info.domain(resource) in @authority_domains, do: @writing_verbs, else: []
+
+    Enum.uniq(reaching ++ writing)
+  end
+
   @doc """
   The legal depths for privileges on `resource` (a module) with the given
   ownership model: `legal_depths/1`, narrowed to `:basic` for an owner-only

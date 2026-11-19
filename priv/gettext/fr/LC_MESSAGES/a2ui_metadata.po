@@ -11,7 +11,7 @@ msgstr ""
 "Language: fr\n"
 "Plural-Forms: nplurals=2; plural=(n>1);\n"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "About"
@@ -84,6 +84,7 @@ msgstr "Note d’activation"
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
 msgid "Active"
 msgstr "Actif"
 
@@ -101,6 +102,7 @@ msgstr "Actif"
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 #: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
 msgctxt "one_of:status"
 msgid "Active"
 msgstr "Actif"
@@ -152,12 +154,12 @@ msgid "Ancestry"
 msgstr "Ascendance"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 msgid "Answer"
 msgstr "Réponse"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "Answer the question"
 msgstr "Répondre à la question"
 
@@ -182,23 +184,23 @@ msgstr "Appliquer"
 msgid "Approval"
 msgstr "Approbation"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #, fuzzy
 msgid "Approval binding"
 msgstr "Approbation"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #, fuzzy
 msgid "Approval digest"
 msgstr "Approbations"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "Approvals"
 msgstr "Approbations"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Approve"
 msgstr "Approuver"
@@ -279,11 +281,11 @@ msgstr "Relecture des événements Ash : mise à jour de partage"
 msgid "Ash events replay upsert update"
 msgstr "Relecture des événements Ash : mise à jour par insertion ou mise à jour"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "Ask for more information"
 msgstr "Demander plus d’informations"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "Ask the requester — they answer before you decide"
 msgstr "Interroger le demandeur — il répond avant votre décision"
 
@@ -318,6 +320,10 @@ msgstr "Affecter à une unité d’affaires"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Attach timers"
 msgstr "Joindre des minuteries"
+
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
+msgid "Attempts"
+msgstr "Tentatives"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Attendee"
@@ -490,7 +496,7 @@ msgstr "Annulé"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "one_of:status"
@@ -580,19 +586,19 @@ msgstr "Prendre la tâche en charge"
 msgid "Claim waiting"
 msgstr "Prendre en charge l’élément en attente"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Claimed"
 msgstr "Pris en charge"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "one_of:status"
 msgid "Claimed"
 msgstr "Pris en charge"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Claimed by"
@@ -611,7 +617,7 @@ msgstr "Fermé"
 msgid "Combining"
 msgstr "Combinaison"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Comment"
 msgstr "Commentaire"
@@ -645,7 +651,7 @@ msgstr "Terminer la tâche"
 msgid "Complete — the outcome, and a note for the record (optional)"
 msgstr "Terminer : le résultat et une note pour le dossier (facultatif)"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "one_of:status"
@@ -723,11 +729,11 @@ msgstr "Empreinte du contenu (les lots s’y rattachent)"
 msgid "Control id"
 msgstr "Identifiant du contrôle"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:557
 msgid "Conversation"
 msgstr "Conversation"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:557
 msgid "Conversation detail"
 msgstr "Détail de la conversation"
 
@@ -835,12 +841,25 @@ msgstr "Jeu de données"
 msgid "Deactivate"
 msgstr "Désactiver"
 
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
+msgid "Dead"
+msgstr "Abandonnée"
+
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
+msgctxt "one_of:state"
+msgid "Dead"
+msgstr "Abandonnée"
+
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
+msgid "Dead letters in a row"
+msgstr "Abandons consécutifs"
+
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Decision"
 msgstr "Décision"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "Decisions"
 msgstr "Décisions"
 
@@ -873,6 +892,15 @@ msgstr "Déléguer à"
 msgid "Delegate — the person taking it over"
 msgstr "Déléguer : la personne qui prend le relais"
 
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
+msgid "Delivered"
+msgstr "Livrée"
+
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
+msgctxt "one_of:state"
+msgid "Delivered"
+msgstr "Livrée"
+
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Deliveries"
 msgstr "Livraisons"
@@ -882,10 +910,12 @@ msgid "Deliveries the providers send appear here."
 msgstr "Les livraisons envoyées par les fournisseurs s’affichent ici."
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
 msgid "Delivery"
 msgstr "Livraison"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
 msgid "Delivery detail"
 msgstr "Détail de la livraison"
 
@@ -901,6 +931,7 @@ msgstr "Le refus l’emporte"
 #: lib/ash_enterprise_web/a2ui/catalog_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/role_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
 msgid "Description"
 msgstr "Description"
 
@@ -913,7 +944,7 @@ msgctxt "one_of:action_type"
 msgid "Destroy"
 msgstr "Détruire"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Details"
 msgstr "Détails"
@@ -940,10 +971,17 @@ msgid "Directory"
 msgstr "Annuaire"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
 msgid "Disable"
 msgstr "Désactiver"
 
 #: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
+msgid "Disabled"
+msgstr "Désactivé"
+
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
+msgctxt "one_of:status"
 msgid "Disabled"
 msgstr "Désactivé"
 
@@ -997,7 +1035,7 @@ msgstr "Abandonné"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 msgid "Due"
 msgstr "Échéance"
@@ -1042,6 +1080,7 @@ msgid "Email kept on confirm"
 msgstr "Courriel conservé à la confirmation"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
 msgid "Enable"
 msgstr "Activer"
 
@@ -1050,8 +1089,13 @@ msgid "Ended"
 msgstr "Terminé"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
 msgid "Endpoint"
 msgstr "Point de terminaison"
+
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
+msgid "Endpoint detail"
+msgstr "Détail du point de terminaison"
 
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
 msgid "Entry"
@@ -1089,7 +1133,7 @@ msgctxt "one_of:outcome"
 msgid "Escalate"
 msgstr "Escalader"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #, fuzzy
 msgid "Escalation"
 msgstr "Évaluation"
@@ -1111,14 +1155,22 @@ msgstr "Événement"
 msgid "Event detail"
 msgstr "Détail de l’événement"
 
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
+msgid "Event id"
+msgstr "Identifiant de l’événement"
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Event log"
 msgstr "Journal des événements"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
-#, fuzzy
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
 msgid "Event type"
-msgstr "Événement"
+msgstr "Type d’événement"
+
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
+msgid "Event types"
+msgstr "Types d’événements"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
@@ -1142,7 +1194,7 @@ msgstr "Chaque revue en cours, à l’étape où elle se trouve actuellement."
 msgid "Every running brief, on the step it is on now."
 msgstr "Chaque synthèse en cours, à l’étape où elle se trouve actuellement."
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "Evidence"
 msgstr "Preuve"
 
@@ -1178,7 +1230,7 @@ msgstr "Signaler un échec"
 msgid "Failed"
 msgstr "Échec"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #, fuzzy
 msgctxt "one_of:outcome"
 msgid "Failed"
@@ -1193,6 +1245,15 @@ msgstr "Échec"
 msgctxt "one_of:status"
 msgid "Failed"
 msgstr "Échec"
+
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
+msgid "Failing"
+msgstr "En échec"
+
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
+msgctxt "one_of:status"
+msgid "Failing"
+msgstr "En échec"
 
 #: lib/ash_enterprise_web/a2ui/judgments/band_tables_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
@@ -1239,14 +1300,14 @@ msgstr "Suivi"
 msgid "Followed up"
 msgstr "Suivie"
 
-#: lib/ash_enterprise/canvas/registry.ex:2
-msgid "For chain"
-msgstr "Par chaîne"
-
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgctxt "one_of:state"
 msgid "Followed up"
 msgstr "Suivie"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "For chain"
+msgstr "Par chaîne"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "For control"
@@ -1278,8 +1339,8 @@ msgstr "Fraîcheur"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:454
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:557
 msgid "From"
 msgstr "De"
 
@@ -1390,7 +1451,7 @@ msgid "Inactive"
 msgstr "Inactif"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:454
 msgid "Inbox"
 msgstr "Boîte de réception"
 
@@ -1524,7 +1585,7 @@ msgstr "Arrêter"
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:557
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "Kind"
@@ -1539,8 +1600,8 @@ msgid "Language locale"
 msgstr "Langue et région"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:454
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:557
 msgid "Last activity"
 msgstr "Dernière activité"
 
@@ -1557,6 +1618,14 @@ msgstr "Dernier événement"
 msgid "Last event at"
 msgstr "Dernier événement le"
 
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
+msgid "Last reason"
+msgstr "Dernier motif"
+
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
+msgid "Last status"
+msgstr "Dernier statut"
+
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
 msgid "Last sync"
 msgstr "Dernière synchronisation"
@@ -1570,8 +1639,8 @@ msgctxt "one_of:lane"
 msgid "Later"
 msgstr "Plus tard"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:454
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:557
 msgid "Latest"
 msgstr "Plus récent"
 
@@ -1761,13 +1830,13 @@ msgid "Merged into"
 msgstr "Fusionné dans"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:454
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:557
 msgid "Message"
 msgstr "Message"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:454
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:557
 msgid "Messages"
 msgstr "Messages"
 
@@ -1839,6 +1908,10 @@ msgctxt "one_of:preparation_status"
 msgid "Needs input"
 msgstr "Nécessite une saisie"
 
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
+msgid "Next attempt"
+msgstr "Prochaine tentative"
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 msgid "Next event"
 msgstr "Prochain événement"
@@ -1885,6 +1958,10 @@ msgstr "Aucun verdict en attente"
 msgid "Number"
 msgstr "Numéro"
 
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
+msgid "Occurred"
+msgstr "Survenu le"
+
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
 msgid "Occurred at"
 msgstr "Survenu le"
@@ -1918,12 +1995,12 @@ msgid "Only one applicable"
 msgstr "Une seule applicable"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Open"
 msgstr "Ouvrir"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
@@ -2010,15 +2087,19 @@ msgstr "Orphelin balayé"
 msgid "Oscal uuid"
 msgstr "UUID OSCAL"
 
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
+msgid "Outbound webhook deliveries"
+msgstr "Livraisons de webhooks sortants"
+
 #: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Outcome"
 msgstr "Résultat"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "Outline"
 msgstr "Plan"
 
@@ -2048,11 +2129,17 @@ msgid "Paused"
 msgstr "En pause"
 
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
 msgid "Pending"
 msgstr "En attente"
 
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgctxt "one_of:preparation_status"
+msgid "Pending"
+msgstr "En attente"
+
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
+msgctxt "one_of:state"
 msgid "Pending"
 msgstr "En attente"
 
@@ -2068,8 +2155,8 @@ msgid "Pending approval"
 msgstr "En attente d’approbation"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:454
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:557
 msgid "People"
 msgstr "Personnes"
 
@@ -2215,7 +2302,7 @@ msgstr "Publier sous délégation permanente"
 msgid "Pulse"
 msgstr "Pouls"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 msgid "Question"
 msgstr "Question"
@@ -2224,7 +2311,7 @@ msgstr "Question"
 msgid "Question id"
 msgstr "Identifiant de la question"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #, fuzzy
 msgid "Questions"
 msgstr "Question"
@@ -2274,6 +2361,7 @@ msgstr "Reçue le"
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
 msgid "Record"
 msgstr "Enregistrement"
 
@@ -2293,6 +2381,10 @@ msgstr "Enregistrer le verdict"
 msgid "Recover"
 msgstr "Récupérer"
 
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
+msgid "Redeliver"
+msgstr "Relivrer"
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Redrive"
 msgstr "Relance"
@@ -2310,9 +2402,26 @@ msgstr "Réf."
 msgid "Reference"
 msgstr "Référence"
 
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
+msgid "Refused"
+msgstr "Refusée"
+
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
+msgctxt "one_of:state"
+msgid "Refused"
+msgstr "Refusée"
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgid "Refused rows"
+msgstr "Lignes refusées"
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Register with password"
 msgstr "S’inscrire avec un mot de passe"
+
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
+msgid "Registered"
+msgstr "Enregistré le"
 
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 msgid "Registry reference"
@@ -2325,7 +2434,7 @@ msgstr "Régression"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Reject"
 msgstr "Rejeter"
@@ -2339,7 +2448,7 @@ msgstr "Rejeter"
 msgid "Reject match"
 msgstr "Rejeter la correspondance"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "Reject — add a note for the record (optional)"
 msgstr "Rejeter : ajoutez une note pour le dossier (facultatif)"
 
@@ -2451,7 +2560,7 @@ msgctxt "one_of:status"
 msgid "Retired"
 msgstr "Retiré"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #, fuzzy
 msgctxt "one_of:outcome"
 msgid "Retry"
@@ -2527,9 +2636,13 @@ msgstr "Privilège de rôle"
 msgid "Roles"
 msgstr "Rôles"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "Routing"
 msgstr "Acheminement"
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgid "Row"
+msgstr "Ligne"
 
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
 msgid "Rule set revision"
@@ -2655,7 +2768,7 @@ msgctxt "select_context"
 msgid "Select catalog"
 msgstr "Sélectionner un catalogue"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:557
 msgctxt "select_context"
 msgid "Select conversation"
 msgstr "Sélectionner une conversation"
@@ -2666,10 +2779,15 @@ msgid "Select credential"
 msgstr "Sélectionner un justificatif"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
-#, fuzzy
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
 msgctxt "select_context"
 msgid "Select delivery"
-msgstr "Sélectionner une entrée"
+msgstr "Sélectionner une livraison"
+
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
+msgctxt "select_context"
+msgid "Select endpoint"
+msgstr "Sélectionner un point de terminaison"
 
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
 msgctxt "select_context"
@@ -2714,7 +2832,7 @@ msgctxt "select_context"
 msgid "Select scope"
 msgstr "Sélectionner une portée"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "select_context"
 msgid "Select task"
@@ -2725,7 +2843,7 @@ msgctxt "select_context"
 msgid "Select team"
 msgstr "Sélectionner une équipe"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:454
 msgctxt "select_context"
 msgid "Select thread"
 msgstr "Sélectionner un fil"
@@ -2736,8 +2854,8 @@ msgid "Select user"
 msgstr "Sélectionner un utilisateur"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:454
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:557
 msgid "Sent"
 msgstr "Envoyé"
 
@@ -2754,7 +2872,7 @@ msgid "Set valid until"
 msgstr "Définir la fin de validité"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #, fuzzy
 msgid "Settle"
 msgstr "Régler"
@@ -2818,7 +2936,7 @@ msgstr "Signal"
 msgid "Signature"
 msgstr "Signature"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:557
 msgid "Slack"
 msgstr "Slack"
 
@@ -2903,6 +3021,7 @@ msgstr "Démarré"
 
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
 msgid "State"
 msgstr "État"
 
@@ -2910,7 +3029,7 @@ msgstr "État"
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
@@ -2923,11 +3042,12 @@ msgstr "État"
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
 msgid "Status"
 msgstr "Statut"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Step"
@@ -2959,7 +3079,7 @@ msgstr "Enregistrer le jeton"
 msgid "Stream"
 msgstr "Flux"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:454
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
@@ -2983,7 +3103,7 @@ msgstr "Abonnement"
 msgid "Subtree"
 msgstr "Sous-arbre"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #, fuzzy
 msgctxt "one_of:outcome"
 msgid "Succeeded"
@@ -3018,8 +3138,8 @@ msgstr "Synthétique"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:454
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:557
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 msgid "Table"
@@ -3033,7 +3153,7 @@ msgstr "Participe à"
 msgid "Target resource"
 msgstr "Ressource cible"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Task"
 msgstr "Tâche"
@@ -3042,7 +3162,7 @@ msgstr "Tâche"
 msgid "Task candidate"
 msgstr "Candidat à la tâche"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Task detail"
 msgstr "Détail de la tâche"
@@ -3103,11 +3223,11 @@ msgstr "Résultats de cette étape"
 msgid "This week"
 msgstr "Cette semaine"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:454
 msgid "Thread"
 msgstr "Fil"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:454
 msgid "Thread detail"
 msgstr "Détail du fil"
 
@@ -3163,6 +3283,10 @@ msgstr "Modifiées entre"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Twins"
 msgstr "Jumeaux"
+
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
+msgid "URL"
+msgstr "URL"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Unbind"
@@ -3293,7 +3417,7 @@ msgid "Waiting on you"
 msgstr "En attente de vous"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
@@ -3310,7 +3434,11 @@ msgstr "Dispensé"
 msgid "Webhook deliveries"
 msgstr "Livraisons de webhooks"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
+msgid "Webhook endpoints"
+msgstr "Points de terminaison webhook"
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "What happened, and why you know: succeeded (it happened), failed (it did not), or retry (it did not happen, you checked, and it runs again)"
 msgstr "Ce qui s’est passé et comment vous le savez : réussi (c’est arrivé), échoué (ce n’est pas arrivé), ou réessayer (ce n’est pas arrivé, vous avez vérifié, et cela s’exécute à nouveau)"
 
@@ -3332,7 +3460,7 @@ msgstr "Où"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:121
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:72
@@ -3342,8 +3470,13 @@ msgstr "Où en est-on"
 
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
 msgid "Why"
 msgstr "Pourquoi"
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgid "Why it did not land"
+msgstr "Pourquoi elle n’a pas été importée"
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 msgid "Why it failed"
@@ -3357,7 +3490,7 @@ msgstr "Pourquoi cela correspond"
 msgid "Window"
 msgstr "Fenêtre"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "With"
 msgstr "Avec"
 
@@ -3365,7 +3498,7 @@ msgstr "Avec"
 msgid "World"
 msgstr "Monde"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "Would run"
 msgstr "S’exécuterait"
 
@@ -3386,7 +3519,7 @@ msgstr "Votre verdict, enregistré comme étiquette d’étalonnage"
 msgid "action item"
 msgstr "élément d’action"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "approval"
 msgstr "approbation"
 
@@ -3415,12 +3548,17 @@ msgid "credential"
 msgstr "justificatif"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/webhook_deliveries_ui.ex:1
 msgid "delivery"
 msgstr "livraison"
 
 #: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
 msgid "directory entry"
 msgstr "entrée d’annuaire"
+
+#: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
+msgid "endpoint"
+msgstr "point de terminaison"
 
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:282

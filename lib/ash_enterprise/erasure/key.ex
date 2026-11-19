@@ -122,4 +122,12 @@ defmodule AshEnterprise.Erasure.Key do
     define :issue
     define :destroy_for_shred
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    # Never kept: a copy holding production's wrapped keys and production's master key
+    # could open every value sealed under a scope. One fixed byte unwraps to nothing.
+    transform(:wrapped_key, :replace, value: "\\x00")
+    transform(:fingerprint, :hash)
+  end
 end

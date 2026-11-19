@@ -1,7 +1,9 @@
 # ADR 0032 — Anonymization config is generated from the resource declarations
 
-- **Status:** proposed
+- **Status:** accepted (2026-11-17). Adopted: the generated config, its drift gate and a CI drill exist; no copy of a
+  deployment we operate has been made yet
 - **Date:** 2026-08-27
+- **Implementation note:** 2026-11-17, at the end of this record
 
 ## Context
 
@@ -176,8 +178,9 @@ Cheap now, because nothing depends on it: no `ash_greenmask` line in `mix.exs`, 
 in any resource, no generated config in the tree. Abandoning the decision before adoption is a matter
 of not adding any of the three.
 
-*Note, 2026-11-08:* the package now exists and is public at `lukegalea/ash_greenmask`. This app has not adopted
-it, so the sentence above is still true of this app.
+*Note, 2026-11-08:* the package now exists and is public at `lukegalea/ash_greenmask`. *Note,
+2026-11-17:* this app has adopted it (see the implementation note), so the sentence above no longer holds and the
+paragraph below is the one that applies.
 
 **To abandon after adoption:** delete the `greenmask do … end` blocks and the generated config with
 the generator that produced it — both sides of the pair are deletable because neither is a
@@ -194,3 +197,33 @@ replacing it is measurable rather than speculative.
 express — composite consistency beyond what salt and `apply_for_references` deliver, key types the
 hash engine cannot target — then the thin-declaration premise is failing in practice, and the honest
 response is a thicker declaration or a different tool, not an escaping tangle of `cmd` shims.
+
+## Implementation note (2026-11-17)
+
+Adopted. The platform base resource carries the `ash_greenmask` extension, 35 resources declare a `greenmask`
+block, and [`greenmask.yml`](../../greenmask.yml) is generated from them and committed. Where the build differs from
+the Decision:
+
+- **Positions are declared per resource, not derived.** Commitment 1's defaults ("derive from `sensitive?`") are not
+  built. What holds instead is the refusal: the base enables the block on every platform resource, and generation is
+  strict (`config :ash_greenmask, strict?: true`), so a stored resource with a `sensitive?` attribute and no position
+  fails `mix ash_greenmask.gen.config --check` in CI. A personal-looking column that is not `sensitive?` (the data
+  inventory's name heuristic) is held by `greenmask_config_test.exs` instead: it must have a position too.
+- **Ledgers are copied empty.** The audit log and its archive, the business-event ledger and its simulation twin and
+  the compliance event log declare `exclude_data`: a value transform breaks a hash chain, and their JSON payloads hold
+  values no column transform reaches. The config lists them under `exclude-table-data`.
+- **Large objects are not copied.** The config sets `no-blobs`, rather than carrying a residual for them.
+- **Keys are copied as they are.** The plan's open question (can the hash engine target `uuid` keys?) is answered:
+  greenmask's `Hash` refuses a `uuid` column ("unsupported column type"), and `RandomUuid` with `engine: "hash"`
+  targets one deterministically. The package's catalogue now carries `random_uuid`; no resource uses it, because a
+  random key names no one. `apply_for_references` is not used.
+- **The salt** is env-injected as decided. Where a deployment keeps it is the operator's, and
+  [the runbook](../runbooks/production-copy.md) recommends a host-only secret file per destination.
+- **The pipeline** is a drill, not a copy job. `scripts/greenmask-drill` runs in CI on the seeded database: it plants
+  a sentinel in every transformed column, copies through greenmask v0.2.23 (pinned by sha256) and fails if one
+  survives. It also has a read-only mode for a deployment's own database. Scoping a copy to one tenant
+  (`subset_conds`) is not built.
+
+What is still open: the drill has not run against a deployment we operate, so the claim stays at "the config and the
+drill exist", and q55 is partial until it has.
+

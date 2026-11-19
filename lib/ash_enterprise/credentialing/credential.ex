@@ -279,4 +279,9 @@ defmodule AshEnterprise.Credentialing.Credential do
       run AshEnterprise.Credentialing.Actions.OpenCase
     end
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    transform(:number, :hash)
+  end
 end

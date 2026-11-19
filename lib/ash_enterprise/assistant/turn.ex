@@ -168,4 +168,17 @@ defmodule AshEnterprise.Assistant.Turn do
     define :append
     define :for_thread, args: [:thread_id]
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    keep(:encrypted_content,
+      because:
+        "ciphertext under the application vault key, which never travels with a copy; unreadable without production's vault key"
+    )
+
+    keep(:encrypted_tool_calls,
+      because:
+        "ciphertext under the application vault key, which never travels with a copy; unreadable without production's vault key"
+    )
+  end
 end

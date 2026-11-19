@@ -91,4 +91,11 @@ defmodule AshEnterprise.Accounts.SignInLockout do
       change AshEnterprise.Accounts.Changes.AdvanceLockout
     end
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    exclude_data(
+      because: "transient lockout counters keyed by an address; a copy starts with none"
+    )
+  end
 end

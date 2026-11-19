@@ -73,4 +73,12 @@ defmodule AshEnterprise.Accounts.UserIdentity do
   identities do
     identity :unique_on_strategy_and_uid, [:strategy, :uid]
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    exclude_data(
+      because:
+        "an identity provider's tokens for a production account; a copy signs no one in through production's provider"
+    )
+  end
 end

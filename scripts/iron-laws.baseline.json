@@ -190,5 +190,11 @@
     "file": "telemetry/lib/ash_enterprise/telemetry/metrics/reporter.ex",
     "text": "metric.name |> Enum.map_join(\".\", &Atom.to_string/1) |> String.to_atom()",
     "reason": "Not user input: the names come from the host's own Telemetry.Metrics definitions, a fixed set read once at boot (one atom per metric). OpenTelemetry instrument names must be atoms, so the dotted name has to become one."
-  }
+  },
+ {
+  "law": "11",
+  "file": "lib/ash_enterprise_web/live/import_live.ex",
+  "text": "def handle_event(\"validate\", _params, socket), do: {:noreply, socket}",
+  "reason": "Authorized through policies: every handler that reaches Ash passes the signed-in user as actor (propose, validate-activate, the mapping reads, the tally), and run-batch opens the import batch as that user through BulkImport.start/3, so ImportBatch's policy decides before anything lands. validate, select-mapping, draft-new, slug-change and rule-change only assign, and preview only reads the socket's own upload. The pre-check that held Ash.can? moved into the batch open itself. The detector only looks for Ash.can? in the file."
+ }
 ]

@@ -97,8 +97,8 @@ defmodule AshEnterprise.Accounts.TeamMembership do
       agent-driven flows both do it routinely.
       """
 
-      # `metadata.role_names`: the roles the person gains through the team, for the
-      # security_alerts pack's review of a privileged role reaching them.
+      # `metadata.privileged` and `role_names`: whether the person gains a privileged role
+      # through the team, and which roles, for the security_alerts pack's review.
       change {AshEnterprise.Security.Changes.StampTeamGrant, as: :membership}
     end
   end

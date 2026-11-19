@@ -1,0 +1,1558 @@
+schema {
+  query: RootQueryType
+}
+
+enum PositionSortField {
+  ORGANIZATION_ID
+  LIFECYCLE_STATUS
+  VERSION_NUMBER
+  OVERRIDDEN_CREATED_ON
+  MODIFIED_ON_BEHALF_BY_ID
+  CREATED_ON_BEHALF_BY_ID
+  MODIFIED_BY_ID
+  CREATED_BY_ID
+  MODIFIED_ON
+  CREATED_ON
+  ID
+  NAME
+  DESCRIPTION
+  PARENT_POSITION_ID
+}
+
+"A keyset page of :position"
+type KeysetPageOfPosition {
+  "Total count on all pages"
+  count: Int
+
+  "The records contained in the page"
+  results: [Position!]
+
+  "The first keyset in the results"
+  startKeyset: String
+
+  "The last keyset in the results"
+  endKeyset: String
+}
+
+input PositionFilterParentPositionId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input PositionFilterDescription {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input PositionFilterName {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input PositionFilterId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input PositionFilterCreatedOn {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime!]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input PositionFilterModifiedOn {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime!]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input PositionFilterCreatedById {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input PositionFilterModifiedById {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input PositionFilterCreatedOnBehalfById {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input PositionFilterModifiedOnBehalfById {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input PositionFilterOverriddenCreatedOn {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input PositionFilterVersionNumber {
+  isNil: Boolean
+  eq: Int
+  notEq: Int
+  in: [Int!]
+  lessThan: Int
+  greaterThan: Int
+  lessThanOrEqual: Int
+  greaterThanOrEqual: Int
+  isDistinctFrom: Int
+  isNotDistinctFrom: Int
+}
+
+input PositionFilterLifecycleStatus {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+}
+
+input PositionFilterOrganizationId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input PositionFilterInput {
+  and: [PositionFilterInput!]
+
+  or: [PositionFilterInput!]
+
+  not: [PositionFilterInput!]
+
+  "Tenant discriminator. CDM-native: every Dataverse table carries it."
+  organizationId: PositionFilterOrganizationId
+
+  "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it."
+  lifecycleStatus: PositionFilterLifecycleStatus
+
+  "Row version, incremented on write. Used for optimistic locking."
+  versionNumber: PositionFilterVersionNumber
+
+  "The original creation time, when a record was imported and its real created_on differs from the import time."
+  overriddenCreatedOn: PositionFilterOverriddenCreatedOn
+
+  "Set when an application or delegate modified the record on a user's behalf."
+  modifiedOnBehalfById: PositionFilterModifiedOnBehalfById
+
+  "Set when an application or delegate created the record on a user's behalf."
+  createdOnBehalfById: PositionFilterCreatedOnBehalfById
+
+  "The user who last modified this record."
+  modifiedById: PositionFilterModifiedById
+
+  "The user who created this record."
+  createdById: PositionFilterCreatedById
+
+  modifiedOn: PositionFilterModifiedOn
+
+  createdOn: PositionFilterCreatedOn
+
+  id: PositionFilterId
+
+  name: PositionFilterName
+
+  description: PositionFilterDescription
+
+  parentPositionId: PositionFilterParentPositionId
+
+  "The position this one reports to. Null for the top of a hierarchy."
+  parentPosition: PositionFilterInput
+
+  childPositions: PositionFilterInput
+}
+
+input PositionSortInput {
+  order: SortOrder
+  field: PositionSortField!
+}
+
+type Position {
+  id: ID!
+
+  "Tenant discriminator. CDM-native: every Dataverse table carries it."
+  organizationId: ID!
+
+  "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it."
+  lifecycleStatus: String!
+
+  "Row version, incremented on write. Used for optimistic locking."
+  versionNumber: Int!
+
+  "The original creation time, when a record was imported and its real created_on differs from the import time."
+  overriddenCreatedOn: DateTime
+
+  "Set when an application or delegate modified the record on a user's behalf."
+  modifiedOnBehalfById: ID
+
+  "Set when an application or delegate created the record on a user's behalf."
+  createdOnBehalfById: ID
+
+  "The user who last modified this record."
+  modifiedById: ID
+
+  "The user who created this record."
+  createdById: ID
+
+  modifiedOn: DateTime!
+
+  createdOn: DateTime!
+
+  name: String!
+
+  description: String
+
+  parentPositionId: ID
+
+  "The position this one reports to. Null for the top of a hierarchy."
+  parentPosition: Position
+
+  childPositions(
+    "How to sort the records in the response"
+    sort: [PositionSortInput]
+
+    "A filter to limit the results"
+    filter: PositionFilterInput
+
+    "The number of records to return from the beginning. Maximum 250"
+    first: Int
+
+    "Show records before the specified keyset."
+    before: String
+
+    "Show records after the specified keyset."
+    after: String
+
+    "The number of records to return to the end. Maximum 250"
+    last: Int
+  ): KeysetPageOfPosition!
+
+  "Dataverse statecode, derived from the status's owning state. Read-only -- this is why the pair cannot drift."
+  stateCode: Int
+
+  "Dataverse statuscode, derived from lifecycle_status. Read-only."
+  statusCode: Int
+}
+
+enum TeamSortField {
+  ORGANIZATION_ID
+  OWNING_BUSINESS_UNIT_ID
+  LIFECYCLE_STATUS
+  VERSION_NUMBER
+  OVERRIDDEN_CREATED_ON
+  MODIFIED_ON_BEHALF_BY_ID
+  CREATED_ON_BEHALF_BY_ID
+  MODIFIED_BY_ID
+  CREATED_BY_ID
+  MODIFIED_ON
+  CREATED_ON
+  ID
+  NAME
+  DESCRIPTION
+  TEAM_TYPE
+  IS_DEFAULT
+  SYSTEM_MANAGED
+  EXTERNAL_DIRECTORY_OBJECT_ID
+  ADMINISTRATOR_ID
+  CAN_OWN_RECORDS
+  CAN_HOLD_ROLES
+}
+
+"A keyset page of :team"
+type KeysetPageOfTeam {
+  "Total count on all pages"
+  count: Int
+
+  "The records contained in the page"
+  results: [Team!]
+
+  "The first keyset in the results"
+  startKeyset: String
+
+  "The last keyset in the results"
+  endKeyset: String
+}
+
+input TeamFilterCanHoldRoles {
+  isNil: Boolean
+  eq: Boolean
+  notEq: Boolean
+  in: [Boolean!]
+  lessThan: Boolean
+  greaterThan: Boolean
+  lessThanOrEqual: Boolean
+  greaterThanOrEqual: Boolean
+  isDistinctFrom: Boolean
+  isNotDistinctFrom: Boolean
+}
+
+input TeamFilterCanOwnRecords {
+  isNil: Boolean
+  eq: Boolean
+  notEq: Boolean
+  in: [Boolean!]
+  lessThan: Boolean
+  greaterThan: Boolean
+  lessThanOrEqual: Boolean
+  greaterThanOrEqual: Boolean
+  isDistinctFrom: Boolean
+  isNotDistinctFrom: Boolean
+}
+
+input TeamFilterAdministratorId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input TeamFilterExternalDirectoryObjectId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input TeamFilterSystemManaged {
+  isNil: Boolean
+  eq: Boolean
+  notEq: Boolean
+  in: [Boolean!]
+  lessThan: Boolean
+  greaterThan: Boolean
+  lessThanOrEqual: Boolean
+  greaterThanOrEqual: Boolean
+  isDistinctFrom: Boolean
+  isNotDistinctFrom: Boolean
+}
+
+input TeamFilterIsDefault {
+  isNil: Boolean
+  eq: Boolean
+  notEq: Boolean
+  in: [Boolean!]
+  lessThan: Boolean
+  greaterThan: Boolean
+  lessThanOrEqual: Boolean
+  greaterThanOrEqual: Boolean
+  isDistinctFrom: Boolean
+  isNotDistinctFrom: Boolean
+}
+
+input TeamFilterTeamType {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+}
+
+input TeamFilterDescription {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input TeamFilterName {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input TeamFilterId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input TeamFilterCreatedOn {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime!]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input TeamFilterModifiedOn {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime!]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input TeamFilterCreatedById {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input TeamFilterModifiedById {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input TeamFilterCreatedOnBehalfById {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input TeamFilterModifiedOnBehalfById {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input TeamFilterOverriddenCreatedOn {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input TeamFilterVersionNumber {
+  isNil: Boolean
+  eq: Int
+  notEq: Int
+  in: [Int!]
+  lessThan: Int
+  greaterThan: Int
+  lessThanOrEqual: Int
+  greaterThanOrEqual: Int
+  isDistinctFrom: Int
+  isNotDistinctFrom: Int
+}
+
+input TeamFilterLifecycleStatus {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+}
+
+input TeamFilterOwningBusinessUnitId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input TeamFilterOrganizationId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input TeamFilterInput {
+  and: [TeamFilterInput!]
+
+  or: [TeamFilterInput!]
+
+  not: [TeamFilterInput!]
+
+  "Tenant discriminator. CDM-native: every Dataverse table carries it."
+  organizationId: TeamFilterOrganizationId
+
+  "Denormalized owning business unit, so Local\/Deep depth checks are a column comparison."
+  owningBusinessUnitId: TeamFilterOwningBusinessUnitId
+
+  "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it."
+  lifecycleStatus: TeamFilterLifecycleStatus
+
+  "Row version, incremented on write. Used for optimistic locking."
+  versionNumber: TeamFilterVersionNumber
+
+  "The original creation time, when a record was imported and its real created_on differs from the import time."
+  overriddenCreatedOn: TeamFilterOverriddenCreatedOn
+
+  "Set when an application or delegate modified the record on a user's behalf."
+  modifiedOnBehalfById: TeamFilterModifiedOnBehalfById
+
+  "Set when an application or delegate created the record on a user's behalf."
+  createdOnBehalfById: TeamFilterCreatedOnBehalfById
+
+  "The user who last modified this record."
+  modifiedById: TeamFilterModifiedById
+
+  "The user who created this record."
+  createdById: TeamFilterCreatedById
+
+  modifiedOn: TeamFilterModifiedOn
+
+  createdOn: TeamFilterCreatedOn
+
+  id: TeamFilterId
+
+  name: TeamFilterName
+
+  description: TeamFilterDescription
+
+  "See the moduledoc: this decides whether the team can own records and hold roles."
+  teamType: TeamFilterTeamType
+
+  "The business unit's automatic all-users team. Membership is system-managed."
+  isDefault: TeamFilterIsDefault
+
+  "Membership is maintained by the platform or an external directory, not by hand."
+  systemManaged: TeamFilterSystemManaged
+
+  """
+  The Entra ID (Azure AD) group object id, for :security_group and
+  :office_group teams whose membership is mirrored from the directory.
+  """
+  externalDirectoryObjectId: TeamFilterExternalDirectoryObjectId
+
+  administratorId: TeamFilterAdministratorId
+
+  "Only owner teams may appear in a record's owner_id."
+  canOwnRecords: TeamFilterCanOwnRecords
+
+  """
+  Access teams cannot hold security roles -- that restriction is what makes
+  them cheap. Directory-backed teams can, so an Entra group can be granted a
+  role centrally.
+  """
+  canHoldRoles: TeamFilterCanHoldRoles
+}
+
+input TeamSortInput {
+  order: SortOrder
+  field: TeamSortField!
+}
+
+type Team {
+  id: ID!
+
+  "Tenant discriminator. CDM-native: every Dataverse table carries it."
+  organizationId: ID!
+
+  "Denormalized owning business unit, so Local\/Deep depth checks are a column comparison."
+  owningBusinessUnitId: ID
+
+  "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it."
+  lifecycleStatus: String!
+
+  "Row version, incremented on write. Used for optimistic locking."
+  versionNumber: Int!
+
+  "The original creation time, when a record was imported and its real created_on differs from the import time."
+  overriddenCreatedOn: DateTime
+
+  "Set when an application or delegate modified the record on a user's behalf."
+  modifiedOnBehalfById: ID
+
+  "Set when an application or delegate created the record on a user's behalf."
+  createdOnBehalfById: ID
+
+  "The user who last modified this record."
+  modifiedById: ID
+
+  "The user who created this record."
+  createdById: ID
+
+  modifiedOn: DateTime!
+
+  createdOn: DateTime!
+
+  name: String!
+
+  description: String
+
+  "See the moduledoc: this decides whether the team can own records and hold roles."
+  teamType: String!
+
+  "The business unit's automatic all-users team. Membership is system-managed."
+  isDefault: Boolean!
+
+  "Membership is maintained by the platform or an external directory, not by hand."
+  systemManaged: Boolean!
+
+  """
+  The Entra ID (Azure AD) group object id, for :security_group and
+  :office_group teams whose membership is mirrored from the directory.
+  """
+  externalDirectoryObjectId: ID
+
+  administratorId: ID
+
+  "Dataverse statecode, derived from the status's owning state. Read-only -- this is why the pair cannot drift."
+  stateCode: Int
+
+  "Dataverse statuscode, derived from lifecycle_status. Read-only."
+  statusCode: Int
+
+  "Only owner teams may appear in a record's owner_id."
+  canOwnRecords: Boolean
+
+  """
+  Access teams cannot hold security roles -- that restriction is what makes
+  them cheap. Directory-backed teams can, so an Entra group can be granted a
+  role centrally.
+  """
+  canHoldRoles: Boolean
+}
+
+enum BusinessUnitSortField {
+  ORGANIZATION_ID
+  OWNING_BUSINESS_UNIT_ID
+  LIFECYCLE_STATUS
+  VERSION_NUMBER
+  OVERRIDDEN_CREATED_ON
+  MODIFIED_ON_BEHALF_BY_ID
+  CREATED_ON_BEHALF_BY_ID
+  MODIFIED_BY_ID
+  CREATED_BY_ID
+  MODIFIED_ON
+  CREATED_ON
+  ID
+  NAME
+  PATH
+  DEPTH
+  DIVISION_NAME
+  COST_CENTER
+  IS_DISABLED
+  PARENT_BUSINESS_UNIT_ID
+  IS_ROOT
+  BREADCRUMB
+  TREE_LABEL
+}
+
+"A keyset page of :business_unit"
+type KeysetPageOfBusinessUnit {
+  "Total count on all pages"
+  count: Int
+
+  "The records contained in the page"
+  results: [BusinessUnit!]
+
+  "The first keyset in the results"
+  startKeyset: String
+
+  "The last keyset in the results"
+  endKeyset: String
+}
+
+input BusinessUnitFilterTreeLabel {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input BusinessUnitFilterBreadcrumb {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input BusinessUnitFilterIsRoot {
+  isNil: Boolean
+  eq: Boolean
+  notEq: Boolean
+  in: [Boolean!]
+  lessThan: Boolean
+  greaterThan: Boolean
+  lessThanOrEqual: Boolean
+  greaterThanOrEqual: Boolean
+  isDistinctFrom: Boolean
+  isNotDistinctFrom: Boolean
+}
+
+input BusinessUnitFilterParentBusinessUnitId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input BusinessUnitFilterIsDisabled {
+  isNil: Boolean
+  eq: Boolean
+  notEq: Boolean
+  in: [Boolean!]
+  lessThan: Boolean
+  greaterThan: Boolean
+  lessThanOrEqual: Boolean
+  greaterThanOrEqual: Boolean
+  isDistinctFrom: Boolean
+  isNotDistinctFrom: Boolean
+}
+
+input BusinessUnitFilterCostCenter {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input BusinessUnitFilterDivisionName {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input BusinessUnitFilterDepth {
+  isNil: Boolean
+  eq: Int
+  notEq: Int
+  in: [Int!]
+  lessThan: Int
+  greaterThan: Int
+  lessThanOrEqual: Int
+  greaterThanOrEqual: Int
+  isDistinctFrom: Int
+  isNotDistinctFrom: Int
+}
+
+input BusinessUnitFilterPath {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input BusinessUnitFilterName {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  contains: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+  stringEndsWith: String
+  stringStartsWith: String
+  like: String
+  ilike: String
+}
+
+input BusinessUnitFilterId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input BusinessUnitFilterCreatedOn {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime!]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input BusinessUnitFilterModifiedOn {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime!]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input BusinessUnitFilterCreatedById {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input BusinessUnitFilterModifiedById {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input BusinessUnitFilterCreatedOnBehalfById {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input BusinessUnitFilterModifiedOnBehalfById {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input BusinessUnitFilterOverriddenCreatedOn {
+  isNil: Boolean
+  eq: DateTime
+  notEq: DateTime
+  in: [DateTime]
+  lessThan: DateTime
+  greaterThan: DateTime
+  lessThanOrEqual: DateTime
+  greaterThanOrEqual: DateTime
+  isDistinctFrom: DateTime
+  isNotDistinctFrom: DateTime
+}
+
+input BusinessUnitFilterVersionNumber {
+  isNil: Boolean
+  eq: Int
+  notEq: Int
+  in: [Int!]
+  lessThan: Int
+  greaterThan: Int
+  lessThanOrEqual: Int
+  greaterThanOrEqual: Int
+  isDistinctFrom: Int
+  isNotDistinctFrom: Int
+}
+
+input BusinessUnitFilterLifecycleStatus {
+  isNil: Boolean
+  eq: String
+  notEq: String
+  in: [String!]
+  lessThan: String
+  greaterThan: String
+  lessThanOrEqual: String
+  greaterThanOrEqual: String
+  isDistinctFrom: String
+  isNotDistinctFrom: String
+}
+
+input BusinessUnitFilterOwningBusinessUnitId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input BusinessUnitFilterOrganizationId {
+  isNil: Boolean
+  eq: ID
+  notEq: ID
+  in: [ID!]
+  lessThan: ID
+  greaterThan: ID
+  lessThanOrEqual: ID
+  greaterThanOrEqual: ID
+  isDistinctFrom: ID
+  isNotDistinctFrom: ID
+}
+
+input BusinessUnitFilterInput {
+  and: [BusinessUnitFilterInput!]
+
+  or: [BusinessUnitFilterInput!]
+
+  not: [BusinessUnitFilterInput!]
+
+  "Tenant discriminator. CDM-native: every Dataverse table carries it."
+  organizationId: BusinessUnitFilterOrganizationId
+
+  "Denormalized owning business unit, so Local\/Deep depth checks are a column comparison."
+  owningBusinessUnitId: BusinessUnitFilterOwningBusinessUnitId
+
+  "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it."
+  lifecycleStatus: BusinessUnitFilterLifecycleStatus
+
+  "Row version, incremented on write. Used for optimistic locking."
+  versionNumber: BusinessUnitFilterVersionNumber
+
+  "The original creation time, when a record was imported and its real created_on differs from the import time."
+  overriddenCreatedOn: BusinessUnitFilterOverriddenCreatedOn
+
+  "Set when an application or delegate modified the record on a user's behalf."
+  modifiedOnBehalfById: BusinessUnitFilterModifiedOnBehalfById
+
+  "Set when an application or delegate created the record on a user's behalf."
+  createdOnBehalfById: BusinessUnitFilterCreatedOnBehalfById
+
+  "The user who last modified this record."
+  modifiedById: BusinessUnitFilterModifiedById
+
+  "The user who created this record."
+  createdById: BusinessUnitFilterCreatedById
+
+  modifiedOn: BusinessUnitFilterModifiedOn
+
+  createdOn: BusinessUnitFilterCreatedOn
+
+  id: BusinessUnitFilterId
+
+  name: BusinessUnitFilterName
+
+  """
+  Materialized ancestor path, maintained by the platform. Slash-delimited
+  ids, leading and trailing slash: "/root-id/child-id/".
+  """
+  path: BusinessUnitFilterPath
+
+  "Distance from the root. The root is 0. Derived from path."
+  depth: BusinessUnitFilterDepth
+
+  divisionName: BusinessUnitFilterDivisionName
+
+  costCenter: BusinessUnitFilterCostCenter
+
+  "A disabled business unit keeps its records but grants no access through them."
+  isDisabled: BusinessUnitFilterIsDisabled
+
+  parentBusinessUnitId: BusinessUnitFilterParentBusinessUnitId
+
+  """
+  Null only for the tenant's root business unit. Dataverse marks this
+  ApplicationRequired for the same reason: exactly one row per tenant may
+  have no parent.
+  """
+  parentBusinessUnit: BusinessUnitFilterInput
+
+  childBusinessUnits: BusinessUnitFilterInput
+
+  "Every unit from the root down to and including this one, by materialized path."
+  ancestors: BusinessUnitFilterInput
+
+  isRoot: BusinessUnitFilterIsRoot
+
+  """
+  The ancestor chain by name, root first: "Example Corp / Engineering / Platform".
+
+  `path` is the same chain as UUIDs, and stays that way: it is an
+  authorization structure, read by every Deep grant as a prefix comparison.
+  This is the display of it, derived, and never a second source of truth.
+  """
+  breadcrumb: BusinessUnitFilterBreadcrumb
+
+  """
+  `name`, indented by depth, for rendering the hierarchy as a flat list.
+
+  Correct only when sorted by `path` ascending. Because every segment is a
+  fixed-width UUID, lexicographic path order *is* depth-first pre-order, so
+  each row lands directly beneath its parent.
+  """
+  treeLabel: BusinessUnitFilterTreeLabel
+}
+
+input BusinessUnitSortInput {
+  order: SortOrder
+  field: BusinessUnitSortField!
+}
+
+type BusinessUnit {
+  id: ID!
+
+  "Tenant discriminator. CDM-native: every Dataverse table carries it."
+  organizationId: ID!
+
+  "Denormalized owning business unit, so Local\/Deep depth checks are a column comparison."
+  owningBusinessUnitId: ID
+
+  "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it."
+  lifecycleStatus: String!
+
+  "Row version, incremented on write. Used for optimistic locking."
+  versionNumber: Int!
+
+  "The original creation time, when a record was imported and its real created_on differs from the import time."
+  overriddenCreatedOn: DateTime
+
+  "Set when an application or delegate modified the record on a user's behalf."
+  modifiedOnBehalfById: ID
+
+  "Set when an application or delegate created the record on a user's behalf."
+  createdOnBehalfById: ID
+
+  "The user who last modified this record."
+  modifiedById: ID
+
+  "The user who created this record."
+  createdById: ID
+
+  modifiedOn: DateTime!
+
+  createdOn: DateTime!
+
+  name: String!
+
+  """
+  Materialized ancestor path, maintained by the platform. Slash-delimited
+  ids, leading and trailing slash: "/root-id/child-id/".
+  """
+  path: String!
+
+  "Distance from the root. The root is 0. Derived from path."
+  depth: Int!
+
+  divisionName: String
+
+  costCenter: String
+
+  "A disabled business unit keeps its records but grants no access through them."
+  isDisabled: Boolean!
+
+  parentBusinessUnitId: ID
+
+  """
+  Null only for the tenant's root business unit. Dataverse marks this
+  ApplicationRequired for the same reason: exactly one row per tenant may
+  have no parent.
+  """
+  parentBusinessUnit: BusinessUnit
+
+  childBusinessUnits(
+    "How to sort the records in the response"
+    sort: [BusinessUnitSortInput]
+
+    "A filter to limit the results"
+    filter: BusinessUnitFilterInput
+
+    "The number of records to return from the beginning. Maximum 250"
+    first: Int
+
+    "Show records before the specified keyset."
+    before: String
+
+    "Show records after the specified keyset."
+    after: String
+
+    "The number of records to return to the end. Maximum 250"
+    last: Int
+  ): KeysetPageOfBusinessUnit!
+
+  "Every unit from the root down to and including this one, by materialized path."
+  ancestors(
+    "How to sort the records in the response"
+    sort: [BusinessUnitSortInput]
+
+    "A filter to limit the results"
+    filter: BusinessUnitFilterInput
+
+    "The number of records to return from the beginning. Maximum 250"
+    first: Int
+
+    "Show records before the specified keyset."
+    before: String
+
+    "Show records after the specified keyset."
+    after: String
+
+    "The number of records to return to the end. Maximum 250"
+    last: Int
+  ): KeysetPageOfBusinessUnit!
+
+  ancestorNames: [String!]!
+
+  "Dataverse statecode, derived from the status's owning state. Read-only -- this is why the pair cannot drift."
+  stateCode: Int
+
+  "Dataverse statuscode, derived from lifecycle_status. Read-only."
+  statusCode: Int
+
+  isRoot: Boolean
+
+  """
+  The ancestor chain by name, root first: "Example Corp / Engineering / Platform".
+
+  `path` is the same chain as UUIDs, and stays that way: it is an
+  authorization structure, read by every Deep grant as a prefix comparison.
+  This is the display of it, derived, and never a second source of truth.
+  """
+  breadcrumb: String
+
+  """
+  `name`, indented by depth, for rendering the hierarchy as a flat list.
+
+  Correct only when sorted by `path` ascending. Because every segment is a
+  fixed-width UUID, lexicographic path order *is* depth-first pre-order, so
+  each row lands directly beneath its parent.
+  """
+  treeLabel: String
+}
+
+type Organization {
+  id: ID!
+
+  "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it."
+  lifecycleStatus: String!
+
+  "Row version, incremented on write. Used for optimistic locking."
+  versionNumber: Int!
+
+  "The original creation time, when a record was imported and its real created_on differs from the import time."
+  overriddenCreatedOn: DateTime
+
+  "Set when an application or delegate modified the record on a user's behalf."
+  modifiedOnBehalfById: ID
+
+  "Set when an application or delegate created the record on a user's behalf."
+  createdOnBehalfById: ID
+
+  "The user who last modified this record."
+  modifiedById: ID
+
+  "The user who created this record."
+  createdById: ID
+
+  modifiedOn: DateTime!
+
+  createdOn: DateTime!
+
+  "Display name of the tenant."
+  name: String!
+
+  """
+  Stable, URL-safe identifier. Used in subdomains and tenant routing, so it
+  is immutable once set -- renaming would break every existing link.
+  """
+  uniqueName: String!
+
+  "Default locale for users who have not chosen one."
+  languagelocaleId: ID
+
+  """
+  The tenant's reporting currency. Dataverse stores every monetary value
+  twice -- once in the transaction currency and once converted to this one --
+  so that cross-currency reporting does not have to join exchange rates.
+  """
+  baseCurrencyId: ID
+
+  """
+  The tenant's approval posture (`AshAgent.Approval.Posture`): which person
+  decides an approval. `:standard` unless a person changes it.
+  """
+  approvalPosture: String!
+
+  """
+  When the `:implementation` posture ends, after which it reads as
+  `:standard` (`AshAgent.Approval.Posture.effective/3`). Kept by no other
+  posture.
+  """
+  approvalPostureEndsAt: DateTime
+
+  "Dataverse statecode, derived from the status's owning state. Read-only -- this is why the pair cannot drift."
+  stateCode: Int
+
+  "Dataverse statuscode, derived from lifecycle_status. Read-only."
+  statusCode: Int
+}
+
+enum SortOrder {
+  DESC
+  DESC_NULLS_FIRST
+  DESC_NULLS_LAST
+  ASC
+  ASC_NULLS_FIRST
+  ASC_NULLS_LAST
+}
+
+type RootQueryType {
+  getOrganization(
+    "The id of the record"
+    id: ID!
+  ): Organization
+
+  "Business units, a page at a time: 50 by default, 250 at most."
+  listBusinessUnits(
+    "How to sort the records in the response"
+    sort: [BusinessUnitSortInput]
+
+    "A filter to limit the results"
+    filter: BusinessUnitFilterInput
+
+    "The number of records to return from the beginning. Maximum 250"
+    first: Int
+
+    "Show records before the specified keyset."
+    before: String
+
+    "Show records after the specified keyset."
+    after: String
+
+    "The number of records to return to the end. Maximum 250"
+    last: Int
+  ): KeysetPageOfBusinessUnit
+
+  "Teams, a page at a time: 50 by default, 250 at most."
+  listTeams(
+    "How to sort the records in the response"
+    sort: [TeamSortInput]
+
+    "A filter to limit the results"
+    filter: TeamFilterInput
+
+    "The number of records to return from the beginning. Maximum 250"
+    first: Int
+
+    "Show records before the specified keyset."
+    before: String
+
+    "Show records after the specified keyset."
+    after: String
+
+    "The number of records to return to the end. Maximum 250"
+    last: Int
+  ): KeysetPageOfTeam
+
+  "Positions, a page at a time: 50 by default, 250 at most."
+  listPositions(
+    "How to sort the records in the response"
+    sort: [PositionSortInput]
+
+    "A filter to limit the results"
+    filter: PositionFilterInput
+
+    "The number of records to return from the beginning. Maximum 250"
+    first: Int
+
+    "Show records before the specified keyset."
+    before: String
+
+    "Show records after the specified keyset."
+    after: String
+
+    "The number of records to return to the end. Maximum 250"
+    last: Int
+  ): KeysetPageOfPosition
+}
+
+"""
+The `DateTime` scalar type represents a date and time in the UTC
+timezone. The DateTime appears in a JSON response as an ISO8601 formatted
+string, including UTC timezone ("Z"). The parsed date and time string will
+be converted to UTC if there is an offset.
+"""
+scalar DateTime

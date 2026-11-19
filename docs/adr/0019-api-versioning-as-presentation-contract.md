@@ -2,7 +2,7 @@
 
 - **Status:** proposed
 - **Date:** 2026-08-18
-- **Amended:** 2026-11-14 — list surfaces page by default
+- **Amended:** 2026-11-14 — list surfaces page by default; 2026-11-17 — the contract is pinned and a breaking change is announced
 
 ## Context
 
@@ -175,3 +175,41 @@ without being required, so internal reads still return lists. Which surfaces mus
 `test/ash_enterprise/platform/bounded_reads_test.exs`, and the cost of a page at 50,000 rows by the
 `scale` CI job (`test/ash_enterprise/scale/fifty_thousand_test.exs`). If versioning is adopted, the
 unpaged index is not a version to keep: there is nothing to translate back to, only a table to send.
+
+## Amendment, 2026-11-17 — detect and announce now, presentation contracts later
+
+The decision above has not changed, and `ash_api_versioning` is still not built. Waiting for it left
+the API with no pin at all: nothing recorded what callers had been shown, so a resource edit could
+rename a member and no check would notice. The part that does not depend on the extension is built.
+
+**The contract is a file.** `priv/api/openapi.json` (the JSON:API document, with the deployment's
+servers left out and every object's keys sorted) and `priv/api/schema.graphql` (the GraphQL SDL) are
+committed, with `priv/api/contract.lock.json` holding the sha-256 of each so a hand edit shows. GraphQL
+is inside the pin because it is generated from the same domain. The sample `say_hello` query the
+generator leaves in the schema was removed first, so it is not part of what callers may rely on.
+`mix ash_enterprise.api.contract --check` runs in CI and in `scripts/pre-ci`, and fails on any
+difference between the pin and what the resources generate, printing the changed lines.
+
+**A change is classified.** `AshEnterpriseWeb.ApiContract.Diff` calls a change *breaking* when a caller
+that worked can stop working: a removed route, property, GraphQL type, field, argument or enum value; a
+property, parameter or argument whose type changed; a request property or parameter newly required; an
+argument or input field newly non-null. Everything else is *additive* and needs only
+`mix ash_enterprise.api.contract --write`. A new route or type brings its own required inputs, and
+those are not breaking.
+
+**A breaking change is announced.** `--write` refuses one unless `priv/api/deprecations.json` names each
+removed or changed element, the entry was announced at least 90 days before its sunset (a number the
+check enforces, not a guideline) and the sunset has passed. A pinned announcement whose element no
+longer exists is moved to `retired` when the contract is re-pinned. An entry that names nothing in the
+pinned contract fails the check, so a typo does not look like a notice.
+
+**The announcement is on the wire.** While an entry is live, `AshEnterpriseWeb.Plugs.ApiDeprecation`
+answers a request for that route, or for the GraphQL endpoint when the entry is `endpoint:graphql`, with
+`Deprecation: @<epoch>` (RFC 9745), `Sunset: <date>` (RFC 8594) and `Link: <notice>; rel="deprecation"`.
+GraphQL fields and single properties have no route to carry a header, so those are announced in the
+notice the `link` names, and GraphQL's own `@deprecated` is not yet generated from the resource.
+
+What this does not give: a caller still cannot ask for the old shape. That is the presentation contract
+above, and it remains the way to serve two shapes at once. When it is built, a version is another thing
+the pin covers, and the 90-day floor becomes the sunset policy the Consequences section says to budget
+for before the third version. The procedure is `docs/runbooks/changing-the-api.md`.

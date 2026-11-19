@@ -286,10 +286,18 @@ defmodule AshEnterprise.Mdm.BatchTest do
       assert Enum.any?(events, &(&1["eventType"] == "COMPLETE"))
     end
 
-    test "a crashed pipeline marks the batch failed and emits a FAIL run", %{
-      org: org,
-      admin: admin
-    } do
+    defp fail_event?(batch) do
+      Enum.any?(
+        AshOpenLineage.Transport.InMemory.events(),
+        &(&1["eventType"] == "FAIL" and &1["run"]["runId"] == batch.correlation_id)
+      )
+    end
+
+    test "a pipeline that crashes on every attempt marks the batch failed on the last and emits a FAIL run",
+         %{
+           org: org,
+           admin: admin
+         } do
       import Ash.Query
 
       land_rows!(org, "acme", [{"r1", %{"Email" => "a@x.io", "Full Name" => "Ann"}}])
@@ -307,21 +315,29 @@ defmodule AshEnterprise.Mdm.BatchTest do
         |> Oban.insert!()
 
       # with_safety: false re-raises the worker's reraised exception into
-      # the test process — that IS the crash path under test.
+      # the test process — that IS the crash path under test. The first
+      # attempt is not the last: the batch is left for the retry.
       assert_raise AshEnterprise.Mdm.MappingMissing, fn ->
         Oban.drain_queue(queue: :mdm, with_safety: false)
       end
 
+      retrying = ImportBatch.by_id!(batch.id, tenant: org, authorize?: false)
+      refute retrying.status == :failed
+      refute fail_event?(batch)
+
+      # The retries crash too; the last one ends the batch.
+      assert %{failure: 1, discard: 1} =
+               Oban.drain_queue(
+                 queue: :mdm,
+                 with_safety: true,
+                 with_scheduled: true,
+                 with_recursion: true
+               )
+
       failed = ImportBatch.by_id!(batch.id, tenant: org, authorize?: false)
       assert failed.status == :failed
       assert failed.failure_reason
-
-      events = AshOpenLineage.Transport.InMemory.events()
-
-      assert Enum.any?(
-               events,
-               &(&1["eventType"] == "FAIL" and &1["run"]["runId"] == batch.correlation_id)
-             )
+      assert fail_event?(batch)
     end
   end
 

@@ -63,9 +63,34 @@ actions) and `export` blocks (server-generated CSV via a
   `/export/<name>/columns/<column>` (all `true` initially); only checked
   columns are exported, in declared order. Use it when the legacy screen
   had column-selectable CSV.
-- `columns` (default: the component's fields) must be a subset of the
-  component's fields; `filename` defaults to `<component name>.csv`. On
-  dynamic table sets each expanded section exports its own scoped rows and
-  the filename gains the sanitized section label.
+- `columns` defaults to the component's fields; `filename` defaults to
+  `<component name>.csv`. On dynamic table sets each expanded section
+  exports its own scoped rows and the filename gains the sanitized section
+  label.
+- A report's `columns` must be among its `fields`. A table's `columns` may
+  also name any public attribute, calculation or aggregate of the table's
+  resource (a related table's own resource) that the table does not show:
+  it is loaded for the export read only (the table's query and the rows
+  sent to the browser are unchanged), under the same search, filters,
+  preset, sort, actor and tenant. Do not add a visible column or a
+  `hidden: true` field just to export a value. An unknown name, a
+  relationship or a private field fails at compile time.
+
+  ```elixir
+  component :table do
+    fields [:name, :current_state, :vendor_name]
+
+    export do
+      columns [:name, :value, :current_state, :vendor_name, :currency]
+    end
+  end
+
+  # optional: the CSV header of an export-only column
+  field :value do
+    label "Contract value"
+  end
+  ```
+- A cell the actor's field policies forbid exports empty (as it renders
+  empty in the table), never the value.
 - CSV is RFC-4180 (`AshA2ui.Csv`), headers are the humanized (or declared)
-  field labels.
+  field labels, translated in the metadata domain like every other label.

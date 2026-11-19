@@ -40,6 +40,15 @@ defmodule AshEnterpriseWeb.A2ui.AuditUI do
       read_action :read
       query :trail
       select_context :entry
+
+      # The filtered trail as a CSV (ash_a2ui's export), up to its 10,000-row cap. The
+      # whole period, with the chain columns that make it verifiable, is
+      # `mix ash_enterprise.audit.export` (AshEnterprise.Audit.Export).
+      export do
+        filename "audit-trail.csv"
+        columns [:occurred_at, :resource, :action, :action_type, :record_id]
+        column_select true
+      end
     end
 
     component :detail, :entry_detail do

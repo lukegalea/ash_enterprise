@@ -1,8 +1,8 @@
 {
   "name": "security_alerts",
-  "version": 2,
+  "version": 4,
   "title": "High-risk security events are reviewed",
-  "description": "When an Administrator or a Platform Operator is made, directly or through a team (the role assigned to a team, a person added to a team that holds it, or such a team restored), a break-glass session is approved, an API key is issued, a known person's sign-in is refused a third time in a row, or an inbound alert labelled security fires, an administrator other than the people involved reviews it and records whether it was expected. Installed as drafts: nothing runs until a person publishes the process and the recipes. Every other audited write is only logged.",
+  "description": "When a privileged role is made to reach someone (assigned to a person or to a team, an ended assignment of one brought back into force, a person added to a team that holds one, such a team restored, or a role people hold granted its first privileged privilege), a break-glass session is approved, an API key is issued, a known person's sign-in is refused a third time in a row, or an inbound alert labelled security fires, an administrator other than the people involved reviews it and records whether it was expected. A role is privileged by what it grants, never by its name: a privilege on an operator-only resource, one whose verb reaches an action declared changes_authority, or one that writes an Accounts or Security resource (AshEnterprise.Security.Privilege.privileged?/3). Installed as drafts: nothing runs until a person publishes the process and the recipes. Every other audited write is only logged.",
   "controls": ["CC7.2", "CC7.3", "CC6.3"],
   "processes": [
     {
@@ -16,7 +16,7 @@
       "key": "security_alerts.privileged_role_assigned",
       "match_resource": "AshEnterprise.Security.UserRole",
       "match_action_type": "create",
-      "guard_feel": "metadata.role_name = \"Administrator\" or metadata.role_name = \"Platform Operator\"",
+      "guard_feel": "if metadata.privileged = null then metadata.role_name = \"Administrator\" or metadata.role_name = \"Platform Operator\" else metadata.privileged = true",
       "process_key": "security.review_alert",
       "authority": "human_tasks_only"
     },
@@ -24,7 +24,25 @@
       "key": "security_alerts.privileged_role_assigned_to_team",
       "match_resource": "AshEnterprise.Security.TeamRole",
       "match_action_type": "create",
-      "guard_feel": "metadata.role_name = \"Administrator\" or metadata.role_name = \"Platform Operator\"",
+      "guard_feel": "if metadata.privileged = null then metadata.role_name = \"Administrator\" or metadata.role_name = \"Platform Operator\" else metadata.privileged = true",
+      "process_key": "security.review_alert",
+      "authority": "human_tasks_only"
+    },
+    {
+      "key": "security_alerts.privileged_role_revived",
+      "match_resource": "AshEnterprise.Security.UserRole",
+      "match_action": "set_valid_until",
+      "match_action_type": "update",
+      "guard_feel": "metadata.privileged = true",
+      "process_key": "security.review_alert",
+      "authority": "human_tasks_only"
+    },
+    {
+      "key": "security_alerts.privileged_team_role_revived",
+      "match_resource": "AshEnterprise.Security.TeamRole",
+      "match_action": "set_valid_until",
+      "match_action_type": "update",
+      "guard_feel": "metadata.privileged = true",
       "process_key": "security.review_alert",
       "authority": "human_tasks_only"
     },
@@ -32,7 +50,7 @@
       "key": "security_alerts.privileged_team_joined",
       "match_resource": "AshEnterprise.Accounts.TeamMembership",
       "match_action_type": "create",
-      "guard_feel": "list contains(metadata.role_names, \"Administrator\") or list contains(metadata.role_names, \"Platform Operator\")",
+      "guard_feel": "if metadata.privileged = null then list contains(metadata.role_names, \"Administrator\") or list contains(metadata.role_names, \"Platform Operator\") else metadata.privileged = true",
       "process_key": "security.review_alert",
       "authority": "human_tasks_only"
     },
@@ -41,7 +59,15 @@
       "match_resource": "AshEnterprise.Accounts.Team",
       "match_action": "restore",
       "match_action_type": "update",
-      "guard_feel": "list contains(metadata.role_names, \"Administrator\") or list contains(metadata.role_names, \"Platform Operator\")",
+      "guard_feel": "if metadata.privileged = null then list contains(metadata.role_names, \"Administrator\") or list contains(metadata.role_names, \"Platform Operator\") else metadata.privileged = true",
+      "process_key": "security.review_alert",
+      "authority": "human_tasks_only"
+    },
+    {
+      "key": "security_alerts.held_role_made_privileged",
+      "match_resource": "AshEnterprise.Security.RolePrivilege",
+      "match_action_type": "create",
+      "guard_feel": "metadata.privileged = true",
       "process_key": "security.review_alert",
       "authority": "human_tasks_only"
     },

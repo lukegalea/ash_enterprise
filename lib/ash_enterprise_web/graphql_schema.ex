@@ -17,17 +17,10 @@ defmodule AshEnterpriseWeb.GraphqlSchema do
 
   import_types Absinthe.Plug.Types
 
+  # Every query is generated; the sample `say_hello` field the generator leaves here
+  # was removed before the contract was pinned, because a field in the pin is a field
+  # callers may rely on.
   query do
-    # Custom Absinthe queries can be placed here
-    @desc """
-    Hello! This is a sample query to verify that AshGraphql has been set up correctly.
-    Remove me once you have a query of your own!
-    """
-    field :say_hello, :string do
-      resolve fn _, _, _ ->
-        {:ok, "Hello from AshGraphql!"}
-      end
-    end
   end
 
   mutation do

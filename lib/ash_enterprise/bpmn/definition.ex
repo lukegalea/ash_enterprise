@@ -27,4 +27,12 @@ defmodule AshEnterprise.Bpmn.Definition do
       # to it are still running.
       archival?: false
     ]
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    keep(:xml,
+      because:
+        "a tenant's process design, not personal data; sensitive? keeps it out of log lines, and a copy without it runs no process"
+    )
+  end
 end

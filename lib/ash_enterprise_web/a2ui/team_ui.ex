@@ -34,6 +34,14 @@ defmodule AshEnterpriseWeb.A2ui.TeamUI do
       query :default
       select_context :team
 
+      # A CSV of the teams the reader can read, as on screen (ash_a2ui's export).
+      # The bulk path is `GET /api/exports/teams`.
+      export do
+        filename "teams.csv"
+        columns [:name, :team_type, :description, :is_default]
+        column_select true
+      end
+
       # Without this, rows are flat cell Rows carrying no `weight`, so every
       # column is content-sized: "Sales" and "Enterprise Sales" push everything
       # after them to a different x and nothing lines up down the page. This is

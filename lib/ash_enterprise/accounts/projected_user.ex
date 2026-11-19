@@ -204,4 +204,13 @@ defmodule AshEnterprise.Accounts.ProjectedUser do
     calculate :gap_count, :integer, {AshEnterprise.Compliance.Calculations.GapCount, []},
       public?: true
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    # Looks personal (the data inventory's heuristic), not `sensitive?`: hashed the same
+    # way as the legacy table it projects, so the two still agree in a copy.
+    transform(:email, :random_email, engine: "hash", domains: ["example.com"])
+    transform(:login, :hash)
+    transform(:full_name, :hash)
+  end
 end

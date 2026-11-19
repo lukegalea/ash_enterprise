@@ -36,7 +36,7 @@ defmodule AshEnterprise.Compliance.EventLog do
   use Ash.Resource,
     domain: AshEnterprise.Compliance,
     data_layer: AshPostgres.DataLayer,
-    extensions: [AshEvents.EventLog],
+    extensions: [AshEvents.EventLog, AshGreenmask.Resource],
     authorizers: [Ash.Policy.Authorizer]
 
   postgres do
@@ -46,6 +46,14 @@ defmodule AshEnterprise.Compliance.EventLog do
 
   event_log do
     advisory_lock_key_generator AshEvents.AdvisoryLockKeyGenerator.Default
+  end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    exclude_data(
+      because:
+        "the compliance event log: its data and metadata carry the reviewed records' values inside JSON no column transform reaches, and findings are projected from it"
+    )
   end
 
   actions do

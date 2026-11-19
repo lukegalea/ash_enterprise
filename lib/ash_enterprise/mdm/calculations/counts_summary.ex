@@ -1,13 +1,13 @@
 defmodule AshEnterprise.Mdm.Calculations.CountsSummary do
   @moduledoc """
   An import batch's running counters (`counts`) as one line, in pipeline
-  order: `12 landed · 12 staged · 3 candidates · 2 review`. Counters the
+  order: `12 landed · 1 refused · 12 staged · 3 candidates · 2 review`. Counters the
   batch has not reached are left out. Reads only the batch's own `counts`.
   """
 
   use Ash.Resource.Calculation
 
-  @order ~w(landed staged validation_failed candidates admitted review omitted created merged)
+  @order ~w(landed refused staged validation_failed candidates admitted review omitted created merged)
 
   @impl true
   def load(_query, _opts, _context), do: [:counts]

@@ -45,6 +45,16 @@ defmodule AshEnterpriseWeb.A2ui.BusinessUnitUI do
       query :default
       select_context :business_unit
 
+      # A CSV of the units the reader can read, re-read as them through `:read` with
+      # the current search (ash_a2ui's export). `name`, `division_name` and
+      # `cost_center` are loaded for the export only; the table does not show them.
+      # The bulk path is `GET /api/exports/business_units`.
+      export do
+        filename "business-units.csv"
+        columns [:name, :breadcrumb, :division_name, :cost_center, :is_disabled]
+        column_select true
+      end
+
       row_layout do
         title :tree_label
         badge :is_disabled

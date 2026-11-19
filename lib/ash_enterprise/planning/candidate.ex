@@ -88,4 +88,12 @@ defmodule AshEnterprise.Planning.Candidate do
       sort inserted_at: :asc
     end
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    keep(:encrypted_assignments,
+      because:
+        "ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there"
+    )
+  end
 end

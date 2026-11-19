@@ -82,6 +82,25 @@ defmodule AshEnterprise.Zones.ResidencyPolicyTest do
     end
   end
 
+  describe "tenant-designated destinations" do
+    test "are refused with no tenant" do
+      refute ResidencyPolicy.allow?(nil, :tenant_designated, :webhook)
+    end
+
+    test "are refused for an unresolvable tenant id" do
+      refute ResidencyPolicy.allow?(Ash.UUID.generate(), :tenant_designated, :webhook)
+    end
+
+    test "are allowed for a tenant that exists, with no sub-processor opt-in" do
+      # The tenant registered the destination itself: the registration is the
+      # recorded authorization, not the inference opt-in.
+      organization = create_organization!()
+      refute organization.sub_processor_opt_in
+      assert ResidencyPolicy.allow?(organization.id, :tenant_designated, :webhook)
+      assert ResidencyPolicy.allow?(organization, :tenant_designated, :webhook)
+    end
+  end
+
   test "a residency class the host has not ruled on is refused" do
     # If the package ever grows a third class, the host must rule on it
     # before any tenant's data flows to it.

@@ -277,9 +277,10 @@ end
   `/ui/status` path are gone: bind outcomes to `/ui/feedback`.
 - `config :ash_a2ui, :catalog, :admin_v1` selects the semantic admin
   catalog (the default is `:basic`). A surface the admin composition cannot
-  carry (sections, export, inline editing, bulk actions, nested forms,
-  wizard steps, boards) falls back to the basic composition for that
-  subtree. The catalog's binding schemas are built from `@a2ui/web_core`'s
+  carry (sections, inline editing, bulk actions, nested forms, wizard
+  steps, boards) falls back to the basic composition for that subtree. A
+  table's `export` keeps its `dataGrid`; the basic export controls (Export
+  CSV Button, column CheckBoxes) follow the grid. The catalog's binding schemas are built from `@a2ui/web_core`'s
   own exported schema builders, so a host zod 4 does not break
   reserved-path bindings. Hosts pin matching `@a2ui/lit` /
   `@a2ui/web_core` versions (both catalogs are verified against 0.15.0).

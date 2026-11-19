@@ -19,6 +19,13 @@
       "verb": "GET"
     },
     {
+      "action": "show",
+      "kind": "controller",
+      "module": "AshEnterpriseWeb.ExportController",
+      "path": "/api/exports/:type",
+      "verb": "GET"
+    },
+    {
       "action": null,
       "kind": "forward",
       "module": "AshEnterpriseWeb.AshJsonApiRouter",
@@ -485,6 +492,20 @@
       "kind": "live",
       "module": "AshEnterpriseWeb.SurfaceLive.Users",
       "path": "/app/users",
+      "verb": "GET"
+    },
+    {
+      "action": null,
+      "kind": "live",
+      "module": "AshEnterpriseWeb.SurfaceLive.WebhookDeliveries",
+      "path": "/app/webhook-deliveries",
+      "verb": "GET"
+    },
+    {
+      "action": null,
+      "kind": "live",
+      "module": "AshEnterpriseWeb.SurfaceLive.WebhookEndpoints",
+      "path": "/app/webhook-endpoints",
       "verb": "GET"
     },
     {

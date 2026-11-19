@@ -89,4 +89,10 @@ defmodule AshEnterprise.Credentialing.Clinician do
       change AshEnterprise.Credentialing.Changes.OpenClinicianScope
     end
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    transform(:first_name, :hash)
+    transform(:last_name, :hash)
+  end
 end

@@ -21,4 +21,12 @@ defmodule AshEnterprise.Decisions.Definition do
       audit?: true,
       archival?: false
     ]
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    keep(:xml,
+      because:
+        "a tenant's decision tables, not personal data; sensitive? keeps them out of log lines, and the stored bytes are what content_hash names"
+    )
+  end
 end

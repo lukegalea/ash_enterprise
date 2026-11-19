@@ -92,7 +92,7 @@ defmodule AshEnterprise.Mdm.ImportBatch do
       public? true
       default %{}
 
-      description "Running counters: landed, staged, validation_failed, candidates, admitted, review, omitted, created, merged."
+      description "Running counters: landed, refused, staged, validation_failed, candidates, admitted, review, omitted, created, merged. A bulk upload also keeps land_cursor (data rows done) and landed_at (when its last row was done)."
     end
 
     attribute :correlation_id, :uuid do

@@ -457,4 +457,10 @@ defmodule AshEnterprise.Integration.LinkedAccount do
     define :active_for_integration, args: [:provider_config_key]
     define :sync_now, args: [:record_id]
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    transform(:connection_id, :hash)
+    transform(:label, :set_null)
+  end
 end

@@ -2732,6 +2732,12 @@ _Declare a provider's HTTP operations on an Ash resource: one generic action per
 
 [ash_operations usage rules](deps/ash_operations/usage-rules.md)
 <!-- ash_operations-end -->
+<!-- ash_greenmask-start -->
+## ash_greenmask usage
+_Pseudoanonymization config generated from Ash resource declarations — the greenmask YAML is derived, never hand-maintained._
+
+[ash_greenmask usage rules](deps/ash_greenmask/usage-rules.md)
+<!-- ash_greenmask-end -->
 <!-- ash_open_lineage-start -->
 ## ash_open_lineage usage
 _Emits OpenLineage spec 2-0-2 RunEvents from Ash: a Spark extension +

@@ -3,25 +3,29 @@ defmodule AshEnterpriseWeb.ImportLive do
   The CSV import wizard (`/app/mdm/import`) — the producing half of the MDM
   demo flow, the UI face of the code path `CsImportFlowTest` drives:
 
-  1. **Upload** — a CSV lands in the browser, is parsed (RFC4180, NimbleCSV),
-     and shows its headers and a sample.
+  1. **Upload** — a CSV is kept as a file on the server
+     (`AshEnterprise.Mdm.BulkImport`) and streamed once for its headers, a
+     ten-row sample and its row count. The rows themselves never enter this
+     process: up to the configured cap (50,000 by default) a file is accepted,
+     and over it the file is refused before anything lands.
   2. **Mapping** — an existing active ingress mapping is picked, or a new
      one is drafted: per observed column a target/op/because row, with an AI
      proposal (`AshEnterprise.Mdm.Proposal`) as the first draft. Activation
      goes through the mapping's own person gate — the machine drafts, a
      person activates.
-  3. **Run** — rows land, a batch opens (pinning the mapping's content
-     hash), and the `BatchWorker` Oban job stages → matches → bands. The
-     view polls the job and shows the tally, and links the batch on the
-     import-batch board (`/app/mdm/batches`); review-banded matches end up
-     in the steward queue at `/app/mdm`.
+  3. **Run** — a batch opens (pinning the mapping's content hash), and the
+     `BatchWorker` Oban job lands the file a chunk at a time, then stages →
+     matches → bands. The view polls the job and shows the tally, and links
+     the batch on the import-batch board (`/app/mdm/batches`), which lists
+     any rows that did not land with their row numbers; review-banded
+     matches end up in the steward queue at `/app/mdm`.
 
   Every write is the signed-in person's to authorize — proposing (the AI
   draft is written as them), drafting, validating and activating a mapping,
   opening the batch — so their grants decide. Landing the rows is the
   platform's own write (`Landing.land_row/4`, raw source records), so it runs
-  only after the person is known to be allowed to open the batch that reads
-  them; a refusal lands nothing.
+  only in the worker of a batch the person was allowed to open; a refusal
+  opens no batch and lands nothing.
 
   Mapping reads happen in `handle_params` (iron law #01: no DB work in
   mount — the dead render is crawler HTML).
@@ -29,13 +33,12 @@ defmodule AshEnterpriseWeb.ImportLive do
 
   use AshEnterpriseWeb, :live_view
 
-  alias AshEnterprise.Mdm.{ImportBatch, Landing, Mapping, Proposal, StagedRecord}
+  alias AshEnterprise.Mdm.{BulkImport, ImportBatch, Mapping, Proposal, StagedRecord}
   alias AshEnterprise.Security.ActorContext
 
   require Ash.Query
 
-  @max_rows 1000
-  @sample_count 10
+  @staged_statuses [:staged, :matched, :admitted, :review, :omitted, :created, :merged, :rejected]
 
   @impl true
   def mount(_params, _session, socket) do
@@ -43,10 +46,11 @@ defmodule AshEnterpriseWeb.ImportLive do
      socket
      |> assign(:page_title, "Import CSV")
      |> assign(:step, :upload)
+     |> assign(:upload_id, nil)
      |> allow_upload(:csv,
        accept: ~w(.csv),
        max_entries: 1,
-       max_file_size: 2_000_000
+       max_file_size: BulkImport.max_file_size()
      )}
   end
 
@@ -69,41 +73,34 @@ defmodule AshEnterpriseWeb.ImportLive do
   def handle_event("validate", _params, socket), do: {:noreply, socket}
 
   def handle_event("preview", _params, socket) do
-    case consume_csv(socket) do
-      {:ok, headers, rows} ->
-        rows_taken = Enum.take(rows, @max_rows)
+    # A new preview replaces the file an earlier one stored.
+    BulkImport.discard(socket.assigns.upload_id)
 
-        socket =
-          socket
-          |> assign(:headers, headers)
-          |> assign(:rows, rows_taken)
-          |> assign(:truncated?, length(rows) > @max_rows)
-          |> assign(:sample_rows, Enum.take(rows, @sample_count))
-          |> assign(:observed_schema, Map.new(headers, &{&1, %{}}))
-          |> assign(:samples, samples(headers, rows))
-          |> assign(
-            :rules,
-            Map.new(headers, &{&1, %{"target" => "", "op" => "identity", "because" => ""}})
-          )
-          |> assign(:mapping_id, nil)
-          |> assign(:slug, "upload-" <> Integer.to_string(System.unique_integer([:positive])))
-          |> assign(:step, :mapping)
+    with {:ok, upload_id} <- store_csv(socket),
+         {:ok, summary} <- inspect_or_discard(upload_id) do
+      %{headers: headers, sample: sample, row_count: row_count} = summary
 
-        socket =
-          if length(rows) > @max_rows do
-            put_flash(
-              socket,
-              :info,
-              "Only the first #{@max_rows} rows of #{length(rows)} will be imported."
-            )
-          else
-            socket
-          end
-
-        {:noreply, socket}
-
+      {:noreply,
+       socket
+       |> assign(:upload_id, upload_id)
+       |> assign(:headers, headers)
+       |> assign(:row_count, row_count)
+       |> assign(:sample_rows, sample)
+       |> assign(:observed_schema, Map.new(headers, &{&1, %{}}))
+       |> assign(:samples, samples(headers, sample))
+       |> assign(
+         :rules,
+         Map.new(headers, &{&1, %{"target" => "", "op" => "identity", "because" => ""}})
+       )
+       |> assign(:mapping_id, nil)
+       |> assign(:slug, "upload-" <> Integer.to_string(System.unique_integer([:positive])))
+       |> assign(:step, :mapping)}
+    else
       {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Could not read the CSV: #{reason}")}
+        {:noreply,
+         socket
+         |> assign(:upload_id, nil)
+         |> put_flash(:error, "Could not read the CSV: #{upload_error(reason)}")}
     end
   end
 
@@ -215,23 +212,12 @@ defmodule AshEnterpriseWeb.ImportLive do
   def handle_event("run-batch", _params, socket) do
     actor = socket.assigns.current_user
     tenant = ActorContext.tenant(actor)
-    slug = socket.assigns.slug
-    batch_input = %{mapping_id: socket.assigns.mapping_id, source_slug: slug}
+    batch_input = %{mapping_id: socket.assigns.mapping_id, source_slug: socket.assigns.slug}
 
-    # The person's grant first: rows land as the platform, so nothing lands
-    # for someone who may not open the batch that would read them.
-    if Ash.can?({ImportBatch, :open, batch_input}, actor, tenant: tenant) do
-      # Rows land before the batch opens: staging is as-of the batch's open
-      # instant, so a row landed after it would not be seen.
-      with {:ok, row_keys} <- land_rows(socket.assigns.rows, tenant, slug),
-           {:ok, batch} <-
-             ImportBatch
-             |> Ash.Changeset.for_create(:open, batch_input, tenant: tenant, actor: actor)
-             |> Ash.create(),
-           {:ok, job} <-
-             %{"batch_id" => batch.id, "tenant" => batch.organization_id}
-             |> AshEnterprise.Mdm.BatchWorker.new()
-             |> Oban.insert() do
+    # The batch opens as the person: their grant decides, and the rows land
+    # only in the worker of a batch they were allowed to open.
+    case BulkImport.start(socket.assigns.upload_id, batch_input, actor: actor, tenant: tenant) do
+      {:ok, batch, job} ->
         Process.send_after(self(), :tick, 500)
 
         {:noreply,
@@ -239,34 +225,27 @@ defmodule AshEnterpriseWeb.ImportLive do
          |> assign(:step, :running)
          |> assign(:batch, batch)
          |> assign(:job_id, job.id)
-         |> assign(:row_keys, row_keys)
          |> assign(:tally, %{})
          |> assign(:done?, false)}
-      else
-        {:error, error} ->
-          {:noreply, put_flash(socket, :error, "Import refused: #{message(error)}")}
-      end
-    else
-      {:noreply,
-       put_flash(socket, :error, "Import refused: you may not open an import batch here.")}
+
+      {:error, %Ash.Error.Forbidden{}} ->
+        {:noreply,
+         put_flash(socket, :error, "Import refused: you may not open an import batch here.")}
+
+      {:error, error} ->
+        {:noreply, put_flash(socket, :error, "Import refused: #{upload_error(error)}")}
     end
   end
 
-  defp land_rows(rows, tenant, slug) do
-    rows
-    |> Enum.with_index()
-    |> Enum.reduce_while({:ok, []}, fn {row, n}, {:ok, keys} ->
-      key = "upload-#{n}"
-
-      case Landing.land_row(tenant, slug, row, row_key: key) do
-        {:ok, _landed} -> {:cont, {:ok, [key | keys]}}
-        {:error, error} -> {:halt, {:error, error}}
-      end
-    end)
-    |> case do
-      {:ok, keys} -> {:ok, Enum.reverse(keys)}
-      error -> error
+  # A file the wizard stored but never handed to a batch is removed when the
+  # view goes away. Once a batch runs, its worker owns the file.
+  @impl true
+  def terminate(_reason, socket) do
+    if socket.assigns[:step] in [:upload, :mapping] do
+      BulkImport.discard(socket.assigns[:upload_id])
     end
+
+    :ok
   end
 
   @impl true
@@ -278,22 +257,22 @@ defmodule AshEnterpriseWeb.ImportLive do
     state =
       AshEnterprise.Repo.get!(Oban.Job, socket.assigns.job_id).state |> to_string()
 
+    # One count per status, as the person: never the rows themselves.
     tally =
-      StagedRecord
-      |> Ash.Query.filter(batch_id == ^batch.id)
-      |> Ash.read!(tenant: tenant, actor: actor)
-      |> Enum.map(& &1.status)
-      |> Enum.frequencies()
+      for status <- @staged_statuses,
+          count = staged_count(batch.id, status, tenant, actor),
+          count > 0,
+          into: %{},
+          do: {status, count}
 
-    socket = assign(socket, :tally, tally)
+    batch = ImportBatch.by_id!(batch.id, tenant: tenant, actor: actor)
+    socket = socket |> assign(:tally, tally) |> assign(:batch, batch)
 
     if state in ~w(completed failed cancelled discarded) do
       socket =
         case state do
           "failed" ->
-            reason = ImportBatch.by_id!(batch.id, tenant: tenant, actor: actor).failure_reason
-
-            put_flash(socket, :error, "Import failed: #{reason}")
+            put_flash(socket, :error, "Import failed: #{batch.failure_reason}")
 
           _ ->
             socket
@@ -332,41 +311,43 @@ defmodule AshEnterpriseWeb.ImportLive do
     {:noreply, put_flash(socket, :error, "Validation refused: #{finding_text(findings)}")}
   end
 
-  # Sobelow reads `@sobelow_skip` out of the source AST; persisting it keeps
-  # `--warnings-as-errors` from calling it unused (see AshEnterprise.Audit.Export).
-  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+  defp staged_count(batch_id, status, tenant, actor) do
+    StagedRecord
+    |> Ash.Query.filter(batch_id == ^batch_id and status == ^status)
+    |> Ash.count!(tenant: tenant, actor: actor)
+  end
 
-  # `path` is the temp file LiveView wrote for this socket's own upload
-  # (consume_uploaded_entries/3 hands it over); no client-chosen path reaches
-  # it. Skipped here, by name, so a change that reads any other path is the
-  # thing a reviewer should question.
-  @sobelow_skip ["Traversal.FileModule"]
-  defp read_upload(path), do: File.read!(path)
-
-  defp consume_csv(socket) do
-    entries =
-      consume_uploaded_entries(socket, :csv, fn meta, _entry ->
-        {:ok, read_upload(meta.path)}
-      end)
-
-    case entries do
-      [csv] ->
-        parsed = NimbleCSV.RFC4180.parse_string(csv, skip_headers: false)
-
-        case parsed do
-          [_ | _] = table ->
-            headers = hd(table)
-            rows = table |> tl() |> Enum.reject(&(&1 == []))
-            {:ok, headers, Enum.map(rows, &Map.new(Enum.zip(headers, &1)))}
-
-          _ ->
-            {:error, "the file has no header row"}
-        end
-
-      _ ->
-        {:error, "no file was uploaded"}
+  # The temp file LiveView wrote for this socket's own upload is copied into
+  # the upload store before LiveView deletes it.
+  defp store_csv(socket) do
+    case consume_uploaded_entries(socket, :csv, fn meta, _entry ->
+           {:ok, BulkImport.store_upload(meta.path)}
+         end) do
+      [{:ok, upload_id}] -> {:ok, upload_id}
+      [{:error, reason}] -> {:error, reason}
+      _ -> {:error, "no file was uploaded"}
     end
   end
+
+  defp inspect_or_discard(upload_id) do
+    case BulkImport.inspect_upload(upload_id) do
+      {:ok, summary} ->
+        {:ok, summary}
+
+      error ->
+        BulkImport.discard(upload_id)
+        error
+    end
+  end
+
+  defp upload_error({:over_cap, cap}),
+    do: "the file has more than #{cap} rows; split it and import each part"
+
+  defp upload_error(:unknown_upload),
+    do: "the uploaded file is no longer available; upload it again"
+
+  defp upload_error(reason) when is_binary(reason), do: reason
+  defp upload_error(reason), do: message(reason)
 
   defp samples(headers, rows) do
     Map.new(headers, fn header ->
@@ -454,6 +435,8 @@ defmodule AshEnterpriseWeb.ImportLive do
     """
   end
 
+  defp counter(batch, key), do: (batch.counts || %{})[key] || 0
+
   defp step_tone(true), do: "main"
   defp step_tone(false), do: nil
 
@@ -499,8 +482,7 @@ defmodule AshEnterpriseWeb.ImportLive do
       <.card>
         <h2 class="font-heading">Parsed file</h2>
         <p class="text-sm text-foreground/70">
-          {length(@rows)} rows · columns: {Enum.join(@headers, ", ")}
-          <.badge :if={@truncated?} tone="yellow">truncated</.badge>
+          {@row_count} rows · columns: {Enum.join(@headers, ", ")}
         </p>
       </.card>
 
@@ -649,7 +631,10 @@ defmodule AshEnterpriseWeb.ImportLive do
             <table class={table_class()}>
               <tbody>
                 <tr>
-                  <th>Rows landed</th><td>{length(@row_keys)}</td>
+                  <th>Rows landed</th><td id="rows-landed">{counter(@batch, "landed")}</td>
+                </tr>
+                <tr>
+                  <th>Rows refused</th><td id="rows-refused">{counter(@batch, "refused")}</td>
                 </tr>
                 <tr>
                   <th>Staged</th><td>
@@ -683,6 +668,12 @@ defmodule AshEnterpriseWeb.ImportLive do
               Process model
             </.button>
           </div>
+          <p :if={counter(@batch, "refused") > 0} class="text-sm">
+            Rows that did not land are listed, with their row numbers and why, on <.link
+              href={~p"/app/r/mdm_batches/#{@batch.id}"}
+              class="underline"
+            >this batch</.link>, and can be exported from there as CSV.
+          </p>
           <p class="text-xs text-foreground/70">
             Each review-banded match runs the <code>mdm.steward_review</code> BPMN process —
             open it under Processes; banding itself is a DMN decision table.

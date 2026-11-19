@@ -32,6 +32,15 @@ defmodule AshEnterprise.BusinessEvents.LedgerBase do
       changes do
         change AshEnterprise.BusinessEvents.Changes.StampOwner, on: [:create]
       end
+
+      # ADR 0032: on the base, so the simulation twin the ledger macro emits has a
+      # position too.
+      greenmask do
+        exclude_data(
+          because:
+            "the business-event ledger: an append-only chained log whose data and metadata carry the source records' values inside JSON no column transform reaches"
+        )
+      end
     end
   end
 end

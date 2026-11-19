@@ -1,0 +1,69 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Outbound webhook receiver",
+    "version": "1",
+    "description": "What an endpoint registered for outbound webhooks receives. Each delivery is one POST of a CloudEvents 1.0 structured event, signed per Standard Webhooks v1. The event is a nudge: it names the record, and the receiver reads the record through the API with its own key. Deliveries are at least once: the same event can arrive more than once, always with the same webhook-id, so a receiver must deduplicate on webhook-id. Any 2xx acknowledges a delivery; anything else, or no answer within 10 seconds, is retried after 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours. Redirects are not followed. The URL is the endpoint's registered URL, which must be https on port 443."
+  },
+  "paths": {
+    "/": {
+      "post": {
+        "summary": "Receive one event",
+        "parameters": [
+          {
+            "name": "webhook-id",
+            "in": "header",
+            "required": true,
+            "description": "The event's id. The same on every attempt and every redelivery of one event: deduplicate on it.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "webhook-timestamp",
+            "in": "header",
+            "required": true,
+            "description": "When this attempt was signed, in Unix seconds. Reject a timestamp more than five minutes from your clock.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "webhook-signature",
+            "in": "header",
+            "required": true,
+            "description": "v1, then the base64 HMAC-SHA256 of webhook-id, '.', webhook-timestamp, '.', and the raw body, keyed by the base64-decoded part of the endpoint's whsec_ secret. Compare in constant time.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/cloudevents+json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["specversion", "id", "source", "type"],
+                "properties": {
+                  "specversion": { "type": "string", "const": "1.0" },
+                  "id": { "type": "string", "format": "uuid", "description": "The audit event id; equal to webhook-id." },
+                  "source": { "type": "string", "description": "/organizations/<organization id>." },
+                  "type": { "type": "string", "description": "ash_enterprise.<resource>.<create|update|destroy>." },
+                  "subject": { "type": "string", "description": "The id of the record the event is about." },
+                  "time": { "type": "string", "format": "date-time", "description": "When the event was written." },
+                  "datacontenttype": { "type": "string", "const": "application/json" },
+                  "data": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["id"],
+                    "properties": { "id": { "type": "string", "description": "The record's id. Nothing else of the record is sent." } }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": { "description": "Acknowledged. The body is ignored." },
+          "default": { "description": "Not acknowledged: retried on the schedule above." }
+        }
+      }
+    }
+  }
+}

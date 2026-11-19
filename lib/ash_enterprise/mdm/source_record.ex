@@ -14,6 +14,9 @@ defmodule AshEnterprise.Mdm.SourceRecord do
   residency tag, period) — a central-log row per landed observation would
   double the write volume for a fact the row itself already answers.
 
+  `raw_payload` holds a landed row in plaintext, a person's name and address among its
+  values. A pseudonymised copy (ADR 0032) replaces it with `{}`.
+
   Raw landings are MACHINERY-visible only (found in the ADR 0054 build): the
   row carries no `organization_id`, so the grant union's scope clauses are
   all nil here and a GLOBAL role grant would read every tenant's raw rows —
@@ -38,6 +41,14 @@ defmodule AshEnterprise.Mdm.SourceRecord do
   postgres do
     table "mdm_source_records"
     repo AshEnterprise.Repo
+  end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml). A raw
+  # landing is a row as the source sent it, a person's name and address among its values,
+  # under keys no column transform can name in advance (a spreadsheet's own headers), so
+  # the whole payload is replaced. The row, its identity and its period stay.
+  greenmask do
+    transform(:raw_payload, :replace, value: "{}")
   end
 
   policies do

@@ -478,4 +478,24 @@ defmodule AshEnterprise.Execution.Invocation do
       description "The task the person the run acts for answers this row's question with."
     end
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    transform(:lease_token_digest, :set_null)
+
+    keep(:encrypted_args,
+      because:
+        "ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there"
+    )
+
+    keep(:encrypted_rejection_details,
+      because:
+        "ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there"
+    )
+
+    keep(:encrypted_result,
+      because:
+        "ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there"
+    )
+  end
 end

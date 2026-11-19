@@ -168,7 +168,7 @@ defmodule AshEnterprise.Audit.EventLog do
     domain: AshEnterprise.Audit,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
-    extensions: [AshEvents.EventLog, AshEvents.Chain.Extension],
+    extensions: [AshEvents.EventLog, AshEvents.Chain.Extension, AshGreenmask.Resource],
     # The bpmn trigger engine's nudge. It runs *after* the transaction -- Ash defers
     # notifications -- so it cannot extend the per-tenant advisory lock this chain relies on.
     # It also cannot be transactional with the write, which is why it only nudges and the
@@ -315,6 +315,14 @@ defmodule AshEnterprise.Audit.EventLog do
   """
   def evidence_controls, do: ["CC6.3"]
 
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    exclude_data(
+      because:
+        "the hash-chained audit log: a transformed row breaks the chain, and its data and metadata carry the audited records' values inside JSON no column transform reaches"
+    )
+  end
+
   actions do
     # The log is append-only: AshEvents writes entries as a side effect of other
     # actions, nothing may create, update or destroy one directly, and since the
@@ -459,6 +467,17 @@ defmodule AshEnterprise.Audit.EventLog do
     end
   end
 
+  @doc """
+  Events attributable to no human: `user_id` is null.
+
+  Read alongside the `system_actor` metadata key to see which non-human actor
+  was responsible.
+  """
+  def system_events_query do
+    require Ash.Query
+    Ash.Query.filter(__MODULE__, is_nil(user_id))
+  end
+
   relationships do
     # The lineage run of the operation that wrote this entry: a run's id is
     # its correlation id (`AshEnterprise.Lineage.Run`). Read under the
@@ -469,16 +488,5 @@ defmodule AshEnterprise.Audit.EventLog do
       public? true
       domain AshEnterprise.Lineage
     end
-  end
-
-  @doc """
-  Events attributable to no human: `user_id` is null.
-
-  Read alongside the `system_actor` metadata key to see which non-human actor
-  was responsible.
-  """
-  def system_events_query do
-    require Ash.Query
-    Ash.Query.filter(__MODULE__, is_nil(user_id))
   end
 end

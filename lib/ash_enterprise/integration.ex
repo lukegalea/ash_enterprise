@@ -30,6 +30,14 @@ defmodule AshEnterprise.Integration do
   satisfy the same invariants as the edge above: one transport per provider, no credential or
   connection argument, the generated action is the call path, and there is no integration log.
 
+  ## Outbound webhooks
+
+  A tenant registers an `AshEnterprise.Integration.Outbound.Endpoint` (a public HTTPS URL and
+  the event types it wants) and is sent a signed CloudEvent for each matching event in its own
+  audit log (ADR 0075). The send is a declared operation,
+  `AshEnterprise.Integration.Outbound.Receiver.deliver`, behind a disclosure gate and an egress
+  guard; `AshEnterprise.Integration.Outbound.Delivery` records each one.
+
   ## The verticals
 
     * Google Calendar — `Calendar.Sync` (entry points), `Calendar.SyncCursor`
@@ -88,5 +96,22 @@ defmodule AshEnterprise.Integration do
       define :receive_provider_delivery, action: :record
       define :list_provider_deliveries, action: :read
     end
+
+    resource AshEnterprise.Integration.Outbound.Endpoint do
+      define :register_webhook_endpoint, action: :register
+      define :list_webhook_endpoints, action: :read
+      define :get_webhook_endpoint, action: :read, get_by: [:id]
+      define :update_webhook_endpoint, action: :update
+      define :rotate_webhook_secret, action: :rotate_secret
+      define :disable_webhook_endpoint, action: :disable
+      define :enable_webhook_endpoint, action: :enable
+    end
+
+    resource AshEnterprise.Integration.Outbound.Delivery do
+      define :list_webhook_deliveries, action: :read
+      define :redeliver_webhook, action: :redeliver
+    end
+
+    resource AshEnterprise.Integration.Outbound.Receiver
   end
 end

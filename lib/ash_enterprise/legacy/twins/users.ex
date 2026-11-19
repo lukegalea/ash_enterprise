@@ -17,7 +17,7 @@ defmodule AshEnterprise.Legacy.Twins.Users do
   use Ash.Resource,
     domain: AshEnterprise.Legacy.Twins,
     data_layer: AshPostgres.DataLayer,
-    extensions: [AshStrangler.Twin]
+    extensions: [AshStrangler.Twin, AshGreenmask.Resource]
 
   postgres do
     table "users"
@@ -25,6 +25,24 @@ defmodule AshEnterprise.Legacy.Twins.Users do
     repo AshEnterprise.Repo
     # Ash does not own this table and never will.
     migrate? false
+  end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    # A table this application does not own, in the clear (the data inventory's
+    # looks-personal exceptions): hashed the same way as the read models over it.
+    # The columns are varchar(40): the hash is cut to fit.
+    transform(:login, :hash, max_length: 40)
+    transform(:email, :random_email, engine: "hash", domains: ["example.com"])
+    transform(:first_name, :hash, max_length: 40)
+    transform(:last_name, :hash, max_length: 40)
+    # restful_authentication's credentials: SHA1(salt + password), the salt, and the
+    # remember-me and activation tokens. No digest matches all zeros, so no legacy
+    # password signs in to a copy, and no token carries over.
+    transform(:crypted_password, :replace, value: "0000000000000000000000000000000000000000")
+    transform(:salt, :set_null)
+    transform(:remember_token, :set_null)
+    transform(:activation_code, :set_null)
   end
 
   actions do

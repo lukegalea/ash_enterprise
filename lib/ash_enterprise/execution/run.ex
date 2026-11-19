@@ -233,4 +233,19 @@ defmodule AshEnterprise.Execution.Run do
       description "The run's tool calls that are not in-loop reads."
     end
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    transform(:variables, :replace, value: "{}")
+
+    keep(:encrypted_input,
+      because:
+        "ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there"
+    )
+
+    keep(:encrypted_output,
+      because:
+        "ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there"
+    )
+  end
 end

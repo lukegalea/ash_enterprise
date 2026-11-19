@@ -97,6 +97,10 @@ defmodule AshEnterprise.Security.RolePrivilege do
 
       validate AshEnterprise.Security.Validations.DepthLegalForPrivilege
       validate AshEnterprise.Security.Validations.OperatorPrivilegeNeedsSystemActor
+
+      # `metadata.privileged`: this grant made a role that people hold privileged, for the
+      # security_alerts pack's review.
+      change AshEnterprise.Security.Changes.StampPrivilegeGrant
     end
 
     update :update do

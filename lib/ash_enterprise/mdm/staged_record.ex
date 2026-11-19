@@ -13,7 +13,9 @@ defmodule AshEnterprise.Mdm.StagedRecord do
   them, and the audit log is immutable. Erasing a person
   (`AshEnterprise.Erasure.PersonErasure`) deletes the staged rows whose mapped
   address is theirs (`erase`), but not those audit events.
-  `docs/runbooks/crypto-shredding.md` lists them as a residual.
+  `docs/runbooks/crypto-shredding.md` lists them as a residual. A pseudonymised copy
+  (ADR 0032) replaces `mapped` and `validation_findings`; the audit events are copied
+  empty.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -27,6 +29,15 @@ defmodule AshEnterprise.Mdm.StagedRecord do
   postgres do
     table "mdm_staged_records"
     repo AshEnterprise.Repo
+  end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml). `mapped`
+  # holds the row's canonical values, a person's name and address among them, and a
+  # finding can quote the value a rule could not read (`{:cast_failed, type, value}`), so
+  # both are replaced. The row, its status and its links to the batch and the landing stay.
+  greenmask do
+    transform(:mapped, :replace, value: "{}")
+    transform(:validation_findings, :replace, value: ~s({"errors": [], "warnings": []}))
   end
 
   attributes do

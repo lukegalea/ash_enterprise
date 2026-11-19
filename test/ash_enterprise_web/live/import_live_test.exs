@@ -280,6 +280,60 @@ defmodule AshEnterpriseWeb.ImportLiveTest do
     refute AshEnterprise.Mdm.MappingProposal |> Ash.exists?(tenant: org, authorize?: false)
   end
 
+  defp upload_rows(view, count) do
+    rows = for i <- 1..count, do: "person#{i}@x.io,Person #{i}\n"
+    content = IO.iodata_to_binary(["Email,Full Name\n" | rows])
+
+    upload =
+      file_input(view, "#import-upload-form", :csv, [
+        %{name: "people.csv", content: content, type: "text/csv"}
+      ])
+
+    render_upload(upload, "people.csv")
+    view |> element("#import-upload-form") |> render_submit()
+  end
+
+  defp assigns(view), do: :sys.get_state(view.pid).socket.assigns
+
+  test "a file over the row cap is refused at upload and nothing is kept", %{conn: conn, org: org} do
+    previous = Application.get_env(:ash_enterprise, AshEnterprise.Mdm.BulkImport)
+
+    Application.put_env(
+      :ash_enterprise,
+      AshEnterprise.Mdm.BulkImport,
+      Keyword.put(previous || [], :max_rows, 5)
+    )
+
+    on_exit(fn ->
+      Application.put_env(:ash_enterprise, AshEnterprise.Mdm.BulkImport, previous)
+    end)
+
+    {:ok, view, _html} = live(conn, "/app/mdm/import")
+    html = upload_rows(view, 6)
+
+    assert html =~ "more than 5 rows"
+    refute has_element?(view, "#run-batch-btn")
+    assert assigns(view).upload_id == nil
+    refute AshEnterprise.Mdm.ImportBatch |> Ash.exists?(tenant: org, authorize?: false)
+  end
+
+  test "the wizard keeps only the sample in assigns", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/app/mdm/import")
+    upload_rows(view, 25)
+
+    assigns = assigns(view)
+
+    # The file is counted and sampled; its rows stay on disk, not in the
+    # LiveView process.
+    assert assigns.row_count == 25
+    assert length(assigns.sample_rows) == 10
+    assert hd(assigns.sample_rows) == %{"Email" => "person1@x.io", "Full Name" => "Person 1"}
+    refute Map.has_key?(assigns, :rows)
+    assert {:ok, _path} = AshEnterprise.Mdm.BulkImport.upload_path(assigns.upload_id)
+
+    assert render(view) =~ "25 rows"
+  end
+
   test "a person who may not open a batch lands no rows", %{org: org, admin: admin} do
     mapping = activate_host_mapping!(draft_host_mapping!(org, []), org, admin)
 

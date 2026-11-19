@@ -2,14 +2,14 @@
   "format": "ash_enterprise.data_inventory/1",
   "note": "Generated from the resource declarations by `mix ash_enterprise.data_inventory`; do not edit. It describes the code, names no data steward, and attests nothing about a running deployment.",
   "summary": {
-    "resources": 176,
+    "resources": 181,
     "global_tables": 45,
-    "egress_paths": 16,
-    "tenant_scoped": 100,
+    "egress_paths": 17,
+    "tenant_scoped": 103,
     "unclassified_personal_attributes": 0,
     "with_sealed_attributes": 15,
     "with_secured_attributes": 1,
-    "with_sensitive_attributes": 33
+    "with_sensitive_attributes": 34
   },
   "resources": [
     {
@@ -2232,6 +2232,25 @@
       "secured_attributes": []
     },
     {
+      "resource": "AshEnterprise.Exports.Export",
+      "domain": "AshEnterprise.Exports",
+      "data_layer": "Ash.DataLayer.Simple",
+      "table": null,
+      "platform_resource": true,
+      "ownership": "none",
+      "tenancy": "global",
+      "tenant_option": false,
+      "audit": false,
+      "archival": false,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [],
+      "sealed_attributes": [],
+      "personal_looking_attributes": [],
+      "secured_attributes": []
+    },
+    {
       "resource": "AshEnterprise.Flags.Flag",
       "domain": "AshEnterprise.Flags",
       "data_layer": "AshPostgres.DataLayer",
@@ -2421,6 +2440,65 @@
       "domain": "AshEnterprise.Integration",
       "data_layer": "AshPostgres.DataLayer",
       "table": "integration_provider_webhook_deliveries",
+      "platform_resource": true,
+      "ownership": "none",
+      "tenancy": "global",
+      "tenant_option": false,
+      "audit": true,
+      "archival": false,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [],
+      "sealed_attributes": [],
+      "personal_looking_attributes": [],
+      "secured_attributes": []
+    },
+    {
+      "resource": "AshEnterprise.Integration.Outbound.Delivery",
+      "domain": "AshEnterprise.Integration",
+      "data_layer": "AshPostgres.DataLayer",
+      "table": "integration_outbound_deliveries",
+      "platform_resource": true,
+      "ownership": "organization_owned",
+      "tenancy": "attribute",
+      "tenant_option": true,
+      "audit": false,
+      "archival": false,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [],
+      "sealed_attributes": [],
+      "personal_looking_attributes": [],
+      "secured_attributes": []
+    },
+    {
+      "resource": "AshEnterprise.Integration.Outbound.Endpoint",
+      "domain": "AshEnterprise.Integration",
+      "data_layer": "AshPostgres.DataLayer",
+      "table": "integration_outbound_endpoints",
+      "platform_resource": true,
+      "ownership": "organization_owned",
+      "tenancy": "attribute",
+      "tenant_option": true,
+      "audit": true,
+      "archival": true,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [
+        "sealed_secret"
+      ],
+      "sealed_attributes": [],
+      "personal_looking_attributes": [],
+      "secured_attributes": []
+    },
+    {
+      "resource": "AshEnterprise.Integration.Outbound.Receiver",
+      "domain": "AshEnterprise.Integration",
+      "data_layer": "Ash.DataLayer.Simple",
+      "table": null,
       "platform_resource": true,
       "ownership": "none",
       "tenancy": "global",
@@ -2770,6 +2848,25 @@
       "tenancy": "attribute",
       "tenant_option": true,
       "audit": true,
+      "archival": false,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [],
+      "sealed_attributes": [],
+      "personal_looking_attributes": [],
+      "secured_attributes": []
+    },
+    {
+      "resource": "AshEnterprise.Mdm.ImportRowRefusal",
+      "domain": "AshEnterprise.Mdm",
+      "data_layer": "AshPostgres.DataLayer",
+      "table": "mdm_import_row_refusals",
+      "platform_resource": true,
+      "ownership": "organization_owned",
+      "tenancy": "attribute",
+      "tenant_option": true,
+      "audit": false,
       "archival": false,
       "lifecycle": false,
       "cdm_entity": null,
@@ -4043,6 +4140,33 @@
         "path": "/v1/activations",
         "provider": "credential_registry",
         "resource": "AshEnterprise.Credentialing.RegistryApi"
+      }
+    },
+    {
+      "id": "operation_outbound_webhook_deliver",
+      "name": "outbound_webhook: POST / (deliver)",
+      "recipient_class": "third_party_api",
+      "data_classes": [
+        "personal_data",
+        "credentials_reference"
+      ],
+      "gate": {
+        "name": "Disclosure gate: refuses the send unless the tenant, the readable disclosure reference and the residency policy allow it",
+        "enforced_by": "AshEnterprise.Integration.Outbound.DisclosureGate"
+      },
+      "known_gap": null,
+      "modules": [
+        "AshEnterprise.Integration.Outbound.Receiver",
+        "AshEnterprise.Integration.Outbound.Transport"
+      ],
+      "notes": null,
+      "operation": {
+        "discloses": true,
+        "method": "post",
+        "name": "deliver",
+        "path": "/",
+        "provider": "outbound_webhook",
+        "resource": "AshEnterprise.Integration.Outbound.Receiver"
       }
     }
   ]

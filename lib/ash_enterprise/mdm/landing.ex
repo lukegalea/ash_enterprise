@@ -45,7 +45,9 @@ defmodule AshEnterprise.Mdm.Landing do
 
   Row options: `row_key` (the source's own id for the row; generated when
   the source has none), `fetched_at` (defaults to now — an upload's
-  observation instant IS its fetch).
+  observation instant IS its fetch), `residency_tag` (the residency the row
+  itself declares; defaults to the region's own tag, and a tag the region
+  does not admit is refused by bizev's admission, not here).
   """
   def land_row(tenant, slug, payload, opts \\ []) when is_map(payload) do
     row_key = opts[:row_key] || Ash.UUID.generate()
@@ -68,7 +70,7 @@ defmodule AshEnterprise.Mdm.Landing do
         stream: :upload,
         external_id: "#{tenant}:#{slug}:#{row_key}",
         region: region,
-        residency_tag: Atom.to_string(region),
+        residency_tag: opts[:residency_tag] || Atom.to_string(region),
         raw_payload: payload,
         source_metadata: %{"tenant" => tenant, "slug" => slug},
         cursor: nil,

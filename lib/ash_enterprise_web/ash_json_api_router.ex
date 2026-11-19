@@ -15,5 +15,8 @@ defmodule AshEnterpriseWeb.AshJsonApiRouter do
   # it discloses the existence of records the caller may not be able to read.
   use AshJsonApi.Router,
     domains: [AshEnterprise.Accounts],
-    open_api: "/open_api"
+    open_api: "/open_api",
+    # The same title and version as the pinned contract (`AshEnterpriseWeb.ApiContract`).
+    open_api_title: "Ash Enterprise API",
+    open_api_version: "1.0"
 end

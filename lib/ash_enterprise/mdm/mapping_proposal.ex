@@ -18,6 +18,13 @@ defmodule AshEnterprise.Mdm.MappingProposal do
     repo AshEnterprise.Repo
   end
 
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml). What the
+  # proposer said can quote the field samples it was shown, so it is replaced; the stage
+  # stays.
+  greenmask do
+    transform(:raw, :replace, value: "{}")
+  end
+
   attributes do
     uuid_primary_key :id
 

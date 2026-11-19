@@ -1,22 +1,27 @@
 defmodule AshEnterprise.Security.Changes.StampTeamGrant do
   @moduledoc """
-  Puts the names of the roles a team write hands to people into the write's audit metadata,
-  so a recipe can tell that someone was just made an Administrator through a team.
+  Puts what a team write hands to people into the write's audit metadata, so a recipe can
+  tell that someone was just given a privileged role through a team.
 
   A person holds every role their owner teams hold (`AshEnterprise.Security.ActorContext`),
-  so three writes make someone an effective Administrator without a `UserRole` row: a role
-  assigned to a team, a person added to a team that holds one, and a deleted team that holds
-  one restored. Each stamps what it grants, as `AshEnterprise.Security.Changes.StampRoleName`
+  so three writes give someone a privileged role without a `UserRole` row: a role assigned
+  to a team, a person added to a team that holds one, and a deleted team that holds one
+  restored. Each stamps what it grants, as `AshEnterprise.Security.Changes.StampRoleName`
   stamps a direct assignment, because a guard must not query:
 
-    * `:team_role` (`TeamRole.assign`) stamps `role_name`, the role assigned to the team;
+    * `:team_role` (`TeamRole.assign`) stamps `role_name`, the role assigned to the team,
+      and `privileged`, whether that role is privileged;
     * `:membership` (`TeamMembership.create`) and `:restore` (`Team.restore`) stamp
-      `role_names`, the roles the team holds in force, read for a guard with FEEL's
-      `list contains(metadata.role_names, "Administrator")`.
+      `role_names`, the roles the team holds in force, `privileged_role_names`, those of
+      them that are privileged, and `privileged`, whether there is any.
 
-  A repeat that changes nothing grants nothing new, so it stamps nothing: an assignment the
-  team already holds, or a membership the person already has (directory sync adds people
-  again routinely). `role_names` is then the empty list and `role_name` is absent.
+  A guard reads `metadata.privileged = true`. Privileged is what a role grants, not what it
+  is called (`AshEnterprise.Security.PrivilegedRoles`); the names stay for the reviewer.
+
+  A repeat that changes nothing grants nothing new, so it stamps nothing granted: an
+  assignment the team already holds, or a membership the person already has (directory sync
+  adds people again routinely). `privileged` is then false, `role_names` the empty list and
+  `role_name` absent.
 
   The reads run in a `before_action`, after the action's policies admitted the caller,
   without authorization in the call's tenant, as `StampRoleName`'s do: this is the action's
@@ -28,7 +33,7 @@ defmodule AshEnterprise.Security.Changes.StampTeamGrant do
   require Ash.Query
 
   alias AshEnterprise.Accounts.TeamMembership
-  alias AshEnterprise.Security.{Role, TeamRole}
+  alias AshEnterprise.Security.{PrivilegedRoles, Role, TeamRole}
 
   @impl true
   def init(opts) do
@@ -50,11 +55,11 @@ defmodule AshEnterprise.Security.Changes.StampTeamGrant do
     scope_id = Ash.Changeset.get_attribute(changeset, :scoping_business_unit_id)
 
     if held?(team_id, role_id, scope_id, changeset.tenant) do
-      %{}
+      %{"privileged" => false}
     else
-      case names([role_id], changeset.tenant) do
-        [name] -> %{"role_name" => name}
-        _none -> %{}
+      case roles([role_id], changeset.tenant) do
+        [{_id, name, privileged?}] -> %{"role_name" => name, "privileged" => privileged?}
+        _none -> %{"privileged" => false}
       end
     end
   end
@@ -64,19 +69,29 @@ defmodule AshEnterprise.Security.Changes.StampTeamGrant do
     team_id = Ash.Changeset.get_attribute(changeset, :team_id)
 
     if member?(user_id, team_id, changeset.tenant),
-      do: %{"role_names" => []},
-      else: %{"role_names" => team_role_names(team_id, changeset.tenant)}
+      do: granted([]),
+      else: granted(team_roles(team_id, changeset.tenant))
   end
 
   defp metadata(:restore, changeset),
-    do: %{"role_names" => team_role_names(changeset.data.id, changeset.tenant)}
+    do: granted(team_roles(changeset.data.id, changeset.tenant))
+
+  defp granted(roles) do
+    privileged = for {_id, name, true} <- roles, do: name
+
+    %{
+      "role_names" => Enum.map(roles, fn {_id, name, _privileged?} -> name end),
+      "privileged_role_names" => privileged,
+      "privileged" => privileged != []
+    }
+  end
 
   defp stamp(changeset, stamped) do
     metadata =
       changeset.context
       |> Map.get(:ash_events_metadata, %{})
       |> then(&if(is_map(&1), do: &1, else: %{}))
-      |> Map.drop(["role_name", "role_names"])
+      |> Map.drop(["role_name", "role_names", "privileged_role_names", "privileged"])
       |> Map.merge(stamped)
 
     Ash.Changeset.set_context(changeset, %{ash_events_metadata: metadata})
@@ -103,8 +118,8 @@ defmodule AshEnterprise.Security.Changes.StampTeamGrant do
 
   defp member?(_user_id, _team_id, _tenant), do: false
 
-  # The roles the team holds in force, by name.
-  defp team_role_names(team_id, tenant) when is_binary(team_id) do
+  # The roles the team holds in force.
+  defp team_roles(team_id, tenant) when is_binary(team_id) do
     now = DateTime.utc_now()
 
     TeamRole
@@ -112,19 +127,23 @@ defmodule AshEnterprise.Security.Changes.StampTeamGrant do
     |> Ash.Query.select([:role_id])
     |> Ash.read!(authorize?: false, tenant: tenant)
     |> Enum.map(& &1.role_id)
-    |> names(tenant)
+    |> roles(tenant)
   end
 
-  defp team_role_names(_team_id, _tenant), do: []
+  defp team_roles(_team_id, _tenant), do: []
 
-  defp names([], _tenant), do: []
+  # `{id, name, privileged?}` for each role, sorted by name.
+  defp roles([], _tenant), do: []
 
-  defp names(role_ids, tenant) do
+  defp roles(role_ids, tenant) do
+    opts = [authorize?: false, tenant: tenant]
+    privileged = PrivilegedRoles.privileged_role_ids(role_ids, opts)
+
     Role
     |> Ash.Query.filter(id in ^Enum.uniq(role_ids))
-    |> Ash.Query.select([:name])
-    |> Ash.read!(authorize?: false, tenant: tenant)
-    |> Enum.map(& &1.name)
-    |> Enum.sort()
+    |> Ash.Query.select([:id, :name])
+    |> Ash.read!(opts)
+    |> Enum.map(&{&1.id, &1.name, MapSet.member?(privileged, &1.id)})
+    |> Enum.sort_by(&elem(&1, 1))
   end
 end

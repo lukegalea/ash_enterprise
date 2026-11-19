@@ -263,4 +263,12 @@ defmodule AshEnterprise.Integration.Calendar.SyncCursor do
     define :unlist
     define :relist
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    transform(:calendar_id, :hash)
+    # Nil means the next pass is a full sync, which is what a copy should do.
+    transform(:sync_token, :set_null)
+    transform(:page_token, :set_null)
+  end
 end

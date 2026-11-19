@@ -135,4 +135,12 @@ defmodule AshEnterprise.Assistant.ReplyDraft do
     define :draft, args: [:conversation_id, :body]
     define :mine
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    keep(:encrypted_body,
+      because:
+        "ciphertext under the application vault key, which never travels with a copy; unreadable without production's vault key"
+    )
+  end
 end

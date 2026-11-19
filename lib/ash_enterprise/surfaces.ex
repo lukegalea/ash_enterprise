@@ -496,6 +496,52 @@ defmodule AshEnterprise.Surfaces do
       door: :operator
     },
     %Surface{
+      key: :webhook_endpoints,
+      audience: [:operator],
+      searchable: [:url],
+      label: dgettext_noop("default", "Webhook endpoints"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Where this organization's events are sent, what each endpoint is sent, and whether it is working."
+        ),
+      description:
+        "Outbound webhook endpoints: the public HTTPS URLs this organization registered, the " <>
+          "event types each is sent as signed CloudEvents, and whether each is active, " <>
+          "disabled or failing and why. Ask for this when the request is about sending this " <>
+          "organization's events to another system, or an endpoint that stopped receiving them.",
+      group: :operator,
+      order: 28,
+      icon: "hero-paper-airplane",
+      path: "/app/webhook-endpoints",
+      ui: A2ui.WebhookEndpointsUI,
+      resource: AshEnterprise.Integration.Outbound.Endpoint,
+      context: :endpoint
+    },
+    %Surface{
+      key: :webhook_deliveries,
+      audience: [:operator],
+      searchable: [:subject_id],
+      label: dgettext_noop("default", "Outbound deliveries"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Each event sent to a webhook endpoint, with its attempts and the receiver's last answer."
+        ),
+      description:
+        "Outbound webhook deliveries, newest first: the event type, the record it names, " <>
+          "whether it was delivered, refused or dead-lettered, the attempts, and the " <>
+          "receiver's last status. A delivery holds no payload. Ask for this when a receiver " <>
+          "says it did not get an event.",
+      group: :operator,
+      order: 29,
+      icon: "hero-arrow-up-tray",
+      path: "/app/webhook-deliveries",
+      ui: A2ui.WebhookDeliveriesUI,
+      resource: AshEnterprise.Integration.Outbound.Delivery,
+      context: :delivery
+    },
+    %Surface{
       key: :recovery,
       audience: [:operator],
       label: dgettext_noop("default", "Recovery"),

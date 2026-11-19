@@ -152,7 +152,10 @@ defmodule AshEnterprise.Platform.Resource do
         # RunEvents on successful writes, through the host transport (which is
         # a silent no-op until `:http_base_url` is configured). Table-level
         # names only — the leak rule forbids actor/tenant/value facets.
-        AshOpenLineage.Extension
+        AshOpenLineage.Extension,
+        # ADR 0032: how each attribute may leave production in a copy. Spark
+        # metadata only; `mix ash_greenmask.gen.config` reads it.
+        AshGreenmask.Resource
       ]
       |> maybe_add(audit?, AshEvents.Events)
       |> maybe_add(archival?, AshArchival.Resource)

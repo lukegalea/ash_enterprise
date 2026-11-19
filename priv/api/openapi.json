@@ -1,0 +1,5193 @@
+{
+  "components": {
+    "responses": {
+      "errors": {
+        "content": {
+          "application/vnd.api+json": {
+            "schema": {
+              "$ref": "#/components/schemas/errors"
+            }
+          }
+        },
+        "description": "General Error"
+      }
+    },
+    "schemas": {
+      "both": {
+        "additionalProperties": false,
+        "description": "A \"Resource object\" representing a both",
+        "properties": {
+          "attributes": {
+            "additionalProperties": false,
+            "description": "An attributes object for a both",
+            "properties": {
+              "created_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The user who created this record. Field included by default."
+              },
+              "created_on": {
+                "description": "Field included by default."
+              },
+              "created_on_behalf_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Set when an application or delegate created the record on a user's behalf. Field included by default."
+              },
+              "email": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "No identity at this phase -- see the moduledoc. Field included by default."
+              },
+              "full_name": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Projected, not decomposed. The legacy schema has `first_name` and `last_name`; this\napplication has one name field, and going back the other way is what makes a true cutover\nhard ('de la Cruz' splits wrong). Carried as one string because that is what is known.\n. Field included by default."
+              },
+              "gap_count": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "kyc_status": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "legacy_id": {
+                "description": "`legacy.users.id`. The upsert key, because it is the one the source guarantees. Field included by default.",
+                "type": "integer"
+              },
+              "legacy_state": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The legacy state machine's value, verbatim. Five values, against this platform's two. Field included by default."
+              },
+              "lifecycle_status": {
+                "description": "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it. Field included by default.",
+                "enum": [
+                  "active",
+                  "inactive"
+                ],
+                "type": "string"
+              },
+              "login": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Field included by default."
+              },
+              "modified_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The user who last modified this record. Field included by default."
+              },
+              "modified_on": {
+                "description": "Field included by default."
+              },
+              "modified_on_behalf_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Set when an application or delegate modified the record on a user's behalf. Field included by default."
+              },
+              "organization_id": {
+                "description": "Tenant discriminator. CDM-native: every Dataverse table carries it. Field included by default.",
+                "format": "uuid",
+                "type": "string"
+              },
+              "overridden_created_on": {
+                "anyOf": [
+                  {},
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The original creation time, when a record was imported and its real created_on differs from the import time. Field included by default."
+              },
+              "owning_business_unit_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Denormalized owning business unit, so Local/Deep depth checks are a column comparison. Field included by default."
+              },
+              "projected_at": {
+                "description": "When the projector last wrote this row. The lag between legacy and here, made visible. Field included by default."
+              },
+              "state_code": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Dataverse statecode, derived from the status's owning state. Read-only -- this is why the pair cannot drift."
+              },
+              "status_code": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Dataverse statuscode, derived from lifecycle_status. Read-only."
+              },
+              "version_number": {
+                "description": "Row version, incremented on write. Used for optimistic locking. Field included by default.",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "created_on",
+              "legacy_id",
+              "lifecycle_status",
+              "modified_on",
+              "organization_id",
+              "projected_at",
+              "version_number"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "relationships": {
+            "additionalProperties": false,
+            "description": "A relationships object for a both",
+            "properties": {},
+            "type": "object"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "type": "object"
+      },
+      "business_unit": {
+        "additionalProperties": false,
+        "description": "A \"Resource object\" representing a business_unit",
+        "properties": {
+          "attributes": {
+            "additionalProperties": false,
+            "description": "An attributes object for a business_unit",
+            "properties": {
+              "ancestor_names": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "breadcrumb": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The ancestor chain by name, root first: \"Example Corp / Engineering / Platform\".\n\n`path` is the same chain as UUIDs, and stays that way: it is an\nauthorization structure, read by every Deep grant as a prefix comparison.\nThis is the display of it, derived, and never a second source of truth.\n"
+              },
+              "cost_center": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Field included by default."
+              },
+              "created_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The user who created this record. Field included by default."
+              },
+              "created_on": {
+                "description": "Field included by default."
+              },
+              "created_on_behalf_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Set when an application or delegate created the record on a user's behalf. Field included by default."
+              },
+              "depth": {
+                "description": "Distance from the root. The root is 0. Derived from path. Field included by default.",
+                "type": "integer"
+              },
+              "division_name": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Field included by default."
+              },
+              "is_disabled": {
+                "description": "A disabled business unit keeps its records but grants no access through them. Field included by default.",
+                "type": "boolean"
+              },
+              "is_root": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "lifecycle_status": {
+                "description": "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it. Field included by default.",
+                "enum": [
+                  "active",
+                  "inactive"
+                ],
+                "type": "string"
+              },
+              "modified_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The user who last modified this record. Field included by default."
+              },
+              "modified_on": {
+                "description": "Field included by default."
+              },
+              "modified_on_behalf_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Set when an application or delegate modified the record on a user's behalf. Field included by default."
+              },
+              "name": {
+                "description": "Field included by default.",
+                "type": "string"
+              },
+              "organization_id": {
+                "description": "Tenant discriminator. CDM-native: every Dataverse table carries it. Field included by default.",
+                "format": "uuid",
+                "type": "string"
+              },
+              "overridden_created_on": {
+                "anyOf": [
+                  {},
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The original creation time, when a record was imported and its real created_on differs from the import time. Field included by default."
+              },
+              "owning_business_unit_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Denormalized owning business unit, so Local/Deep depth checks are a column comparison. Field included by default."
+              },
+              "parent_business_unit_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Field included by default."
+              },
+              "path": {
+                "description": "Materialized ancestor path, maintained by the platform. Slash-delimited\nids, leading and trailing slash: \"/root-id/child-id/\".\n. Field included by default.",
+                "type": "string"
+              },
+              "state_code": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Dataverse statecode, derived from the status's owning state. Read-only -- this is why the pair cannot drift."
+              },
+              "status_code": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Dataverse statuscode, derived from lifecycle_status. Read-only."
+              },
+              "tree_label": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "`name`, indented by depth, for rendering the hierarchy as a flat list.\n\nCorrect only when sorted by `path` ascending. Because every segment is a\nfixed-width UUID, lexicographic path order *is* depth-first pre-order, so\neach row lands directly beneath its parent.\n"
+              },
+              "version_number": {
+                "description": "Row version, incremented on write. Used for optimistic locking. Field included by default.",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "created_on",
+              "depth",
+              "is_disabled",
+              "lifecycle_status",
+              "modified_on",
+              "name",
+              "organization_id",
+              "path",
+              "version_number"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "relationships": {
+            "additionalProperties": false,
+            "description": "A relationships object for a business_unit",
+            "properties": {
+              "ancestors": {
+                "properties": {
+                  "data": {
+                    "description": "Relationship data for ancestors",
+                    "items": {
+                      "additionalProperties": false,
+                      "description": "Resource identifiers for ancestors",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "meta": {
+                          "additionalProperties": true,
+                          "type": "object"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  }
+                }
+              },
+              "child_business_units": {
+                "properties": {
+                  "data": {
+                    "description": "Relationship data for child_business_units",
+                    "items": {
+                      "additionalProperties": false,
+                      "description": "Resource identifiers for child_business_units",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "meta": {
+                          "additionalProperties": true,
+                          "type": "object"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  }
+                }
+              },
+              "parent_business_unit": {
+                "properties": {
+                  "data": {
+                    "additionalProperties": false,
+                    "description": "An identifier for parent_business_unit",
+                    "nullable": true,
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "meta": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ],
+                    "type": "object"
+                  }
+                }
+              }
+            },
+            "type": "object"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "type": "object"
+      },
+      "business_unit-filter": {
+        "additionalProperties": false,
+        "description": "Filters the query to results matching the given filter object",
+        "example": "",
+        "properties": {
+          "ancestors": {
+            "$ref": "#/components/schemas/business_unit-filter"
+          },
+          "and": {
+            "items": {
+              "$ref": "#/components/schemas/business_unit-filter"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "breadcrumb": {
+            "$ref": "#/components/schemas/business_unit-filter-breadcrumb"
+          },
+          "child_business_units": {
+            "$ref": "#/components/schemas/business_unit-filter"
+          },
+          "cost_center": {
+            "$ref": "#/components/schemas/business_unit-filter-cost_center"
+          },
+          "created_by_id": {
+            "$ref": "#/components/schemas/business_unit-filter-created_by_id"
+          },
+          "created_on": {
+            "$ref": "#/components/schemas/business_unit-filter-created_on"
+          },
+          "created_on_behalf_by_id": {
+            "$ref": "#/components/schemas/business_unit-filter-created_on_behalf_by_id"
+          },
+          "depth": {
+            "$ref": "#/components/schemas/business_unit-filter-depth"
+          },
+          "division_name": {
+            "$ref": "#/components/schemas/business_unit-filter-division_name"
+          },
+          "id": {
+            "$ref": "#/components/schemas/business_unit-filter-id"
+          },
+          "is_disabled": {
+            "$ref": "#/components/schemas/business_unit-filter-is_disabled"
+          },
+          "is_root": {
+            "$ref": "#/components/schemas/business_unit-filter-is_root"
+          },
+          "lifecycle_status": {
+            "$ref": "#/components/schemas/business_unit-filter-lifecycle_status"
+          },
+          "modified_by_id": {
+            "$ref": "#/components/schemas/business_unit-filter-modified_by_id"
+          },
+          "modified_on": {
+            "$ref": "#/components/schemas/business_unit-filter-modified_on"
+          },
+          "modified_on_behalf_by_id": {
+            "$ref": "#/components/schemas/business_unit-filter-modified_on_behalf_by_id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/business_unit-filter-name"
+          },
+          "not": {
+            "$ref": "#/components/schemas/business_unit-filter"
+          },
+          "or": {
+            "items": {
+              "$ref": "#/components/schemas/business_unit-filter"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "organization_id": {
+            "$ref": "#/components/schemas/business_unit-filter-organization_id"
+          },
+          "overridden_created_on": {
+            "$ref": "#/components/schemas/business_unit-filter-overridden_created_on"
+          },
+          "owning_business_unit_id": {
+            "$ref": "#/components/schemas/business_unit-filter-owning_business_unit_id"
+          },
+          "parent_business_unit": {
+            "$ref": "#/components/schemas/business_unit-filter"
+          },
+          "parent_business_unit_id": {
+            "$ref": "#/components/schemas/business_unit-filter-parent_business_unit_id"
+          },
+          "path": {
+            "$ref": "#/components/schemas/business_unit-filter-path"
+          },
+          "tree_label": {
+            "$ref": "#/components/schemas/business_unit-filter-tree_label"
+          },
+          "version_number": {
+            "$ref": "#/components/schemas/business_unit-filter-version_number"
+          }
+        },
+        "type": "deepObject"
+      },
+      "business_unit-filter-breadcrumb": {
+        "additionalProperties": false,
+        "description": "The ancestor chain by name, root first: \"Example Corp / Engineering / Platform\".\n\n`path` is the same chain as UUIDs, and stays that way: it is an\nauthorization structure, read by every Deep grant as a prefix comparison.\nThis is the display of it, derived, and never a second source of truth.\n",
+        "properties": {
+          "contains": {
+            "type": "string"
+          },
+          "eq": {
+            "type": "string"
+          },
+          "greater_than": {
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "type": "string"
+          },
+          "ilike": {
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "string"
+          },
+          "less_than": {
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "type": "string"
+          },
+          "like": {
+            "type": "string"
+          },
+          "not_eq": {
+            "type": "string"
+          },
+          "string_ends_with": {
+            "type": "string"
+          },
+          "string_starts_with": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-cost_center": {
+        "additionalProperties": false,
+        "properties": {
+          "contains": {
+            "type": "string"
+          },
+          "eq": {
+            "type": "string"
+          },
+          "greater_than": {
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "type": "string"
+          },
+          "ilike": {
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "string"
+          },
+          "less_than": {
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "type": "string"
+          },
+          "like": {
+            "type": "string"
+          },
+          "not_eq": {
+            "type": "string"
+          },
+          "string_ends_with": {
+            "type": "string"
+          },
+          "string_starts_with": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-created_by_id": {
+        "additionalProperties": false,
+        "description": "The user who created this record.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-created_on": {
+        "additionalProperties": false,
+        "properties": {
+          "eq": {},
+          "greater_than": {},
+          "greater_than_or_equal": {},
+          "in": {
+            "items": {},
+            "type": "array"
+          },
+          "is_distinct_from": {},
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {},
+          "less_than": {},
+          "less_than_or_equal": {},
+          "not_eq": {}
+        },
+        "type": "object"
+      },
+      "business_unit-filter-created_on_behalf_by_id": {
+        "additionalProperties": false,
+        "description": "Set when an application or delegate created the record on a user's behalf.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-depth": {
+        "additionalProperties": false,
+        "description": "Distance from the root. The root is 0. Derived from path.",
+        "properties": {
+          "eq": {
+            "type": "integer"
+          },
+          "greater_than": {
+            "type": "integer"
+          },
+          "greater_than_or_equal": {
+            "type": "integer"
+          },
+          "in": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "integer"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "integer"
+          },
+          "less_than": {
+            "type": "integer"
+          },
+          "less_than_or_equal": {
+            "type": "integer"
+          },
+          "not_eq": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-division_name": {
+        "additionalProperties": false,
+        "properties": {
+          "contains": {
+            "type": "string"
+          },
+          "eq": {
+            "type": "string"
+          },
+          "greater_than": {
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "type": "string"
+          },
+          "ilike": {
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "string"
+          },
+          "less_than": {
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "type": "string"
+          },
+          "like": {
+            "type": "string"
+          },
+          "not_eq": {
+            "type": "string"
+          },
+          "string_ends_with": {
+            "type": "string"
+          },
+          "string_starts_with": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-id": {
+        "additionalProperties": false,
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-is_disabled": {
+        "additionalProperties": false,
+        "description": "A disabled business unit keeps its records but grants no access through them.",
+        "properties": {
+          "eq": {
+            "type": "boolean"
+          },
+          "greater_than": {
+            "type": "boolean"
+          },
+          "greater_than_or_equal": {
+            "type": "boolean"
+          },
+          "in": {
+            "items": {
+              "type": "boolean"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "boolean"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "boolean"
+          },
+          "less_than": {
+            "type": "boolean"
+          },
+          "less_than_or_equal": {
+            "type": "boolean"
+          },
+          "not_eq": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-is_root": {
+        "additionalProperties": false,
+        "properties": {
+          "eq": {
+            "type": "boolean"
+          },
+          "greater_than": {
+            "type": "boolean"
+          },
+          "greater_than_or_equal": {
+            "type": "boolean"
+          },
+          "in": {
+            "items": {
+              "type": "boolean"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "boolean"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "boolean"
+          },
+          "less_than": {
+            "type": "boolean"
+          },
+          "less_than_or_equal": {
+            "type": "boolean"
+          },
+          "not_eq": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-lifecycle_status": {
+        "additionalProperties": false,
+        "description": "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it.",
+        "properties": {
+          "eq": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "greater_than": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "string"
+          },
+          "less_than": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "not_eq": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-modified_by_id": {
+        "additionalProperties": false,
+        "description": "The user who last modified this record.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-modified_on": {
+        "additionalProperties": false,
+        "properties": {
+          "eq": {},
+          "greater_than": {},
+          "greater_than_or_equal": {},
+          "in": {
+            "items": {},
+            "type": "array"
+          },
+          "is_distinct_from": {},
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {},
+          "less_than": {},
+          "less_than_or_equal": {},
+          "not_eq": {}
+        },
+        "type": "object"
+      },
+      "business_unit-filter-modified_on_behalf_by_id": {
+        "additionalProperties": false,
+        "description": "Set when an application or delegate modified the record on a user's behalf.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-name": {
+        "additionalProperties": false,
+        "properties": {
+          "contains": {
+            "type": "string"
+          },
+          "eq": {
+            "type": "string"
+          },
+          "greater_than": {
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "type": "string"
+          },
+          "ilike": {
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "string"
+          },
+          "less_than": {
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "type": "string"
+          },
+          "like": {
+            "type": "string"
+          },
+          "not_eq": {
+            "type": "string"
+          },
+          "string_ends_with": {
+            "type": "string"
+          },
+          "string_starts_with": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-organization_id": {
+        "additionalProperties": false,
+        "description": "Tenant discriminator. CDM-native: every Dataverse table carries it.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-overridden_created_on": {
+        "additionalProperties": false,
+        "description": "The original creation time, when a record was imported and its real created_on differs from the import time.",
+        "properties": {
+          "eq": {},
+          "greater_than": {},
+          "greater_than_or_equal": {},
+          "in": {
+            "items": {},
+            "type": "array"
+          },
+          "is_distinct_from": {},
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {},
+          "less_than": {},
+          "less_than_or_equal": {},
+          "not_eq": {}
+        },
+        "type": "object"
+      },
+      "business_unit-filter-owning_business_unit_id": {
+        "additionalProperties": false,
+        "description": "Denormalized owning business unit, so Local/Deep depth checks are a column comparison.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-parent_business_unit_id": {
+        "additionalProperties": false,
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-path": {
+        "additionalProperties": false,
+        "description": "Materialized ancestor path, maintained by the platform. Slash-delimited\nids, leading and trailing slash: \"/root-id/child-id/\".\n",
+        "properties": {
+          "contains": {
+            "type": "string"
+          },
+          "eq": {
+            "type": "string"
+          },
+          "greater_than": {
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "type": "string"
+          },
+          "ilike": {
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "string"
+          },
+          "less_than": {
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "type": "string"
+          },
+          "like": {
+            "type": "string"
+          },
+          "not_eq": {
+            "type": "string"
+          },
+          "string_ends_with": {
+            "type": "string"
+          },
+          "string_starts_with": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-tree_label": {
+        "additionalProperties": false,
+        "description": "`name`, indented by depth, for rendering the hierarchy as a flat list.\n\nCorrect only when sorted by `path` ascending. Because every segment is a\nfixed-width UUID, lexicographic path order *is* depth-first pre-order, so\neach row lands directly beneath its parent.\n",
+        "properties": {
+          "contains": {
+            "type": "string"
+          },
+          "eq": {
+            "type": "string"
+          },
+          "greater_than": {
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "type": "string"
+          },
+          "ilike": {
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "string"
+          },
+          "less_than": {
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "type": "string"
+          },
+          "like": {
+            "type": "string"
+          },
+          "not_eq": {
+            "type": "string"
+          },
+          "string_ends_with": {
+            "type": "string"
+          },
+          "string_starts_with": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "business_unit-filter-version_number": {
+        "additionalProperties": false,
+        "description": "Row version, incremented on write. Used for optimistic locking.",
+        "properties": {
+          "eq": {
+            "type": "integer"
+          },
+          "greater_than": {
+            "type": "integer"
+          },
+          "greater_than_or_equal": {
+            "type": "integer"
+          },
+          "in": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "integer"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "integer"
+          },
+          "less_than": {
+            "type": "integer"
+          },
+          "less_than_or_equal": {
+            "type": "integer"
+          },
+          "not_eq": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "error": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "An application-specific error code, expressed as a string value.",
+            "type": "string"
+          },
+          "detail": {
+            "description": "A human-readable explanation specific to this occurrence of the problem.",
+            "type": "string"
+          },
+          "id": {
+            "description": "A unique identifier for this particular occurrence of the problem.",
+            "type": "string"
+          },
+          "links": {
+            "$ref": "#/components/schemas/links"
+          },
+          "source": {
+            "properties": {
+              "parameter": {
+                "description": "A string indicating which query parameter caused the error.",
+                "type": "string"
+              },
+              "pointer": {
+                "description": "A JSON Pointer [RFC6901] to the associated entity in the request document [e.g. \"/data\" for a primary data object, or \"/data/attributes/title\" for a specific attribute].",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "status": {
+            "description": "The HTTP status code applicable to this problem, expressed as a string value.",
+            "type": "string"
+          },
+          "title": {
+            "description": "A short, human-readable summary of the problem. It SHOULD NOT change from occurrence to occurrence of the problem, except for purposes of localization.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "errors": {
+        "items": {
+          "$ref": "#/components/schemas/error"
+        },
+        "type": "array",
+        "uniqueItems": true
+      },
+      "link": {
+        "description": "A link MUST be represented as either: a string containing the link's URL or a link object.",
+        "type": "string"
+      },
+      "links": {
+        "additionalProperties": {
+          "$ref": "#/components/schemas/link"
+        },
+        "type": "object"
+      },
+      "organization": {
+        "additionalProperties": false,
+        "description": "A \"Resource object\" representing a organization",
+        "properties": {
+          "attributes": {
+            "additionalProperties": false,
+            "description": "An attributes object for a organization",
+            "properties": {
+              "approval_posture": {
+                "description": "The tenant's approval posture (`AshAgent.Approval.Posture`): which person\ndecides an approval. `:standard` unless a person changes it.\n. Field included by default.",
+                "enum": [
+                  "standard",
+                  "small_team",
+                  "implementation"
+                ],
+                "type": "string"
+              },
+              "approval_posture_ends_at": {
+                "anyOf": [
+                  {},
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "When the `:implementation` posture ends, after which it reads as\n`:standard` (`AshAgent.Approval.Posture.effective/3`). Kept by no other\nposture.\n. Field included by default."
+              },
+              "base_currency_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The tenant's reporting currency. Dataverse stores every monetary value\ntwice -- once in the transaction currency and once converted to this one --\nso that cross-currency reporting does not have to join exchange rates.\n. Field included by default."
+              },
+              "created_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The user who created this record. Field included by default."
+              },
+              "created_on": {
+                "description": "Field included by default."
+              },
+              "created_on_behalf_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Set when an application or delegate created the record on a user's behalf. Field included by default."
+              },
+              "languagelocale_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Default locale for users who have not chosen one. Field included by default."
+              },
+              "lifecycle_status": {
+                "description": "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it. Field included by default.",
+                "enum": [
+                  "active",
+                  "inactive"
+                ],
+                "type": "string"
+              },
+              "modified_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The user who last modified this record. Field included by default."
+              },
+              "modified_on": {
+                "description": "Field included by default."
+              },
+              "modified_on_behalf_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Set when an application or delegate modified the record on a user's behalf. Field included by default."
+              },
+              "name": {
+                "description": "Display name of the tenant. Field included by default.",
+                "type": "string"
+              },
+              "overridden_created_on": {
+                "anyOf": [
+                  {},
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The original creation time, when a record was imported and its real created_on differs from the import time. Field included by default."
+              },
+              "state_code": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Dataverse statecode, derived from the status's owning state. Read-only -- this is why the pair cannot drift."
+              },
+              "status_code": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Dataverse statuscode, derived from lifecycle_status. Read-only."
+              },
+              "unique_name": {
+                "description": "Stable, URL-safe identifier. Used in subdomains and tenant routing, so it\nis immutable once set -- renaming would break every existing link.\n. Field included by default.",
+                "type": "string"
+              },
+              "version_number": {
+                "description": "Row version, incremented on write. Used for optimistic locking. Field included by default.",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "approval_posture",
+              "created_on",
+              "lifecycle_status",
+              "modified_on",
+              "name",
+              "unique_name",
+              "version_number"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "relationships": {
+            "additionalProperties": false,
+            "description": "A relationships object for a organization",
+            "properties": {},
+            "type": "object"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "type": "object"
+      },
+      "position": {
+        "additionalProperties": false,
+        "description": "A \"Resource object\" representing a position",
+        "properties": {
+          "attributes": {
+            "additionalProperties": false,
+            "description": "An attributes object for a position",
+            "properties": {
+              "created_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The user who created this record. Field included by default."
+              },
+              "created_on": {
+                "description": "Field included by default."
+              },
+              "created_on_behalf_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Set when an application or delegate created the record on a user's behalf. Field included by default."
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Field included by default."
+              },
+              "lifecycle_status": {
+                "description": "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it. Field included by default.",
+                "enum": [
+                  "active",
+                  "inactive"
+                ],
+                "type": "string"
+              },
+              "modified_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The user who last modified this record. Field included by default."
+              },
+              "modified_on": {
+                "description": "Field included by default."
+              },
+              "modified_on_behalf_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Set when an application or delegate modified the record on a user's behalf. Field included by default."
+              },
+              "name": {
+                "description": "Field included by default.",
+                "type": "string"
+              },
+              "organization_id": {
+                "description": "Tenant discriminator. CDM-native: every Dataverse table carries it. Field included by default.",
+                "format": "uuid",
+                "type": "string"
+              },
+              "overridden_created_on": {
+                "anyOf": [
+                  {},
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The original creation time, when a record was imported and its real created_on differs from the import time. Field included by default."
+              },
+              "parent_position_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Field included by default."
+              },
+              "state_code": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Dataverse statecode, derived from the status's owning state. Read-only -- this is why the pair cannot drift."
+              },
+              "status_code": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Dataverse statuscode, derived from lifecycle_status. Read-only."
+              },
+              "version_number": {
+                "description": "Row version, incremented on write. Used for optimistic locking. Field included by default.",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "created_on",
+              "lifecycle_status",
+              "modified_on",
+              "name",
+              "organization_id",
+              "version_number"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "relationships": {
+            "additionalProperties": false,
+            "description": "A relationships object for a position",
+            "properties": {
+              "child_positions": {
+                "properties": {
+                  "data": {
+                    "description": "Relationship data for child_positions",
+                    "items": {
+                      "additionalProperties": false,
+                      "description": "Resource identifiers for child_positions",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "meta": {
+                          "additionalProperties": true,
+                          "type": "object"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  }
+                }
+              },
+              "parent_position": {
+                "properties": {
+                  "data": {
+                    "additionalProperties": false,
+                    "description": "An identifier for parent_position",
+                    "nullable": true,
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "meta": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ],
+                    "type": "object"
+                  }
+                }
+              }
+            },
+            "type": "object"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "type": "object"
+      },
+      "position-filter": {
+        "additionalProperties": false,
+        "description": "Filters the query to results matching the given filter object",
+        "example": "",
+        "properties": {
+          "and": {
+            "items": {
+              "$ref": "#/components/schemas/position-filter"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "child_positions": {
+            "$ref": "#/components/schemas/position-filter"
+          },
+          "created_by_id": {
+            "$ref": "#/components/schemas/position-filter-created_by_id"
+          },
+          "created_on": {
+            "$ref": "#/components/schemas/position-filter-created_on"
+          },
+          "created_on_behalf_by_id": {
+            "$ref": "#/components/schemas/position-filter-created_on_behalf_by_id"
+          },
+          "description": {
+            "$ref": "#/components/schemas/position-filter-description"
+          },
+          "id": {
+            "$ref": "#/components/schemas/position-filter-id"
+          },
+          "lifecycle_status": {
+            "$ref": "#/components/schemas/position-filter-lifecycle_status"
+          },
+          "modified_by_id": {
+            "$ref": "#/components/schemas/position-filter-modified_by_id"
+          },
+          "modified_on": {
+            "$ref": "#/components/schemas/position-filter-modified_on"
+          },
+          "modified_on_behalf_by_id": {
+            "$ref": "#/components/schemas/position-filter-modified_on_behalf_by_id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/position-filter-name"
+          },
+          "not": {
+            "$ref": "#/components/schemas/position-filter"
+          },
+          "or": {
+            "items": {
+              "$ref": "#/components/schemas/position-filter"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "organization_id": {
+            "$ref": "#/components/schemas/position-filter-organization_id"
+          },
+          "overridden_created_on": {
+            "$ref": "#/components/schemas/position-filter-overridden_created_on"
+          },
+          "parent_position": {
+            "$ref": "#/components/schemas/position-filter"
+          },
+          "parent_position_id": {
+            "$ref": "#/components/schemas/position-filter-parent_position_id"
+          },
+          "version_number": {
+            "$ref": "#/components/schemas/position-filter-version_number"
+          }
+        },
+        "type": "deepObject"
+      },
+      "position-filter-created_by_id": {
+        "additionalProperties": false,
+        "description": "The user who created this record.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "position-filter-created_on": {
+        "additionalProperties": false,
+        "properties": {
+          "eq": {},
+          "greater_than": {},
+          "greater_than_or_equal": {},
+          "in": {
+            "items": {},
+            "type": "array"
+          },
+          "is_distinct_from": {},
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {},
+          "less_than": {},
+          "less_than_or_equal": {},
+          "not_eq": {}
+        },
+        "type": "object"
+      },
+      "position-filter-created_on_behalf_by_id": {
+        "additionalProperties": false,
+        "description": "Set when an application or delegate created the record on a user's behalf.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "position-filter-description": {
+        "additionalProperties": false,
+        "properties": {
+          "contains": {
+            "type": "string"
+          },
+          "eq": {
+            "type": "string"
+          },
+          "greater_than": {
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "type": "string"
+          },
+          "ilike": {
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "string"
+          },
+          "less_than": {
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "type": "string"
+          },
+          "like": {
+            "type": "string"
+          },
+          "not_eq": {
+            "type": "string"
+          },
+          "string_ends_with": {
+            "type": "string"
+          },
+          "string_starts_with": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "position-filter-id": {
+        "additionalProperties": false,
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "position-filter-lifecycle_status": {
+        "additionalProperties": false,
+        "description": "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it.",
+        "properties": {
+          "eq": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "greater_than": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "string"
+          },
+          "less_than": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "not_eq": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "position-filter-modified_by_id": {
+        "additionalProperties": false,
+        "description": "The user who last modified this record.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "position-filter-modified_on": {
+        "additionalProperties": false,
+        "properties": {
+          "eq": {},
+          "greater_than": {},
+          "greater_than_or_equal": {},
+          "in": {
+            "items": {},
+            "type": "array"
+          },
+          "is_distinct_from": {},
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {},
+          "less_than": {},
+          "less_than_or_equal": {},
+          "not_eq": {}
+        },
+        "type": "object"
+      },
+      "position-filter-modified_on_behalf_by_id": {
+        "additionalProperties": false,
+        "description": "Set when an application or delegate modified the record on a user's behalf.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "position-filter-name": {
+        "additionalProperties": false,
+        "properties": {
+          "contains": {
+            "type": "string"
+          },
+          "eq": {
+            "type": "string"
+          },
+          "greater_than": {
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "type": "string"
+          },
+          "ilike": {
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "string"
+          },
+          "less_than": {
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "type": "string"
+          },
+          "like": {
+            "type": "string"
+          },
+          "not_eq": {
+            "type": "string"
+          },
+          "string_ends_with": {
+            "type": "string"
+          },
+          "string_starts_with": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "position-filter-organization_id": {
+        "additionalProperties": false,
+        "description": "Tenant discriminator. CDM-native: every Dataverse table carries it.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "position-filter-overridden_created_on": {
+        "additionalProperties": false,
+        "description": "The original creation time, when a record was imported and its real created_on differs from the import time.",
+        "properties": {
+          "eq": {},
+          "greater_than": {},
+          "greater_than_or_equal": {},
+          "in": {
+            "items": {},
+            "type": "array"
+          },
+          "is_distinct_from": {},
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {},
+          "less_than": {},
+          "less_than_or_equal": {},
+          "not_eq": {}
+        },
+        "type": "object"
+      },
+      "position-filter-parent_position_id": {
+        "additionalProperties": false,
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "position-filter-version_number": {
+        "additionalProperties": false,
+        "description": "Row version, incremented on write. Used for optimistic locking.",
+        "properties": {
+          "eq": {
+            "type": "integer"
+          },
+          "greater_than": {
+            "type": "integer"
+          },
+          "greater_than_or_equal": {
+            "type": "integer"
+          },
+          "in": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "integer"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "integer"
+          },
+          "less_than": {
+            "type": "integer"
+          },
+          "less_than_or_equal": {
+            "type": "integer"
+          },
+          "not_eq": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "team": {
+        "additionalProperties": false,
+        "description": "A \"Resource object\" representing a team",
+        "properties": {
+          "attributes": {
+            "additionalProperties": false,
+            "description": "An attributes object for a team",
+            "properties": {
+              "administrator_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Field included by default."
+              },
+              "can_hold_roles": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Access teams cannot hold security roles -- that restriction is what makes\nthem cheap. Directory-backed teams can, so an Entra group can be granted a\nrole centrally.\n"
+              },
+              "can_own_records": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Only owner teams may appear in a record's owner_id."
+              },
+              "created_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The user who created this record. Field included by default."
+              },
+              "created_on": {
+                "description": "Field included by default."
+              },
+              "created_on_behalf_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Set when an application or delegate created the record on a user's behalf. Field included by default."
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Field included by default."
+              },
+              "external_directory_object_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The Entra ID (Azure AD) group object id, for :security_group and\n:office_group teams whose membership is mirrored from the directory.\n. Field included by default."
+              },
+              "is_default": {
+                "description": "The business unit's automatic all-users team. Membership is system-managed. Field included by default.",
+                "type": "boolean"
+              },
+              "lifecycle_status": {
+                "description": "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it. Field included by default.",
+                "enum": [
+                  "active",
+                  "inactive"
+                ],
+                "type": "string"
+              },
+              "modified_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The user who last modified this record. Field included by default."
+              },
+              "modified_on": {
+                "description": "Field included by default."
+              },
+              "modified_on_behalf_by_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Set when an application or delegate modified the record on a user's behalf. Field included by default."
+              },
+              "name": {
+                "description": "Field included by default.",
+                "type": "string"
+              },
+              "organization_id": {
+                "description": "Tenant discriminator. CDM-native: every Dataverse table carries it. Field included by default.",
+                "format": "uuid",
+                "type": "string"
+              },
+              "overridden_created_on": {
+                "anyOf": [
+                  {},
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The original creation time, when a record was imported and its real created_on differs from the import time. Field included by default."
+              },
+              "owning_business_unit_id": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Denormalized owning business unit, so Local/Deep depth checks are a column comparison. Field included by default."
+              },
+              "state_code": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Dataverse statecode, derived from the status's owning state. Read-only -- this is why the pair cannot drift."
+              },
+              "status_code": {
+                "anyOf": [
+                  {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Dataverse statuscode, derived from lifecycle_status. Read-only."
+              },
+              "system_managed": {
+                "description": "Membership is maintained by the platform or an external directory, not by hand. Field included by default.",
+                "type": "boolean"
+              },
+              "team_type": {
+                "description": "See the moduledoc: this decides whether the team can own records and hold roles. Field included by default.",
+                "enum": [
+                  "owner",
+                  "access",
+                  "security_group",
+                  "office_group"
+                ],
+                "type": "string"
+              },
+              "version_number": {
+                "description": "Row version, incremented on write. Used for optimistic locking. Field included by default.",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "created_on",
+              "is_default",
+              "lifecycle_status",
+              "modified_on",
+              "name",
+              "organization_id",
+              "system_managed",
+              "team_type",
+              "version_number"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "relationships": {
+            "additionalProperties": false,
+            "description": "A relationships object for a team",
+            "properties": {},
+            "type": "object"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "type": "object"
+      },
+      "team-filter": {
+        "additionalProperties": false,
+        "description": "Filters the query to results matching the given filter object",
+        "example": "",
+        "properties": {
+          "administrator_id": {
+            "$ref": "#/components/schemas/team-filter-administrator_id"
+          },
+          "and": {
+            "items": {
+              "$ref": "#/components/schemas/team-filter"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "can_hold_roles": {
+            "$ref": "#/components/schemas/team-filter-can_hold_roles"
+          },
+          "can_own_records": {
+            "$ref": "#/components/schemas/team-filter-can_own_records"
+          },
+          "created_by_id": {
+            "$ref": "#/components/schemas/team-filter-created_by_id"
+          },
+          "created_on": {
+            "$ref": "#/components/schemas/team-filter-created_on"
+          },
+          "created_on_behalf_by_id": {
+            "$ref": "#/components/schemas/team-filter-created_on_behalf_by_id"
+          },
+          "description": {
+            "$ref": "#/components/schemas/team-filter-description"
+          },
+          "external_directory_object_id": {
+            "$ref": "#/components/schemas/team-filter-external_directory_object_id"
+          },
+          "id": {
+            "$ref": "#/components/schemas/team-filter-id"
+          },
+          "is_default": {
+            "$ref": "#/components/schemas/team-filter-is_default"
+          },
+          "lifecycle_status": {
+            "$ref": "#/components/schemas/team-filter-lifecycle_status"
+          },
+          "modified_by_id": {
+            "$ref": "#/components/schemas/team-filter-modified_by_id"
+          },
+          "modified_on": {
+            "$ref": "#/components/schemas/team-filter-modified_on"
+          },
+          "modified_on_behalf_by_id": {
+            "$ref": "#/components/schemas/team-filter-modified_on_behalf_by_id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/team-filter-name"
+          },
+          "not": {
+            "$ref": "#/components/schemas/team-filter"
+          },
+          "or": {
+            "items": {
+              "$ref": "#/components/schemas/team-filter"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "organization_id": {
+            "$ref": "#/components/schemas/team-filter-organization_id"
+          },
+          "overridden_created_on": {
+            "$ref": "#/components/schemas/team-filter-overridden_created_on"
+          },
+          "owning_business_unit_id": {
+            "$ref": "#/components/schemas/team-filter-owning_business_unit_id"
+          },
+          "system_managed": {
+            "$ref": "#/components/schemas/team-filter-system_managed"
+          },
+          "team_type": {
+            "$ref": "#/components/schemas/team-filter-team_type"
+          },
+          "version_number": {
+            "$ref": "#/components/schemas/team-filter-version_number"
+          }
+        },
+        "type": "deepObject"
+      },
+      "team-filter-administrator_id": {
+        "additionalProperties": false,
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-can_hold_roles": {
+        "additionalProperties": false,
+        "description": "Access teams cannot hold security roles -- that restriction is what makes\nthem cheap. Directory-backed teams can, so an Entra group can be granted a\nrole centrally.\n",
+        "properties": {
+          "eq": {
+            "type": "boolean"
+          },
+          "greater_than": {
+            "type": "boolean"
+          },
+          "greater_than_or_equal": {
+            "type": "boolean"
+          },
+          "in": {
+            "items": {
+              "type": "boolean"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "boolean"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "boolean"
+          },
+          "less_than": {
+            "type": "boolean"
+          },
+          "less_than_or_equal": {
+            "type": "boolean"
+          },
+          "not_eq": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-can_own_records": {
+        "additionalProperties": false,
+        "description": "Only owner teams may appear in a record's owner_id.",
+        "properties": {
+          "eq": {
+            "type": "boolean"
+          },
+          "greater_than": {
+            "type": "boolean"
+          },
+          "greater_than_or_equal": {
+            "type": "boolean"
+          },
+          "in": {
+            "items": {
+              "type": "boolean"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "boolean"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "boolean"
+          },
+          "less_than": {
+            "type": "boolean"
+          },
+          "less_than_or_equal": {
+            "type": "boolean"
+          },
+          "not_eq": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-created_by_id": {
+        "additionalProperties": false,
+        "description": "The user who created this record.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-created_on": {
+        "additionalProperties": false,
+        "properties": {
+          "eq": {},
+          "greater_than": {},
+          "greater_than_or_equal": {},
+          "in": {
+            "items": {},
+            "type": "array"
+          },
+          "is_distinct_from": {},
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {},
+          "less_than": {},
+          "less_than_or_equal": {},
+          "not_eq": {}
+        },
+        "type": "object"
+      },
+      "team-filter-created_on_behalf_by_id": {
+        "additionalProperties": false,
+        "description": "Set when an application or delegate created the record on a user's behalf.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-description": {
+        "additionalProperties": false,
+        "properties": {
+          "contains": {
+            "type": "string"
+          },
+          "eq": {
+            "type": "string"
+          },
+          "greater_than": {
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "type": "string"
+          },
+          "ilike": {
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "string"
+          },
+          "less_than": {
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "type": "string"
+          },
+          "like": {
+            "type": "string"
+          },
+          "not_eq": {
+            "type": "string"
+          },
+          "string_ends_with": {
+            "type": "string"
+          },
+          "string_starts_with": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-external_directory_object_id": {
+        "additionalProperties": false,
+        "description": "The Entra ID (Azure AD) group object id, for :security_group and\n:office_group teams whose membership is mirrored from the directory.\n",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-id": {
+        "additionalProperties": false,
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-is_default": {
+        "additionalProperties": false,
+        "description": "The business unit's automatic all-users team. Membership is system-managed.",
+        "properties": {
+          "eq": {
+            "type": "boolean"
+          },
+          "greater_than": {
+            "type": "boolean"
+          },
+          "greater_than_or_equal": {
+            "type": "boolean"
+          },
+          "in": {
+            "items": {
+              "type": "boolean"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "boolean"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "boolean"
+          },
+          "less_than": {
+            "type": "boolean"
+          },
+          "less_than_or_equal": {
+            "type": "boolean"
+          },
+          "not_eq": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-lifecycle_status": {
+        "additionalProperties": false,
+        "description": "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it.",
+        "properties": {
+          "eq": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "greater_than": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "string"
+          },
+          "less_than": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "not_eq": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-modified_by_id": {
+        "additionalProperties": false,
+        "description": "The user who last modified this record.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-modified_on": {
+        "additionalProperties": false,
+        "properties": {
+          "eq": {},
+          "greater_than": {},
+          "greater_than_or_equal": {},
+          "in": {
+            "items": {},
+            "type": "array"
+          },
+          "is_distinct_from": {},
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {},
+          "less_than": {},
+          "less_than_or_equal": {},
+          "not_eq": {}
+        },
+        "type": "object"
+      },
+      "team-filter-modified_on_behalf_by_id": {
+        "additionalProperties": false,
+        "description": "Set when an application or delegate modified the record on a user's behalf.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-name": {
+        "additionalProperties": false,
+        "properties": {
+          "contains": {
+            "type": "string"
+          },
+          "eq": {
+            "type": "string"
+          },
+          "greater_than": {
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "type": "string"
+          },
+          "ilike": {
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "string"
+          },
+          "less_than": {
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "type": "string"
+          },
+          "like": {
+            "type": "string"
+          },
+          "not_eq": {
+            "type": "string"
+          },
+          "string_ends_with": {
+            "type": "string"
+          },
+          "string_starts_with": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-organization_id": {
+        "additionalProperties": false,
+        "description": "Tenant discriminator. CDM-native: every Dataverse table carries it.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-overridden_created_on": {
+        "additionalProperties": false,
+        "description": "The original creation time, when a record was imported and its real created_on differs from the import time.",
+        "properties": {
+          "eq": {},
+          "greater_than": {},
+          "greater_than_or_equal": {},
+          "in": {
+            "items": {},
+            "type": "array"
+          },
+          "is_distinct_from": {},
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {},
+          "less_than": {},
+          "less_than_or_equal": {},
+          "not_eq": {}
+        },
+        "type": "object"
+      },
+      "team-filter-owning_business_unit_id": {
+        "additionalProperties": false,
+        "description": "Denormalized owning business unit, so Local/Deep depth checks are a column comparison.",
+        "properties": {
+          "eq": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "not_eq": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-system_managed": {
+        "additionalProperties": false,
+        "description": "Membership is maintained by the platform or an external directory, not by hand.",
+        "properties": {
+          "eq": {
+            "type": "boolean"
+          },
+          "greater_than": {
+            "type": "boolean"
+          },
+          "greater_than_or_equal": {
+            "type": "boolean"
+          },
+          "in": {
+            "items": {
+              "type": "boolean"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "boolean"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "boolean"
+          },
+          "less_than": {
+            "type": "boolean"
+          },
+          "less_than_or_equal": {
+            "type": "boolean"
+          },
+          "not_eq": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-team_type": {
+        "additionalProperties": false,
+        "description": "See the moduledoc: this decides whether the team can own records and hold roles.",
+        "properties": {
+          "eq": {
+            "enum": [
+              "owner",
+              "access",
+              "security_group",
+              "office_group"
+            ],
+            "type": "string"
+          },
+          "greater_than": {
+            "enum": [
+              "owner",
+              "access",
+              "security_group",
+              "office_group"
+            ],
+            "type": "string"
+          },
+          "greater_than_or_equal": {
+            "enum": [
+              "owner",
+              "access",
+              "security_group",
+              "office_group"
+            ],
+            "type": "string"
+          },
+          "in": {
+            "items": {
+              "enum": [
+                "owner",
+                "access",
+                "security_group",
+                "office_group"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "enum": [
+              "owner",
+              "access",
+              "security_group",
+              "office_group"
+            ],
+            "type": "string"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "enum": [
+              "owner",
+              "access",
+              "security_group",
+              "office_group"
+            ],
+            "type": "string"
+          },
+          "less_than": {
+            "enum": [
+              "owner",
+              "access",
+              "security_group",
+              "office_group"
+            ],
+            "type": "string"
+          },
+          "less_than_or_equal": {
+            "enum": [
+              "owner",
+              "access",
+              "security_group",
+              "office_group"
+            ],
+            "type": "string"
+          },
+          "not_eq": {
+            "enum": [
+              "owner",
+              "access",
+              "security_group",
+              "office_group"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "team-filter-version_number": {
+        "additionalProperties": false,
+        "description": "Row version, incremented on write. Used for optimistic locking.",
+        "properties": {
+          "eq": {
+            "type": "integer"
+          },
+          "greater_than": {
+            "type": "integer"
+          },
+          "greater_than_or_equal": {
+            "type": "integer"
+          },
+          "in": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "is_distinct_from": {
+            "type": "integer"
+          },
+          "is_nil": {
+            "type": "boolean"
+          },
+          "is_not_distinct_from": {
+            "type": "integer"
+          },
+          "less_than": {
+            "type": "integer"
+          },
+          "less_than_or_equal": {
+            "type": "integer"
+          },
+          "not_eq": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "bearerFormat": "JWT",
+        "description": "JWT for bearer authentication",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "title": "Ash Enterprise API",
+    "version": "1.0"
+  },
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/json/business_units": {
+      "get": {
+        "callbacks": {},
+        "deprecated": false,
+        "description": "Business units, a page at a time: 50 by default, 250 at most.",
+        "parameters": [
+          {
+            "description": "Filters the query to results with attributes matching the given filter object",
+            "in": "query",
+            "name": "filter",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/business_unit-filter"
+            },
+            "style": "deepObject"
+          },
+          {
+            "description": "Sort order to apply to the results",
+            "explode": false,
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "pattern": "^(organization_id|-organization_id|\\+\\+organization_id|--organization_id|owning_business_unit_id|-owning_business_unit_id|\\+\\+owning_business_unit_id|--owning_business_unit_id|lifecycle_status|-lifecycle_status|\\+\\+lifecycle_status|--lifecycle_status|version_number|-version_number|\\+\\+version_number|--version_number|overridden_created_on|-overridden_created_on|\\+\\+overridden_created_on|--overridden_created_on|modified_on_behalf_by_id|-modified_on_behalf_by_id|\\+\\+modified_on_behalf_by_id|--modified_on_behalf_by_id|created_on_behalf_by_id|-created_on_behalf_by_id|\\+\\+created_on_behalf_by_id|--created_on_behalf_by_id|modified_by_id|-modified_by_id|\\+\\+modified_by_id|--modified_by_id|created_by_id|-created_by_id|\\+\\+created_by_id|--created_by_id|modified_on|-modified_on|\\+\\+modified_on|--modified_on|created_on|-created_on|\\+\\+created_on|--created_on|id|-id|\\+\\+id|--id|name|-name|\\+\\+name|--name|path|-path|\\+\\+path|--path|depth|-depth|\\+\\+depth|--depth|division_name|-division_name|\\+\\+division_name|--division_name|cost_center|-cost_center|\\+\\+cost_center|--cost_center|is_disabled|-is_disabled|\\+\\+is_disabled|--is_disabled|parent_business_unit_id|-parent_business_unit_id|\\+\\+parent_business_unit_id|--parent_business_unit_id|is_root|-is_root|\\+\\+is_root|--is_root|breadcrumb|-breadcrumb|\\+\\+breadcrumb|--breadcrumb|tree_label|-tree_label|\\+\\+tree_label|--tree_label)(,(organization_id|-organization_id|\\+\\+organization_id|--organization_id|owning_business_unit_id|-owning_business_unit_id|\\+\\+owning_business_unit_id|--owning_business_unit_id|lifecycle_status|-lifecycle_status|\\+\\+lifecycle_status|--lifecycle_status|version_number|-version_number|\\+\\+version_number|--version_number|overridden_created_on|-overridden_created_on|\\+\\+overridden_created_on|--overridden_created_on|modified_on_behalf_by_id|-modified_on_behalf_by_id|\\+\\+modified_on_behalf_by_id|--modified_on_behalf_by_id|created_on_behalf_by_id|-created_on_behalf_by_id|\\+\\+created_on_behalf_by_id|--created_on_behalf_by_id|modified_by_id|-modified_by_id|\\+\\+modified_by_id|--modified_by_id|created_by_id|-created_by_id|\\+\\+created_by_id|--created_by_id|modified_on|-modified_on|\\+\\+modified_on|--modified_on|created_on|-created_on|\\+\\+created_on|--created_on|id|-id|\\+\\+id|--id|name|-name|\\+\\+name|--name|path|-path|\\+\\+path|--path|depth|-depth|\\+\\+depth|--depth|division_name|-division_name|\\+\\+division_name|--division_name|cost_center|-cost_center|\\+\\+cost_center|--cost_center|is_disabled|-is_disabled|\\+\\+is_disabled|--is_disabled|parent_business_unit_id|-parent_business_unit_id|\\+\\+parent_business_unit_id|--parent_business_unit_id|is_root|-is_root|\\+\\+is_root|--is_root|breadcrumb|-breadcrumb|\\+\\+breadcrumb|--breadcrumb|tree_label|-tree_label|\\+\\+tree_label|--tree_label))*$",
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Paginates the response with the limit and offset or keyset pagination.",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "example": {
+                "limit": 50
+              },
+              "properties": {
+                "after": {
+                  "type": "string"
+                },
+                "before": {
+                  "type": "string"
+                },
+                "count": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "limit": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "offset": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          },
+          {
+            "description": "Relationship paths to include in the response",
+            "explode": false,
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "pattern": "^()(,())*$",
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Limits the response fields to only those listed for each type",
+            "in": "query",
+            "name": "fields",
+            "required": false,
+            "schema": {
+              "additionalProperties": true,
+              "example": {
+                "business_unit": "organization_id,owning_business_unit_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,path,depth,division_name,cost_center,is_disabled,parent_business_unit_id"
+              },
+              "properties": {
+                "business_unit": {
+                  "description": "Comma separated field names for business_unit",
+                  "example": "organization_id,owning_business_unit_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,path,depth,division_name,cost_center,is_disabled,parent_business_unit_id",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "description": "An array of resource objects representing a business_unit",
+                      "items": {
+                        "$ref": "#/components/schemas/business_unit"
+                      },
+                      "type": "array",
+                      "uniqueItems": true
+                    },
+                    "included": {
+                      "items": {
+                        "oneOf": []
+                      },
+                      "type": "array",
+                      "uniqueItems": true
+                    },
+                    "meta": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "$ref": "#/components/responses/errors"
+          }
+        },
+        "tags": [
+          "business_unit"
+        ]
+      },
+      "post": {
+        "callbacks": {},
+        "deprecated": false,
+        "description": "/business_units operation on business_unit resource",
+        "parameters": [
+          {
+            "description": "Relationship paths to include in the response",
+            "explode": false,
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "pattern": "^()(,())*$",
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Limits the response fields to only those listed for each type",
+            "in": "query",
+            "name": "fields",
+            "required": false,
+            "schema": {
+              "additionalProperties": true,
+              "example": {
+                "business_unit": "organization_id,owning_business_unit_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,path,depth,division_name,cost_center,is_disabled,parent_business_unit_id"
+              },
+              "properties": {
+                "business_unit": {
+                  "description": "Comma separated field names for business_unit",
+                  "example": "organization_id,owning_business_unit_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,path,depth,division_name,cost_center,is_disabled,parent_business_unit_id",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/vnd.api+json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "data": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "attributes": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "cost_center": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "division_name": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "parent_business_unit_id": {
+                            "anyOf": [
+                              {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      "relationships": {
+                        "additionalProperties": false,
+                        "properties": {},
+                        "type": "object"
+                      },
+                      "type": {
+                        "enum": [
+                          "business_unit"
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "data"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "description": "Request body for the /business_units operation on business_unit resource",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/business_unit"
+                    },
+                    "included": {
+                      "items": {
+                        "oneOf": []
+                      },
+                      "type": "array",
+                      "uniqueItems": true
+                    },
+                    "meta": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "$ref": "#/components/responses/errors"
+          }
+        },
+        "tags": [
+          "business_unit"
+        ]
+      }
+    },
+    "/api/json/business_units/{id}": {
+      "get": {
+        "callbacks": {},
+        "deprecated": false,
+        "description": "/business_units/:id operation on business_unit resource",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Relationship paths to include in the response",
+            "explode": false,
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "pattern": "^()(,())*$",
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Limits the response fields to only those listed for each type",
+            "in": "query",
+            "name": "fields",
+            "required": false,
+            "schema": {
+              "additionalProperties": true,
+              "example": {
+                "business_unit": "organization_id,owning_business_unit_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,path,depth,division_name,cost_center,is_disabled,parent_business_unit_id"
+              },
+              "properties": {
+                "business_unit": {
+                  "description": "Comma separated field names for business_unit",
+                  "example": "organization_id,owning_business_unit_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,path,depth,division_name,cost_center,is_disabled,parent_business_unit_id",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/business_unit"
+                    },
+                    "included": {
+                      "items": {
+                        "oneOf": []
+                      },
+                      "type": "array",
+                      "uniqueItems": true
+                    },
+                    "meta": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "$ref": "#/components/responses/errors"
+          }
+        },
+        "tags": [
+          "business_unit"
+        ]
+      }
+    },
+    "/api/json/positions": {
+      "get": {
+        "callbacks": {},
+        "deprecated": false,
+        "description": "Positions, a page at a time: 50 by default, 250 at most.",
+        "parameters": [
+          {
+            "description": "Filters the query to results with attributes matching the given filter object",
+            "in": "query",
+            "name": "filter",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/position-filter"
+            },
+            "style": "deepObject"
+          },
+          {
+            "description": "Sort order to apply to the results",
+            "explode": false,
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "pattern": "^(organization_id|-organization_id|\\+\\+organization_id|--organization_id|lifecycle_status|-lifecycle_status|\\+\\+lifecycle_status|--lifecycle_status|version_number|-version_number|\\+\\+version_number|--version_number|overridden_created_on|-overridden_created_on|\\+\\+overridden_created_on|--overridden_created_on|modified_on_behalf_by_id|-modified_on_behalf_by_id|\\+\\+modified_on_behalf_by_id|--modified_on_behalf_by_id|created_on_behalf_by_id|-created_on_behalf_by_id|\\+\\+created_on_behalf_by_id|--created_on_behalf_by_id|modified_by_id|-modified_by_id|\\+\\+modified_by_id|--modified_by_id|created_by_id|-created_by_id|\\+\\+created_by_id|--created_by_id|modified_on|-modified_on|\\+\\+modified_on|--modified_on|created_on|-created_on|\\+\\+created_on|--created_on|id|-id|\\+\\+id|--id|name|-name|\\+\\+name|--name|description|-description|\\+\\+description|--description|parent_position_id|-parent_position_id|\\+\\+parent_position_id|--parent_position_id)(,(organization_id|-organization_id|\\+\\+organization_id|--organization_id|lifecycle_status|-lifecycle_status|\\+\\+lifecycle_status|--lifecycle_status|version_number|-version_number|\\+\\+version_number|--version_number|overridden_created_on|-overridden_created_on|\\+\\+overridden_created_on|--overridden_created_on|modified_on_behalf_by_id|-modified_on_behalf_by_id|\\+\\+modified_on_behalf_by_id|--modified_on_behalf_by_id|created_on_behalf_by_id|-created_on_behalf_by_id|\\+\\+created_on_behalf_by_id|--created_on_behalf_by_id|modified_by_id|-modified_by_id|\\+\\+modified_by_id|--modified_by_id|created_by_id|-created_by_id|\\+\\+created_by_id|--created_by_id|modified_on|-modified_on|\\+\\+modified_on|--modified_on|created_on|-created_on|\\+\\+created_on|--created_on|id|-id|\\+\\+id|--id|name|-name|\\+\\+name|--name|description|-description|\\+\\+description|--description|parent_position_id|-parent_position_id|\\+\\+parent_position_id|--parent_position_id))*$",
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Paginates the response with the limit and offset or keyset pagination.",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "example": {
+                "limit": 50
+              },
+              "properties": {
+                "after": {
+                  "type": "string"
+                },
+                "before": {
+                  "type": "string"
+                },
+                "count": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "limit": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "offset": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          },
+          {
+            "description": "Relationship paths to include in the response",
+            "explode": false,
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "pattern": "^()(,())*$",
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Limits the response fields to only those listed for each type",
+            "in": "query",
+            "name": "fields",
+            "required": false,
+            "schema": {
+              "additionalProperties": true,
+              "example": {
+                "position": "organization_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,description,parent_position_id"
+              },
+              "properties": {
+                "position": {
+                  "description": "Comma separated field names for position",
+                  "example": "organization_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,description,parent_position_id",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "description": "An array of resource objects representing a position",
+                      "items": {
+                        "$ref": "#/components/schemas/position"
+                      },
+                      "type": "array",
+                      "uniqueItems": true
+                    },
+                    "included": {
+                      "items": {
+                        "oneOf": []
+                      },
+                      "type": "array",
+                      "uniqueItems": true
+                    },
+                    "meta": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "$ref": "#/components/responses/errors"
+          }
+        },
+        "tags": [
+          "position"
+        ]
+      }
+    },
+    "/api/json/positions/{id}": {
+      "get": {
+        "callbacks": {},
+        "deprecated": false,
+        "description": "/positions/:id operation on position resource",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Relationship paths to include in the response",
+            "explode": false,
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "pattern": "^()(,())*$",
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Limits the response fields to only those listed for each type",
+            "in": "query",
+            "name": "fields",
+            "required": false,
+            "schema": {
+              "additionalProperties": true,
+              "example": {
+                "position": "organization_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,description,parent_position_id"
+              },
+              "properties": {
+                "position": {
+                  "description": "Comma separated field names for position",
+                  "example": "organization_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,description,parent_position_id",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/position"
+                    },
+                    "included": {
+                      "items": {
+                        "oneOf": []
+                      },
+                      "type": "array",
+                      "uniqueItems": true
+                    },
+                    "meta": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "$ref": "#/components/responses/errors"
+          }
+        },
+        "tags": [
+          "position"
+        ]
+      }
+    },
+    "/api/json/teams": {
+      "get": {
+        "callbacks": {},
+        "deprecated": false,
+        "description": "Teams, a page at a time: 50 by default, 250 at most.",
+        "parameters": [
+          {
+            "description": "Filters the query to results with attributes matching the given filter object",
+            "in": "query",
+            "name": "filter",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/team-filter"
+            },
+            "style": "deepObject"
+          },
+          {
+            "description": "Sort order to apply to the results",
+            "explode": false,
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "pattern": "^(organization_id|-organization_id|\\+\\+organization_id|--organization_id|owning_business_unit_id|-owning_business_unit_id|\\+\\+owning_business_unit_id|--owning_business_unit_id|lifecycle_status|-lifecycle_status|\\+\\+lifecycle_status|--lifecycle_status|version_number|-version_number|\\+\\+version_number|--version_number|overridden_created_on|-overridden_created_on|\\+\\+overridden_created_on|--overridden_created_on|modified_on_behalf_by_id|-modified_on_behalf_by_id|\\+\\+modified_on_behalf_by_id|--modified_on_behalf_by_id|created_on_behalf_by_id|-created_on_behalf_by_id|\\+\\+created_on_behalf_by_id|--created_on_behalf_by_id|modified_by_id|-modified_by_id|\\+\\+modified_by_id|--modified_by_id|created_by_id|-created_by_id|\\+\\+created_by_id|--created_by_id|modified_on|-modified_on|\\+\\+modified_on|--modified_on|created_on|-created_on|\\+\\+created_on|--created_on|id|-id|\\+\\+id|--id|name|-name|\\+\\+name|--name|description|-description|\\+\\+description|--description|team_type|-team_type|\\+\\+team_type|--team_type|is_default|-is_default|\\+\\+is_default|--is_default|system_managed|-system_managed|\\+\\+system_managed|--system_managed|external_directory_object_id|-external_directory_object_id|\\+\\+external_directory_object_id|--external_directory_object_id|administrator_id|-administrator_id|\\+\\+administrator_id|--administrator_id|can_own_records|-can_own_records|\\+\\+can_own_records|--can_own_records|can_hold_roles|-can_hold_roles|\\+\\+can_hold_roles|--can_hold_roles)(,(organization_id|-organization_id|\\+\\+organization_id|--organization_id|owning_business_unit_id|-owning_business_unit_id|\\+\\+owning_business_unit_id|--owning_business_unit_id|lifecycle_status|-lifecycle_status|\\+\\+lifecycle_status|--lifecycle_status|version_number|-version_number|\\+\\+version_number|--version_number|overridden_created_on|-overridden_created_on|\\+\\+overridden_created_on|--overridden_created_on|modified_on_behalf_by_id|-modified_on_behalf_by_id|\\+\\+modified_on_behalf_by_id|--modified_on_behalf_by_id|created_on_behalf_by_id|-created_on_behalf_by_id|\\+\\+created_on_behalf_by_id|--created_on_behalf_by_id|modified_by_id|-modified_by_id|\\+\\+modified_by_id|--modified_by_id|created_by_id|-created_by_id|\\+\\+created_by_id|--created_by_id|modified_on|-modified_on|\\+\\+modified_on|--modified_on|created_on|-created_on|\\+\\+created_on|--created_on|id|-id|\\+\\+id|--id|name|-name|\\+\\+name|--name|description|-description|\\+\\+description|--description|team_type|-team_type|\\+\\+team_type|--team_type|is_default|-is_default|\\+\\+is_default|--is_default|system_managed|-system_managed|\\+\\+system_managed|--system_managed|external_directory_object_id|-external_directory_object_id|\\+\\+external_directory_object_id|--external_directory_object_id|administrator_id|-administrator_id|\\+\\+administrator_id|--administrator_id|can_own_records|-can_own_records|\\+\\+can_own_records|--can_own_records|can_hold_roles|-can_hold_roles|\\+\\+can_hold_roles|--can_hold_roles))*$",
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Paginates the response with the limit and offset or keyset pagination.",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "example": {
+                "limit": 50
+              },
+              "properties": {
+                "after": {
+                  "type": "string"
+                },
+                "before": {
+                  "type": "string"
+                },
+                "count": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "limit": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "offset": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          },
+          {
+            "description": "Relationship paths to include in the response",
+            "explode": false,
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "pattern": "^()(,())*$",
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Limits the response fields to only those listed for each type",
+            "in": "query",
+            "name": "fields",
+            "required": false,
+            "schema": {
+              "additionalProperties": true,
+              "example": {
+                "team": "organization_id,owning_business_unit_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,description,team_type,is_default,system_managed,external_directory_object_id,administrator_id"
+              },
+              "properties": {
+                "team": {
+                  "description": "Comma separated field names for team",
+                  "example": "organization_id,owning_business_unit_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,description,team_type,is_default,system_managed,external_directory_object_id,administrator_id",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "description": "An array of resource objects representing a team",
+                      "items": {
+                        "$ref": "#/components/schemas/team"
+                      },
+                      "type": "array",
+                      "uniqueItems": true
+                    },
+                    "included": {
+                      "items": {
+                        "oneOf": []
+                      },
+                      "type": "array",
+                      "uniqueItems": true
+                    },
+                    "meta": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "$ref": "#/components/responses/errors"
+          }
+        },
+        "tags": [
+          "team"
+        ]
+      },
+      "post": {
+        "callbacks": {},
+        "deprecated": false,
+        "description": "/teams operation on team resource",
+        "parameters": [
+          {
+            "description": "Relationship paths to include in the response",
+            "explode": false,
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "pattern": "^()(,())*$",
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Limits the response fields to only those listed for each type",
+            "in": "query",
+            "name": "fields",
+            "required": false,
+            "schema": {
+              "additionalProperties": true,
+              "example": {
+                "team": "organization_id,owning_business_unit_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,description,team_type,is_default,system_managed,external_directory_object_id,administrator_id"
+              },
+              "properties": {
+                "team": {
+                  "description": "Comma separated field names for team",
+                  "example": "organization_id,owning_business_unit_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,description,team_type,is_default,system_managed,external_directory_object_id,administrator_id",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/vnd.api+json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "data": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "attributes": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "administrator_id": {
+                            "anyOf": [
+                              {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "description": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "owning_business_unit_id": {
+                            "anyOf": [
+                              {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Denormalized owning business unit, so Local/Deep depth checks are a column comparison."
+                          },
+                          "team_type": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "owner",
+                                  "access",
+                                  "security_group",
+                                  "office_group"
+                                ],
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "See the moduledoc: this decides whether the team can own records and hold roles."
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      "relationships": {
+                        "additionalProperties": false,
+                        "properties": {},
+                        "type": "object"
+                      },
+                      "type": {
+                        "enum": [
+                          "team"
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "data"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "description": "Request body for the /teams operation on team resource",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/team"
+                    },
+                    "included": {
+                      "items": {
+                        "oneOf": []
+                      },
+                      "type": "array",
+                      "uniqueItems": true
+                    },
+                    "meta": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "$ref": "#/components/responses/errors"
+          }
+        },
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/api/json/teams/{id}": {
+      "get": {
+        "callbacks": {},
+        "deprecated": false,
+        "description": "/teams/:id operation on team resource",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Relationship paths to include in the response",
+            "explode": false,
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "pattern": "^()(,())*$",
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Limits the response fields to only those listed for each type",
+            "in": "query",
+            "name": "fields",
+            "required": false,
+            "schema": {
+              "additionalProperties": true,
+              "example": {
+                "team": "organization_id,owning_business_unit_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,description,team_type,is_default,system_managed,external_directory_object_id,administrator_id"
+              },
+              "properties": {
+                "team": {
+                  "description": "Comma separated field names for team",
+                  "example": "organization_id,owning_business_unit_id,lifecycle_status,version_number,overridden_created_on,modified_on_behalf_by_id,created_on_behalf_by_id,modified_by_id,created_by_id,modified_on,created_on,id,name,description,team_type,is_default,system_managed,external_directory_object_id,administrator_id",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/team"
+                    },
+                    "included": {
+                      "items": {
+                        "oneOf": []
+                      },
+                      "type": "array",
+                      "uniqueItems": true
+                    },
+                    "meta": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "$ref": "#/components/responses/errors"
+          }
+        },
+        "tags": [
+          "team"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": []
+}

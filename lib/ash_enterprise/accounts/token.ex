@@ -22,11 +22,18 @@ defmodule AshEnterprise.Accounts.Token do
     domain: AshEnterprise.Accounts,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
-    extensions: [AshAuthentication.TokenResource]
+    extensions: [AshAuthentication.TokenResource, AshGreenmask.Resource]
 
   postgres do
     table "tokens"
     repo AshEnterprise.Repo
+  end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    exclude_data(
+      because: "sign-in tokens and their revocations; a copy holds no session of production's"
+    )
   end
 
   actions do

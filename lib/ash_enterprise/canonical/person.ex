@@ -487,4 +487,19 @@ defmodule AshEnterprise.Canonical.Person do
     define :upsert_from_source
     define :read
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    transform(:name, :hash)
+    transform(:legacy_email, :random_email, engine: "hash", domains: ["example.com"])
+    # The blind index is a keyed digest of the address: anyone with production's
+    # index key could match it to a guess, so a copy has none.
+    transform(:email_bidx, :set_null)
+    transform(:merge_provenance, :set_null)
+
+    keep(:encrypted_email,
+      because:
+        "ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there"
+    )
+  end
 end

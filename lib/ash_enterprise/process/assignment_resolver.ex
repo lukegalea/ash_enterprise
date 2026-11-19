@@ -211,6 +211,20 @@ defmodule AshEnterprise.Process.AssignmentResolver do
     end
   end
 
+  # `"role_holders"`: the people who hold the role a `RolePrivilege` grants to, directly or
+  # through a team (`AshEnterprise.Security.PrivilegedRoles.holder_ids/2`). A review of a
+  # privilege that made their role privileged is offered to none of them. Any other subject
+  # has none.
+  defp resolve_exclusion(%{"who" => "role_holders"}, ctx) do
+    case Map.get(ctx, :subject) do
+      %AshEnterprise.Security.RolePrivilege{role_id: role_id} ->
+        AshEnterprise.Security.PrivilegedRoles.holder_ids(role_id, read_opts(ctx))
+
+      _other ->
+        []
+    end
+  end
+
   defp resolve_exclusion(%{"who" => path}, ctx) do
     case principal_from_path(path, ctx) do
       nil -> []

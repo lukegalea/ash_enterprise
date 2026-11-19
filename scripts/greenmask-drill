@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Pseudonymised-copy drill (q55, ADR 0032): copy the configured database through greenmask
+# with the committed greenmask.yml, restore it into a fresh database, and prove no planted
+# personal value survived. Exits non-zero on any leak.
+#
+#   scripts/greenmask-drill                                   # the current MIX_ENV's database
+#   scripts/greenmask-drill --require public.users.email --json drill.json
+#   scripts/greenmask-drill --known-values --source-url "$SOURCE_URL"   # read-only source
+#
+# The work is `mix ash_enterprise.greenmask.drill` (its moduledoc has the details); the
+# procedure around it, salt custody and what a copy still holds are in
+# docs/runbooks/production-copy.md. CI runs it on every push (the backup-restore-drill job).
+#
+# Residuals, stated rather than hidden: the hash-chained ledgers (audit_events,
+# audit_event_archive, business_events and its simulation twin) and the compliance event log
+# are copied as empty tables, because a value transform breaks a chain and cannot reach inside
+# their JSON; large objects are not copied (no-blobs), only their metadata. A table no
+# resource declares passes through as it is.
+#
+# Needs the greenmask binary (GREENMASK overrides the path; CI pins v0.2.23 by sha256),
+# pg_dump and pg_restore no older than the server (PG_BIN names their directory), and a role
+# that can create databases. GREENMASK_GLOBAL_SALT is read from the environment, or a fresh
+# one is made for the run; it is never printed.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+exec mix ash_enterprise.greenmask.drill "$@"

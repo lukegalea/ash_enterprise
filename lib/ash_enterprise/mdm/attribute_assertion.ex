@@ -65,4 +65,10 @@ defmodule AshEnterprise.Mdm.AttributeAssertion do
       authorize_if always()
     end
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    transform(:value, :set_null)
+    transform(:content_digest, :hash)
+  end
 end

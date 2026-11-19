@@ -3,7 +3,9 @@ defmodule AshEnterpriseWeb.A2ui.MdmBatchUI do
   Import batches (ADR 0054): every CS import as a card in the lane of its
   status — open, staging, matching, review, closed, failed. Opening a batch
   (its card's link, or the picker) shows its counters, why it failed if it
-  did, the mapping version it pinned, and its staged rows with their status.
+  did, the mapping version it pinned, its staged rows with their status, and
+  the rows of its upload that did not land, each with its spreadsheet row
+  number and why (`AshEnterprise.Mdm.ImportRowRefusal`), exportable as CSV.
 
   Read-only by construction: a batch moves through its lanes by the
   pipeline's own machinery (`AshEnterprise.Mdm.BatchWorker`), so the board
@@ -40,6 +42,13 @@ defmodule AshEnterpriseWeb.A2ui.MdmBatchUI do
     query :staged do
       sortable([:status, :created_on])
       default_sort(created_on: :asc)
+      page_size(25)
+      max_page_size(100)
+    end
+
+    query :refused do
+      sortable([:row_number])
+      default_sort(row_number: :asc)
       page_size(25)
       max_page_size(100)
     end
@@ -81,6 +90,21 @@ defmodule AshEnterpriseWeb.A2ui.MdmBatchUI do
       end
     end
 
+    # The error report a person acts on: fix these rows in the file and import
+    # it again (the rows that landed re-land as no-ops).
+    component :table, :refused_rows do
+      resource(AshEnterprise.Mdm.ImportRowRefusal)
+      fields([:row_number, :reason])
+      query(:refused)
+      context_filter(batch_id: :batch)
+      require_context([:batch])
+
+      export do
+        filename("refused-rows.csv")
+        columns([:row_number, :reason])
+      end
+    end
+
     field :source_slug do
       label("Dataset")
     end
@@ -113,6 +137,14 @@ defmodule AshEnterpriseWeb.A2ui.MdmBatchUI do
 
     field :findings_text do
       label("Findings")
+    end
+
+    field :row_number do
+      label("Row")
+    end
+
+    field :reason do
+      label("Why it did not land")
     end
   end
 end

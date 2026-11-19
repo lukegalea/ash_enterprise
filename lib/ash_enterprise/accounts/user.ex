@@ -561,4 +561,16 @@ defmodule AshEnterprise.Accounts.User do
   identities do
     identity :unique_email, [:email]
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    # Hashed, so a sign-in identity stays unique and an address maps to the same
+    # pseudonym wherever it appears; never a deliverable domain.
+    transform(:email, :random_email, engine: "hash", domains: ["example.com"])
+    # No production password hash reaches a copy: every account gets the bcrypt hash
+    # of a random secret nobody kept, so no production password signs in there.
+    transform(:hashed_password, :replace,
+      value: "$2b$12$lsHmeiwIX/31Z1sFt1i2JeTShAXzhmfKkV29R3urY6YL9FKhrv7ui"
+    )
+  end
 end

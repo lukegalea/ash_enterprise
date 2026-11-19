@@ -65,6 +65,14 @@ defmodule AshEnterpriseWeb.A2ui.UserUI do
       query :default
       select_context :user
 
+      # A CSV of the users the reader can read (ash_a2ui's export), the columns the
+      # table shows and nothing else.
+      export do
+        filename "users.csv"
+        columns [:email, :lifecycle_status, :created_on]
+        column_select true
+      end
+
       # Flat rows carry no `weight`, so each cell is content-sized and nothing
       # lines up between rows. This is the only encoder path that emits weights.
       row_layout do

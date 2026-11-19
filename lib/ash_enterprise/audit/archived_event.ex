@@ -42,7 +42,8 @@ defmodule AshEnterprise.Audit.ArchivedEvent do
   use Ash.Resource,
     domain: AshEnterprise.Audit,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    extensions: [AshGreenmask.Resource]
 
   # The table `audit_event_archive`, its chain index, its guard statements (under the guard
   # function's name the table has always had), its attributes and its `:read` and `:chain`
@@ -53,6 +54,14 @@ defmodule AshEnterprise.Audit.ArchivedEvent do
        table: "audit_event_archive",
        repo: AshEnterprise.Repo,
        guard_function: "ash_enterprise_audit_archive_guard"}
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    exclude_data(
+      because:
+        "the hash-chained audit archive: a transformed row breaks the chain, and its data and metadata carry the audited records' values inside JSON no column transform reaches"
+    )
+  end
 
   # The archive's half of `AshEnterprise.Audit.Export`, beside the hot log's own `:for_export`.
   actions do

@@ -157,6 +157,12 @@ jobs:
       - name: Check Ash-generated code is committed
         run: mix ash.codegen --check
 
+      # ADR 0032: greenmask.yml is generated from the `greenmask` blocks, and strict:
+      # a stored resource with a `sensitive?` attribute and no position refuses
+      # generation. A copy's config that drifted from the resources fails here.
+      - name: Check the greenmask config is generated
+        run: mix ash_greenmask.gen.config --check
+
       # ADR 0060: the POT templates are derived from the gettext calls in the
       # source, like the migrations above are from the resources. A catalog
       # that has drifted from the code is copy nobody can translate. This
@@ -177,6 +183,17 @@ jobs:
       # disagrees with itself is worse than no status table.
       - name: Check the roadmap tables are rendered
         run: mix ash_enterprise.roadmap --check
+
+      # priv/api/ pins the public API (the OpenAPI document and the GraphQL schema).
+      # A resource change that moves what callers see fails here until the pin is
+      # moved on purpose. A breaking one fails until it was announced, judged against
+      # the pin the change started from (the PR's base, the commit a push to main
+      # started from, or main for a ci/** branch), not against files the change
+      # itself rewrote (docs/runbooks/changing-the-api.md).
+      - name: Check the API contract is pinned
+        env:
+          API_CONTRACT_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || (github.ref == 'refs/heads/main' && github.event.before || 'origin/main') }}
+        run: mix ash_enterprise.api.contract --check --base "$API_CONTRACT_BASE"
 
       # docs/data-inventory.json is generated from the resource declarations and
       # the egress register. A resource added or changed without regenerating it
@@ -556,6 +573,31 @@ jobs:
       - name: Drill report
         if: always()
         run: cat "${{ runner.temp }}/drill.json" || true
+
+      # q55 (ADR 0032): the pseudonymised copy. greenmask is a 0.x binary from a small
+      # team, so it is pinned by version and sha256 rather than installed by name.
+      - name: Install greenmask v0.2.23
+        run: |
+          curl -sSfL -o "${{ runner.temp }}/greenmask.tar.gz" \
+            https://github.com/GreenmaskIO/greenmask/releases/download/v0.2.23/greenmask-linux-amd64.tar.gz
+          echo "05771a1ef83ccd1b63e6b14548b9a4cf3b8c2b18ef0ff4c544bce562e57237e8  ${{ runner.temp }}/greenmask.tar.gz" | sha256sum --check
+          mkdir -p "${{ runner.temp }}/greenmask"
+          tar -xzf "${{ runner.temp }}/greenmask.tar.gz" -C "${{ runner.temp }}/greenmask" greenmask
+          echo "GREENMASK=${{ runner.temp }}/greenmask/greenmask" >> "$GITHUB_ENV"
+
+      # Plants a sentinel in every column greenmask.yml transforms, validates the config
+      # against the seeded schema, copies through greenmask and restores, then fails if any
+      # sentinel survives anywhere but the control table, or an excluded table has rows.
+      # The salt is a fresh random one per run and is never printed.
+      - name: Pseudonymised copy drill
+        run: |
+          scripts/greenmask-drill --json "${{ runner.temp }}/greenmask-drill.json" \
+            --require public.users.email --require public.users.hashed_password \
+            --require legacy.users.login --require legacy.users.crypted_password
+
+      - name: Pseudonymised copy drill report
+        if: always()
+        run: cat "${{ runner.temp }}/greenmask-drill.json" || true
 
   e2e:
     name: Browser end-to-end

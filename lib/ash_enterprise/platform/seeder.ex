@@ -484,7 +484,7 @@ defmodule AshEnterprise.Platform.Seeder do
   # What a steward needs and nothing more: the queue and its verdicts
   # (read and write on match candidates — `:confirm`, `:reject` and
   # `:escalate` are updates), the rows the steward surfaces show beside them
-  # (staged rows, import batches, the mappings a batch pinned, the source
+  # (staged rows, import batches and the rows an import refused, the mappings a batch pinned, the source
   # identities a golden's lineage lists), the goldens they own (Person is
   # owner-only, so `:basic`), the human verdict each decision records as the
   # steward, and the MDM egress departure (ADR 0054). Every verdict needs
@@ -499,6 +499,7 @@ defmodule AshEnterprise.Platform.Seeder do
     {AshEnterprise.Mdm.MatchCandidate, :write},
     {AshEnterprise.Mdm.StagedRecord, :read},
     {AshEnterprise.Mdm.ImportBatch, :read},
+    {AshEnterprise.Mdm.ImportRowRefusal, :read},
     {AshEnterprise.Mdm.Mapping, :read},
     {AshEnterprise.Mdm.SourceIdentity, :read},
     {AshEnterprise.Canonical.Person, :read},

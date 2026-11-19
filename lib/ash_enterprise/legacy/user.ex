@@ -278,4 +278,12 @@ defmodule AshEnterprise.Legacy.User do
       )
     end
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    exclude_data(
+      because:
+        "a view over legacy.users with no rows of its own; the table under it is transformed (AshEnterprise.Legacy.Twins.Users)"
+    )
+  end
 end

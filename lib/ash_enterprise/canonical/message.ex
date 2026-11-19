@@ -217,4 +217,12 @@ defmodule AshEnterprise.Canonical.Message do
     define :upsert_from_source
     define :read
   end
+
+  # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
+  greenmask do
+    keep(:encrypted_body,
+      because:
+        "ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there"
+    )
+  end
 end
