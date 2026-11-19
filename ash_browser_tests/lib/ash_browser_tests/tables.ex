@@ -388,16 +388,19 @@ defmodule AshBrowserTests.Tables do
     |> PhoenixTest.assert_has(surface.mounted || "[data-phx-main]", timeout: 15_000)
   end
 
-  defp path_with_contexts(path, contexts) when contexts == %{}, do: path
-
+  # A context the path already names is not repeated in the query: a record
+  # page (`/app/contracts/<id>`) selects its own record from the path.
   defp path_with_contexts(path, contexts) do
-    query =
-      Enum.map_join(contexts, "&", fn {name, record} ->
-        id = if is_struct(record), do: Map.fetch!(record, :id), else: record
-        "ctx[#{name}]=#{URI.encode_www_form(to_string(id))}"
-      end)
+    segments = String.split(path, "/")
 
-    "#{path}?#{query}"
+    query =
+      for {name, record} <- contexts,
+          id = to_string(if is_struct(record), do: Map.fetch!(record, :id), else: record),
+          id not in segments do
+        "ctx[#{name}]=#{URI.encode_www_form(id)}"
+      end
+
+    if query == [], do: path, else: "#{path}?#{Enum.join(query, "&")}"
   end
 
   # --- Host helpers ----------------------------------------------------------------
