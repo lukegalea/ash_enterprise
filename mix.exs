@@ -244,6 +244,10 @@ defmodule AshEnterprise.MixProject do
       preferred_envs: [
         precommit: :test,
         "test.durability": :test,
+        "test.browser": :test,
+        # The report reads the `:phoenix_test` configuration for the screenshot
+        # and trace directories, and only config/test.exs sets it.
+        "ash_browser_tests.report": :test,
         "ash_enterprise.assistant.eval": :test,
         "ash_enterprise.site_routes": :test
       ]
@@ -457,6 +461,12 @@ defmodule AshEnterprise.MixProject do
       {:opentelemetry_ecto, "~> 1.2"},
       # The runtime observability package this repository publishes (telemetry/).
       {:ash_enterprise_telemetry, path: "telemetry"},
+      # The browser tier (`mix test.browser`, test/e2e): real Chromium against
+      # the endpoint, with each test asserting the trace it produced. The
+      # sibling package, by path as the telemetry one is — this repository is
+      # its home, and a path dependency is the one arrangement where the
+      # package and its first host cannot drift apart.
+      {:ash_browser_tests, path: "ash_browser_tests", only: :test},
 
       # --- Static analysis -----------------------------------------------------
       # Dialyzer runs NON-BLOCKING in CI: there is no official guidance for
@@ -558,6 +568,20 @@ defmodule AshEnterprise.MixProject do
     Mix.Task.rerun("loadconfig")
   end
 
+  # `mix test.browser [paths] [mix test options]`: the package's runner, which
+  # allocates a free port and sets E2E, E2E_PORT and PORT for a child `mix test`.
+  # The paths go first — the runner reads its own switches up to the first
+  # positional argument.
+  defp test_browser(args) do
+    {paths, opts} = Enum.split_with(args, &String.starts_with?(&1, "test/"))
+    paths = if paths == [], do: ["test/e2e"], else: paths
+
+    Mix.Task.run(
+      "ash_browser_tests.test",
+      ["--assets", "assets.build", "--assets-env", "test"] ++ paths ++ opts
+    )
+  end
+
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
@@ -590,6 +614,12 @@ defmodule AshEnterprise.MixProject do
       # a database of its own, drop whatever a killed earlier run left of it, then run `test`,
       # which creates and migrates it. The suite drops it again when it ends.
       "test.durability": [&enable_durability/1, "ecto.drop --quiet --force-drop", "test"],
+      # The browser tier. The runner allocates a free port and sets E2E, E2E_PORT
+      # and PORT for a child `mix test`, so the endpoint serves for this tier and
+      # stays `server: false` for every other. Assets build in :test, so the tier
+      # compiles one environment rather than two — without the compiled CSS,
+      # elements the page hides are visible and locators become ambiguous.
+      "test.browser": &test_browser/1,
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind ash_enterprise", "esbuild ash_enterprise"],
       "assets.deploy": [

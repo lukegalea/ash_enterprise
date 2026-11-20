@@ -145,10 +145,53 @@ config :ash_enterprise,
 config :ash_enterprise, AshEnterpriseWeb.Endpoint,
   live_view: [signing_salt: "test-live-view-salt-not-for-production"]
 
+# The endpoint serves only for the browser tier, which `mix test.browser` runs
+# with E2E=1 and a free port in E2E_PORT. Every other `mix test` keeps
+# `server: false`, so the rest of the suite is unaffected by this tier existing.
 config :ash_enterprise, AshEnterpriseWeb.Endpoint,
-  http: [ip: {127, 0, 0, 1}, port: 4002],
+  http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("E2E_PORT", "4002"))],
   secret_key_base: "n4HgSJ7vmCW06IRSD6hjs4qCWeiiG8tRpmubymXCcI+b5ytnOVjnk3ZNndtaJYJK",
-  server: false
+  server: System.get_env("E2E") == "1"
+
+# A browser's requests join the test's own sandbox through its user agent
+# (`AshBrowserTests.SandboxHook`). Test only, so no other build carries it.
+config :ash_enterprise, :sql_sandbox, true
+
+# Chromium comes from the environment, never a Playwright download: devenv's
+# `pkgs.chromium` by default, `E2E_CHROMIUM=<path>` for another binary, or
+# `E2E_CHROMIUM=bundled` for the one Playwright installed for its driver, which
+# is what CI uses — the runner image's own Chromium changes with every release.
+e2e_chromium =
+  case System.get_env("E2E_CHROMIUM") do
+    "bundled" -> nil
+    nil -> System.find_executable("chromium")
+    path -> path
+  end
+
+config :phoenix_test,
+  otp_app: :ash_enterprise,
+  endpoint: AshEnterpriseWeb.Endpoint,
+  playwright: [
+    browser_pool: :chromium_pool,
+    browser_pools: [
+      [id: :chromium_pool, browser: :chromium, size: 2] ++
+        if(e2e_chromium, do: [executable_path: e2e_chromium], else: [])
+    ],
+    # A module holds its browser from setup_all to its last test, so a module
+    # can queue behind every other module. The bound is the whole tier's run
+    # rather than one module's.
+    browser_pool_checkout_timeout: 10 * 60_000,
+    assets_dir: "./assets",
+    timeout: 15_000,
+    browser_launch_timeout: 30_000,
+    # Both halves of each pair. `screenshot_dir` without `screenshot: true`
+    # writes nothing at all, which is an easy way to upload an empty directory
+    # for months without noticing.
+    screenshot: true,
+    screenshot_dir: "tmp/playwright/screenshots",
+    trace: System.get_env("PW_TRACE") == "1",
+    trace_dir: "tmp/playwright/traces"
+  ]
 
 # In test we don't send emails
 config :ash_enterprise, AshEnterprise.Mailer, adapter: Swoosh.Adapters.Test

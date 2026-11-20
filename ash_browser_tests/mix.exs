@@ -18,6 +18,14 @@ defmodule AshBrowserTests.MixProject do
       elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: false,
+      # `Rows` and `Tables` live in `lib/` and call modules this package only
+      # takes for its own suite: `ash` is `only: :test` here, and `ash_a2ui` is
+      # optional on top of that. Compiling anywhere those are absent emits
+      # "Ash.Query.for_read/2 is undefined" and friends — true, harmless, and
+      # fatal under the `mix compile --warnings-as-errors` that hosts gate on.
+      elixirc_options: [
+        no_warn_undefined: [Ash, Ash.Query, AshA2ui.Manifest]
+      ],
       deps: deps(),
       cli: cli()
     ]

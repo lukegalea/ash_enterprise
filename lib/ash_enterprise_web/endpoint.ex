@@ -21,14 +21,33 @@ defmodule AshEnterpriseWeb.Endpoint do
     ]
   end
 
+  # `:user_agent` is what the browser tier's sandbox hook reads: Playwright puts
+  # the test's sandbox owner in the user agent, and a LiveView started by that
+  # browser has to check out the same connection or it sees an empty database.
+  # Carried in every environment because a connect_info list that differs
+  # between test and production is a difference the tier cannot catch.
   socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [session: {__MODULE__, :session_options, []}]],
-    longpoll: [connect_info: [session: {__MODULE__, :session_options, []}]]
+    websocket: [connect_info: [:user_agent, session: {__MODULE__, :session_options, []}]],
+    longpoll: [connect_info: [:user_agent, session: {__MODULE__, :session_options, []}]]
 
   # No GraphQL socket: the schema has no subscriptions, and a socket would be a
   # second way in that the HTTP path's bearer authentication, actor and tenant do
   # not cover. Subscriptions, if they come, bring a socket that authenticates
   # the way `/gql` does.
+
+  # A browser test's ordinary HTTP requests join that test's database sandbox,
+  # which Playwright names in the user agent. The LiveView half is handled by
+  # telemetry (`AshBrowserTests.SandboxHook`) and needs no plug, but the
+  # requests before the socket — the sign-in POST above all — go through here.
+  # Without it the server reads a database where the test's fixtures do not
+  # exist, and the symptom is not an error but a plausible lie: "Incorrect email
+  # or password" on a correct password.
+  #
+  # Compiled in only where config/test.exs sets `:sql_sandbox`, so no other
+  # build carries it.
+  if Application.compile_env(:ash_enterprise, :sql_sandbox, false) do
+    plug Phoenix.Ecto.SQL.Sandbox
+  end
 
   # Serve at "/" the static files from "priv/static" directory.
   #

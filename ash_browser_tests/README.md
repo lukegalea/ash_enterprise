@@ -228,6 +228,27 @@ console errors or 5xx, span chain intact. Each action with a `run` gets one too.
 `ledger:` test fails if anything is neither exercised nor waived, if a waiver has no
 reason, or if a waiver names something no longer declared.
 
+> #### The default chain assumes browser tracing {: .warning}
+>
+> A generated surface asserts `[browser_connect(), live_mount()]` and a generated
+> action `[browser_event(), handle_event()]` — both rooted at a span the *browser*
+> emits. A host without browser tracing (no `otel-browser` meta tag, no tracer in
+> `app.js`, no span ingest route) has no such span, so every generated test fails
+> on an absent span rather than on anything being wrong.
+>
+> Such a host supplies its own `chain:` per surface — `[live_mount(), query()]`
+> asserts the server half, which is most of the value — and adopts browser tracing
+> later. `ash_enterprise`'s own host is the worked example.
+>
+> `assert_chain/3` takes **two matchers at minimum**: it asserts links, and one span
+> is not a chain. A single-element chain raises a `FunctionClauseError` rather than
+> a readable error.
+
+The ledger governs **what the host declares**, not the application's whole registry.
+It cannot fail for a surface `surfaces/0` never returns, so a host adopting a subset
+should make the subset explicit and check that each name still resolves — a renamed
+or deleted surface otherwise shrinks coverage silently, with every test still green.
+
 ### A2UI row actions
 
 `AshBrowserTests.A2uiManifest` is the interface the generator consumes: a `manifest/1`
