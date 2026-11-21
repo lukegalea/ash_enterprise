@@ -67,7 +67,12 @@ const groups: { id: string; title: string; lead: string; rows: Package[] }[] = [
     id: 'in-repo',
     title: 'Living in this repository',
     lead: 'A package with its own mix project, lock and CI job. The application uses it by path; another project can use it through a sparse git dependency.',
-    rows: packages.filter((p) => p.declared === 'path'),
+    // `&& !p.only` for the same reason the `declared` group above has it: these
+    // four groups have to partition the list, and the check below enforces
+    // that. A path dependency that is also test-only — ash_browser_tests is the
+    // first — otherwise appears here *and* under tooling, and the page fails to
+    // build rather than quietly showing it twice.
+    rows: packages.filter((p) => p.declared === 'path' && !p.only),
   },
   {
     id: 'tooling',
