@@ -30,7 +30,7 @@ defmodule AshEnterpriseWeb.E2E.SignInTest do
 
     # Server-side only. The natural assertion here is
     # `[browser_event(), handle_event()]` — the browser's span parenting the
-    # server's handling of the submit — and that is what keystone asserts. This
+    # server's handling of the submit — and a host with browser tracing asserts it. This
     # application emits no browser spans at all (no `otel-browser` meta tag, no
     # tracer in `app.js`, no ingest route), so that chain would fail on an
     # absent span rather than on a broken trace.
