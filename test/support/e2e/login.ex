@@ -13,7 +13,11 @@ defmodule AshEnterpriseWeb.E2E.Login do
   alias AshEnterpriseWeb.Endpoint
 
   @doc "`conn`, signed in as `ctx.user` (an `AshEnterprise.Test.DailyFixtures` context)."
-  @spec as(struct(), %{user: struct()}) :: struct()
+  # `required(:user) => struct()` rather than `%{user: struct()}`: the latter is
+  # a *closed* map type meaning "exactly this one key", and a fixture context
+  # carries five. Dialyzer caught it as "the function call as will not succeed"
+  # — correctly, since no caller could ever satisfy the narrower type.
+  @spec as(struct(), %{required(:user) => struct()}) :: struct()
   def as(conn, %{user: user}) do
     {:ok, token, _claims} = AshAuthentication.Jwt.token_for_user(user)
 

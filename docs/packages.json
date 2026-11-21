@@ -567,6 +567,30 @@
       "hex_name": "free",
       "hex_path": "Not on the BLEEDING-EDGE path: it lives in this repository and has its own mix project, lock and CI job.",
       "carry": "Its own suite runs in this repository's CI (the telemetry job); it depends on nothing in the application."
+    },
+    {
+      "name": "ash_browser_tests",
+      "module": "AshBrowserTests",
+      "repo": "https://github.com/lukegalea/ash_enterprise/tree/main/ash_browser_tests",
+      "purpose": "Real-browser tests for Phoenix and Ash applications, with assertions on the OpenTelemetry trace each test produced: a Playwright case, a sandbox hook that needs no router change, a generated test per declared surface, table and row action, and a coverage ledger.",
+      "used_for": "The browser tier (`mix test.browser`, test/e2e): the surfaces this application's registry declares, and the sign-in form.",
+      "adr": null,
+      "declared": "path",
+      "only": "test",
+      "ref": null,
+      "version": "0.1.0",
+      "stated_status": null,
+      "maturity": "tooling",
+      "battery": false,
+      "distribution": "git only: a sparse git dependency on this repository (sparse: \"ash_browser_tests\")",
+      "builds_on": [
+        "phoenix_test",
+        "phoenix_test_playwright",
+        "playwright_ex"
+      ],
+      "hex_name": "free",
+      "hex_path": "Not on the BLEEDING-EDGE path: it lives in this repository and has its own mix project, lock and CI job.",
+      "carry": "Test-only: never a runtime dependency and never compiled into a release. Its own suite runs in this repository's CI; vendorpm-keystone takes it as a sparse git dependency."
     }
   ],
   "forks": [
