@@ -15,6 +15,8 @@ defmodule AshEnterprise.Quality do
       them are asked of a given reply.
     * `AshEnterprise.Quality.Grader`: judges, bands and admits evaluation
       replies against those questions (S1-93).
+    * `AshEnterprise.Quality.Evaluation`: the one evaluation tenant, the only
+      tenant whose suite runs' answers are graded.
     * `AshEnterprise.Quality.Gate`: what the admitted facts say about a set
       of replies, as a three-state report and a verdict (S1-94).
     * `AshEnterprise.Quality.Changes.AdmitReplyVerdict`: a person's verdict
@@ -71,6 +73,7 @@ defmodule AshEnterprise.Quality do
       define :start_suite_run, action: :start, args: [:suite_id, :agent_key]
       define :import_eval_log, action: :import_eval_log, args: [:suite_id, :agent_key, :log]
       define :finish_suite_run, action: :finish
+      define :record_suite_run_judged, action: :record_judged, args: [:grading]
       define :get_suite_run, action: :read, get_by: [:id]
       define :list_suite_runs, action: :read
       define :compare_suite_runs, action: :compare, args: [:suite_id]
@@ -78,6 +81,7 @@ defmodule AshEnterprise.Quality do
 
     resource AshEnterprise.Quality.CaseResult do
       define :list_case_results, action: :read
+      define :record_case_result_scores, action: :record_scores, args: [:scores]
     end
   end
 

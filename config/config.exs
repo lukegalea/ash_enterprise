@@ -30,6 +30,11 @@ config :ash_enterprise, AshEnterprise.Standards.StandingWorker,
   limit: nil,
   cron: standing_cron
 
+# The evaluation tenant (`AshEnterprise.Quality.Evaluation`): the `unique_name` of the one
+# synthetic organization whose suite runs' answers the in-zone judge grades. Unset, nothing
+# is graded anywhere. `config/runtime.exs` sets it from QUALITY_EVALUATION_TENANT.
+config :ash_enterprise, AshEnterprise.Quality.Evaluation, tenant: nil
+
 config :ash_enterprise, Oban,
   engine: Oban.Engines.Basic,
   notifier: Oban.Notifiers.Postgres,

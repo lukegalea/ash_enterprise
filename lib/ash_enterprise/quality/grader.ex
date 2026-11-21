@@ -49,10 +49,13 @@ defmodule AshEnterprise.Quality.Grader do
   named by its turn alone (`"assistant_turn:<turn_id>"`) raises an
   `ArgumentError` before anything is judged.
 
-  The guard is the reply's name, not the tenant: no tenant is marked as
-  the evaluation tenant yet, so there is nothing to check `:tenant`
-  against. A caller that names a live turn's reply as an evaluation case
-  is not stopped here; the evaluation run that mints those names is.
+  The guard is the reply's name, not the tenant. A suite run's answers are
+  graded only in the designated evaluation tenant
+  (`AshEnterprise.Quality.Evaluation`, through
+  `AshEnterprise.Quality.SuiteRun.GradeWorker`), and the assistant eval
+  task grades in the synthetic tenant it seeds and rolls back. A caller
+  that names a live turn's reply as an evaluation case is not stopped
+  here; the evaluation run that mints those names is.
 
   ## The instrument identity is required
 
