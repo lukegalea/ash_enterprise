@@ -74,6 +74,8 @@ defmodule AshEnterpriseBattery.MixProject do
       {:ash_agent, github: "lukegalea/ash_agent"},
       # --- Declared provider operations (HTTP transport, signed webhook ingress) -
       {:ash_operations, github: "lukegalea/ash_operations"},
+      # --- Facades over canonical resources (a resource over resources) -------
+      {:ash_strangler, github: "lukegalea/ash_strangler"},
       # --- AshEvents (the audit log extension) ---------------------------------
       {:ash_events, github: "lukegalea/ash_events", branch: "main-no-rollback", override: true},
       # The audit log's hash chain, its verifier and its verified move to an archive.
