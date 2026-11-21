@@ -49,6 +49,11 @@
   Battery.Operations.Submission,
   Battery.Operations.Delivery,
   Battery.Operations.ActivationSettled,
+  Battery.Canonical.Task,
+  Battery.Canonical.Credential,
+  Battery.Canonical.CredentialCard,
+  Battery.Canonical.WorkItem,
+  Battery.Canonical.WorkItemRow,
   AshEvidence.Domain,
   AshCompliance.Domain
 ]

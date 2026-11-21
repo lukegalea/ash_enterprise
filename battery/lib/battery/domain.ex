@@ -80,5 +80,16 @@ defmodule Battery.Domain do
     resource Battery.Mdm.Mapping
     resource Battery.Mdm.MatchRuleSet
     resource Battery.Mdm.MatchCandidate
+
+    # Canonical sources (ash_strangler) and the facades: the temporal task and
+    # the audited credential are owned rows; the card renames the credential's
+    # words and lets the source's field policy decide; the work-item renames
+    # the task's words and writes one source action per write, and the row
+    # reads the work-item — a two-hop chain, read hop by hop.
+    resource Battery.Canonical.Task
+    resource Battery.Canonical.Credential
+    resource Battery.Canonical.CredentialCard
+    resource Battery.Canonical.WorkItem
+    resource Battery.Canonical.WorkItemRow
   end
 end
