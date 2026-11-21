@@ -20,6 +20,8 @@ defmodule AshEnterprise.Site.CryptographyClaimTest do
     "lib/ash_enterprise/accounts/oidc_http.ex" => "verifying the identity provider's certificate",
     "lib/ash_enterprise/automation/alert_webhook.ex" => "checking signed provider webhooks",
     "lib/ash_enterprise/credentialing/registry_webhook.ex" => "checking signed provider webhooks",
+    "lib/ash_enterprise/documents/paper/interview_digest_key.ex" =>
+      "document interview answer digests",
     "lib/ash_enterprise/erasure/blind_index.ex" => "the blind index that finds a sealed address",
     "lib/ash_enterprise/erasure/crypto.ex" => "sub-keys of an erasure scope's key",
     "lib/ash_enterprise/execution/digest_key.ex" => "invocation argument digests",
