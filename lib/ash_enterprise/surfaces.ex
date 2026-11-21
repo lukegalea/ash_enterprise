@@ -1271,6 +1271,23 @@ defmodule AshEnterprise.Surfaces do
       resource: AshEnterprise.Credentialing.Credential,
       acp: %{command: "credentialing tour", aliases: ["tour"]}
     },
+    %Surface{
+      key: :three_valued_search,
+      audience: [:member, :builder],
+      label: dgettext_noop("default", "Three-valued search"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Search invented clinicians and see what is in, what is out, and what is unknown, with the reason for each unknown."
+        ),
+      group: :credentialing,
+      order: 20,
+      icon: "hero-magnifying-glass",
+      path: "/app/showcase/search",
+      live: AshEnterpriseWeb.ShowcaseLive.Search,
+      resource: AshEnterprise.SystemOne.ShowcaseSubject,
+      acp: %{command: "three-valued search", aliases: ["search demo"]}
+    },
 
     # --- Legacy ------------------------------------------------------------------
     %Surface{

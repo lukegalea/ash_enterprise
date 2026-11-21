@@ -45,7 +45,8 @@ defmodule AshEnterprise.SystemOne.Filter.Compiler do
        "predicates" => ast |> properties() |> Enum.map(& &1.name) |> Enum.uniq() |> Enum.sort(),
        "operators" => ast |> operators() |> Enum.uniq() |> Enum.sort() |> Enum.map(&to_string/1),
        "min_grade" => to_string(Keyword.get(opts, :min_grade, :grant)),
-       "scope" => Keyword.get(opts, :scope)
+       "scope" => Keyword.get(opts, :scope),
+       "subject_type" => Keyword.get(opts, :subject_type)
      }}
   end
 
@@ -58,7 +59,8 @@ defmodule AshEnterprise.SystemOne.Filter.Compiler do
 
   Returns the three partitions: subjects whose evaluation is TRUE, FALSE
   and `:unknown`. Unknown-partition entries carry the referenced
-  predicates that were unknown for that subject — the assess action's
+  predicates that were unknown for that subject (`"missing"`) and why each
+  was (`"reasons"`: `"no_fact"` or `"expired"`) — the assess action's
   triage input.
   """
   @spec fold(map(), %{}, map() | nil, DateTime.t()) :: %{
@@ -78,7 +80,7 @@ defmodule AshEnterprise.SystemOne.Filter.Compiler do
       case evaluate(ast, facts, now) do
         true -> {:in, subject}
         false -> {:out, subject}
-        :unknown -> {:unknown, Map.put(subject, "missing", missing(ast, facts, kinds, now))}
+        :unknown -> {:unknown, unknown_entry(subject, ast, facts, kinds, now)}
       end
     end)
     |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
@@ -221,6 +223,17 @@ defmodule AshEnterprise.SystemOne.Filter.Compiler do
   defp kinds(ast) do
     ast |> properties() |> Map.new(&{&1.name, &1.kind})
   end
+
+  defp unknown_entry(subject, ast, facts, kinds, now) do
+    missing = missing(ast, facts, kinds, now)
+
+    subject
+    |> Map.put("missing", missing)
+    |> Map.put("reasons", Map.new(missing, &{&1, reason(facts[&1])}))
+  end
+
+  defp reason(nil), do: "no_fact"
+  defp reason(_expired_fact), do: "expired"
 
   defp missing(ast, facts, kinds, now) do
     ast
