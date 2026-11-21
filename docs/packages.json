@@ -590,7 +590,7 @@
       ],
       "hex_name": "free",
       "hex_path": "Not on the BLEEDING-EDGE path: it lives in this repository and has its own mix project, lock and CI job.",
-      "carry": "Test-only: never a runtime dependency and never compiled into a release. Its own suite runs in this repository's CI; vendorpm-keystone takes it as a sparse git dependency."
+      "carry": "Test-only: never a runtime dependency and never compiled into a release. Its own suite runs in this repository's CI, and a host outside it takes the package as a sparse git dependency."
     }
   ],
   "forks": [
