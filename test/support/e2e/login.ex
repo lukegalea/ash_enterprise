@@ -13,11 +13,13 @@ defmodule AshEnterpriseWeb.E2E.Login do
   alias AshEnterpriseWeb.Endpoint
 
   @doc "`conn`, signed in as `ctx.user` (an `AshEnterprise.Test.DailyFixtures` context)."
-  # `required(:user) => struct()` rather than `%{user: struct()}`: the latter is
-  # a *closed* map type meaning "exactly this one key", and a fixture context
-  # carries five. Dialyzer caught it as "the function call as will not succeed"
-  # — correctly, since no caller could ever satisfy the narrower type.
-  @spec as(struct(), %{required(:user) => struct()}) :: struct()
+  # Deliberately unspecced. Two attempts at a `@spec` here both made Dialyzer
+  # worse, and the second explains the first: annotating `user` as `struct()`
+  # means "any struct", which is wider than `AshAuthentication.Jwt
+  # .token_for_user/1` accepts — so the body's success typing came out empty,
+  # `as/2` had no local return, and every caller was reported as a call that
+  # "will not succeed". A `@spec` that is vaguer than the code starves inference
+  # rather than feeding it. Without one, the type flows from the fixture.
   def as(conn, %{user: user}) do
     {:ok, token, _claims} = AshAuthentication.Jwt.token_for_user(user)
 
