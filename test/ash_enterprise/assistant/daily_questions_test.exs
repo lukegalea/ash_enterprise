@@ -181,10 +181,10 @@ defmodule AshEnterprise.Assistant.DailyQuestionsTest do
     end
 
     test "narrowed by title and window", %{alice: alice, review: review} do
-      assert [%{"ref" => ref}] = F.tool!(alice, :meeting_prep, %{text: "contract"})
+      assert [%{"ref" => ref}] = F.tool!(alice, :meeting_prep, %{text: "design"})
       assert ref == "calendar:#{review.id}"
 
-      assert [] = F.tool!(alice, :meeting_prep, %{window: "yesterday", text: "contract"})
+      assert [] = F.tool!(alice, :meeting_prep, %{window: "yesterday", text: "design"})
       assert F.refusal(alice, :meeting_prep, %{window: "SYNTHETIC-BAD"}) =~ "not a window"
     end
 
