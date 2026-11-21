@@ -198,7 +198,7 @@ msgstr ""
 msgid "close"
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1262
+#: lib/ash_enterprise/surfaces.ex:1284
 #, elixir-autogen, elixir-format
 msgid "A guided tour of governed activation: ask, approve, and what happens when the world changes in between."
 msgstr ""
@@ -299,12 +299,12 @@ msgstr ""
 msgid "Credentialing"
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1260
+#: lib/ash_enterprise/surfaces.ex:1282
 #, elixir-autogen, elixir-format
 msgid "Credentialing tour"
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1237
+#: lib/ash_enterprise/surfaces.ex:1259
 #, elixir-autogen, elixir-format
 msgid "Credentials"
 msgstr ""
@@ -354,7 +354,7 @@ msgstr ""
 msgid "Every calibration run: what it measured and the threshold it earned."
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1217
+#: lib/ash_enterprise/surfaces.ex:1239
 #, elixir-autogen, elixir-format
 msgid "Every import by status, with its counts and its staged rows."
 msgstr ""
@@ -424,7 +424,7 @@ msgstr ""
 msgid "Import CSV"
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1215
+#: lib/ash_enterprise/surfaces.ex:1237
 #, elixir-autogen, elixir-format
 msgid "Import batches"
 msgstr ""
@@ -449,7 +449,7 @@ msgstr ""
 msgid "Legacy"
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1279
+#: lib/ash_enterprise/surfaces.ex:1301
 #, elixir-autogen, elixir-format
 msgid "Legacy users"
 msgstr ""
@@ -612,7 +612,7 @@ msgstr ""
 msgid "The band tables in force, with who certified them."
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1239
+#: lib/ash_enterprise/surfaces.ex:1261
 #, elixir-autogen, elixir-format
 msgid "The clinic's credentials: ask to activate one, and see what the registry holds."
 msgstr ""
@@ -642,7 +642,7 @@ msgstr ""
 msgid "The merged view of the customer, with merge lineage."
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1281
+#: lib/ash_enterprise/surfaces.ex:1303
 #, elixir-autogen, elixir-format
 msgid "The old system's people, read live through a compatibility view."
 msgstr ""
@@ -742,7 +742,7 @@ msgstr ""
 msgid "Your morning brief, today's agenda and the day's pulse."
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1305
+#: lib/ash_enterprise/surfaces.ex:1327
 #, elixir-autogen, elixir-format
 msgid "Builders"
 msgstr ""
@@ -762,7 +762,7 @@ msgstr ""
 msgid "Everyone"
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1303
+#: lib/ash_enterprise/surfaces.ex:1325
 #, elixir-autogen, elixir-format
 msgid "Members"
 msgstr ""
@@ -772,7 +772,7 @@ msgstr ""
 msgid "No app or record matches “%{query}”."
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1306
+#: lib/ash_enterprise/surfaces.ex:1328
 #, elixir-autogen, elixir-format
 msgid "Operators"
 msgstr ""
@@ -782,7 +782,7 @@ msgstr ""
 msgid "Records"
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1304
+#: lib/ash_enterprise/surfaces.ex:1326
 #, elixir-autogen, elixir-format
 msgid "Reviewers"
 msgstr ""
@@ -1701,4 +1701,14 @@ msgstr ""
 #: lib/ash_enterprise/surfaces.ex:1110
 #, elixir-autogen, elixir-format
 msgid "Questions drafted from policy text, awaiting a person's confirmation."
+msgstr ""
+
+#: lib/ash_enterprise/surfaces.ex:1217
+#, elixir-autogen, elixir-format
+msgid "Match-rule weights learned from steward verdicts, replayed over them, for a person to activate."
+msgstr ""
+
+#: lib/ash_enterprise/surfaces.ex:1215
+#, elixir-autogen, elixir-format
+msgid "Proposed match rules"
 msgstr ""

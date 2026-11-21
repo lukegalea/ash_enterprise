@@ -33,6 +33,9 @@
 #   - AshEnterprise.Assistant.Turn: :encrypted_content — ciphertext under the application vault key, which never travels with a copy; unreadable without production's vault key
 #   - AshEnterprise.Assistant.Turn: :encrypted_tool_calls — ciphertext under the application vault key, which never travels with a copy; unreadable without production's vault key
 #   - AshEnterprise.Assistant.ReplyDraft: :encrypted_body — ciphertext under the application vault key, which never travels with a copy; unreadable without production's vault key
+#   - AshEnterprise.Mdm.MatchRuleProposal: :changed_pairs — candidate ids with their verdict, bands and scores; no record values
+#   - AshEnterprise.Mdm.MatchRuleProposal: :replay — counts, bands and ratios over steward verdicts; no record values
+#   - AshEnterprise.Mdm.MatchRuleProposal: :tuning — rule names, weights and rates; no record values
 #   - AshEnterprise.Planning.Run: :encrypted_problem_payload — ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there
 #   - AshEnterprise.Planning.Run: :encrypted_result_payload — ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there
 #   - AshEnterprise.Planning.Candidate: :encrypted_assignments — ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there
@@ -269,6 +272,9 @@ dump:
           params:
             column: "raw"
             value: "{}"
+    - name: "mdm_match_rule_proposals"
+      schema: "public"
+      transformers: []
     - name: "credentialing_clinicians"
       schema: "public"
       transformers:
