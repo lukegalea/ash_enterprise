@@ -107,7 +107,7 @@ defmodule AshEnterprise.Assistant.DailyQuestionsTest do
 
   describe "meeting_prep" do
     setup %{alice: alice, me: me, quinn: quinn, rory: rory, robin: robin} do
-      review = D.event!(alice, "SYNTHETIC contract review", 0, 30, starts_at: tomorrow(10))
+      review = D.event!(alice, "SYNTHETIC design review", 0, 30, starts_at: tomorrow(10))
       Enum.each([me, quinn], &D.attendee!(alice, review, &1))
 
       intro = D.event!(alice, "SYNTHETIC intro call", 0, 30, starts_at: tomorrow(14))
