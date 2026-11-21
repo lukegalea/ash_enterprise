@@ -329,7 +329,7 @@
       "adr": "0044",
       "declared": "direct",
       "only": null,
-      "ref": "3e2ce790213bde29906df85974eddf175ef0e4e7",
+      "ref": "d67f53bd280a69701225bf88b59fafe2b266ad88",
       "version": "0.2.0",
       "stated_status": null,
       "maturity": "used-and-tested-here",
@@ -473,6 +473,30 @@
       "carry": "Its ADR is still proposed; the credential registry is the one built reference."
     },
     {
+      "name": "ash_paper",
+      "module": "AshPaper",
+      "repo": "https://github.com/lukegalea/ash_paper",
+      "purpose": "Deterministic PDF documents from Ash data: a schema of read paths, a locked Typst layout, typed theme tokens and clause wording as separate axes, rendered under pinned engine and font hashes.",
+      "used_for": "Issuing documents from a tenant's own rows (`AshEnterprise.Documents`), with the bytes stored as the record and a re-render digest-equal within the pinned environment.",
+      "adr": "0067",
+      "declared": "direct",
+      "only": null,
+      "ref": "e14889c94d64da0198ea21fc854201b0368f7f42",
+      "version": "0.1.0-dev",
+      "stated_status": "Early: the API may change.",
+      "maturity": "used-and-tested-here",
+      "battery": false,
+      "distribution": "git only",
+      "builds_on": [
+        "ash",
+        "ash_typst",
+        "ash_open_lineage"
+      ],
+      "hex_name": "free (checked on hex.pm 2026-11-21).",
+      "hex_path": "After ash_typst's pinned release and ash_open_lineage.",
+      "carry": "Pinned by `ref:`; the Typst engine comes from ash_typst 0.6.1, and `mix paper.lock` records every layout's hash in priv/paper.lock.json."
+    },
+    {
       "name": "ash_planning",
       "module": "AshPlanning",
       "repo": "https://github.com/lukegalea/ash_planning",
@@ -481,7 +505,7 @@
       "adr": "0062",
       "declared": "direct",
       "only": null,
-      "ref": "4d7b3c1208e900ff23b41cec5e7939bc97f21104",
+      "ref": "61ef4da4b49500eed42ff43d63144e9cc2acbf77",
       "version": "0.1.0",
       "stated_status": null,
       "maturity": "used-and-tested-here",
