@@ -6,12 +6,16 @@ defmodule AshEnterprise.Planning.Changes.ScopeAndOwner do
       change {AshEnterprise.Planning.Changes.ScopeAndOwner, from: :requester}
       change {AshEnterprise.Planning.Changes.ScopeAndOwner, from: :run}
       change {AshEnterprise.Planning.Changes.ScopeAndOwner, from: :candidate}
+      change {AshEnterprise.Planning.Changes.ScopeAndOwner,
+              from: :run, resource: AshEnterprise.Documents.PaperRun}
 
     * `from: :requester` — a run's requester. The person owns the run and its content is
       theirs, so it is sealed under their own scope (the same `data_subject` scope an
       invocation's arguments are sealed under: one scope per person). Only a person's own
       request is sealed; no other actor can open one.
     * `from: :run` — a candidate takes its owner and scope from its run, named by `run_id`.
+      `resource:` names the run's resource when it is not `AshEnterprise.Planning.Run`: a
+      paper draft takes them from its `AshEnterprise.Documents.PaperRun` the same way.
     * `from: :candidate` — a check result takes them from its candidate, named by
       `candidate_id`.
 
@@ -39,15 +43,25 @@ defmodule AshEnterprise.Planning.Changes.ScopeAndOwner do
 
   @impl true
   def init(opts) do
-    if Keyword.get(opts, :from) in [:requester, :run, :candidate],
-      do: {:ok, opts},
-      else: {:error, "from must be :requester, :run or :candidate"}
+    cond do
+      Keyword.get(opts, :from) not in [:requester, :run, :candidate] ->
+        {:error, "from must be :requester, :run or :candidate"}
+
+      not is_atom(Keyword.get(opts, :resource)) ->
+        {:error, "resource must be a module"}
+
+      Keyword.has_key?(opts, :resource) and opts[:from] != :run ->
+        {:error, "resource is only for from: :run"}
+
+      true ->
+        {:ok, opts}
+    end
   end
 
   @impl true
   def change(changeset, opts, context) do
     if changeset.valid? do
-      case resolve(opts[:from], changeset, context.actor) do
+      case resolve(opts[:from], opts, changeset, context.actor) do
         {:ok, attrs} ->
           Ash.Changeset.force_change_attributes(changeset, attrs)
 
@@ -59,7 +73,7 @@ defmodule AshEnterprise.Planning.Changes.ScopeAndOwner do
     end
   end
 
-  defp resolve(:requester, _changeset, %{id: id}) when is_binary(id) do
+  defp resolve(:requester, _opts, _changeset, %{id: id}) when is_binary(id) do
     case Erasure.ensure_scope(:data_subject, SealingScope.scope_ref(id), %{label: @label},
            actor: SystemActor.system()
          ) do
@@ -74,13 +88,13 @@ defmodule AshEnterprise.Planning.Changes.ScopeAndOwner do
     end
   end
 
-  defp resolve(:requester, _changeset, _actor),
+  defp resolve(:requester, _opts, _changeset, _actor),
     do: {:error, :erasure_scope_id, "only a person's request can be sealed"}
 
-  defp resolve(:run, changeset, _actor),
-    do: parent(Run, :run_id, changeset)
+  defp resolve(:run, opts, changeset, _actor),
+    do: parent(Keyword.get(opts, :resource) || Run, :run_id, changeset)
 
-  defp resolve(:candidate, changeset, _actor),
+  defp resolve(:candidate, _opts, changeset, _actor),
     do: parent(Candidate, :candidate_id, changeset)
 
   defp parent(resource, field, changeset) do
