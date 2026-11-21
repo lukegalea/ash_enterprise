@@ -45,10 +45,13 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Eval do
   before asking anything.
 
   A pass or a fail needs a certified, published band table for the
-  family. The report reads the platform's published table, which does
-  not carry its certification, so until one is supplied the report reads
-  `unmeasured` with the reason `not certified`. The run's ledger rows go
-  with the rolled-back transaction, like everything else it writes.
+  family. The report reads the platform's published table in the
+  database the task runs on, and the certification of exactly that
+  version and content wherever a person recorded it
+  (`AshEnterprise.Quality.Gate.published_band_table/3`); with none, or a
+  revoked one, it reads `unmeasured` with the reason `not certified`. The
+  run's ledger rows go with the rolled-back transaction, like everything
+  else it writes.
 
   Prints counts and rates only. The rows are written inside the rolled-back
   transaction, so they last as long as the task; what survives it is the

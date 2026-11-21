@@ -29,7 +29,12 @@ defmodule AshEnterprise.Execution.Release.Gate do
     * every agent entry was measured: some of those runs ran exactly the agent version the
       entry pins, so a release of several agents is not carried by the measurement of one.
 
-  Only deterministic scorers gate (`SuiteGate` never reads a judged score). A run in another
+  Only deterministic scorers gate (`SuiteGate` never reads a judged score). A suite run's
+  judged report (`summary["judged"]`, `AshEnterprise.Quality.JudgedScores`: the family, its
+  band table's certification and each question's counts) is carried in its suite's entry as
+  `"judged"`, as recorded when the run finished, for whoever approves the release to read.
+  It is information: it never adds a problem or changes `"passed"`, whatever it says,
+  certified or not (ADR 0058, decision D9). A run in another
   mode (`:adhoc` experiments, `:shadow` comparisons) is never looked at: an adhoc run
   measures a version nobody approved. Nor is an imported run, which names no candidate.
   """
@@ -128,9 +133,14 @@ defmodule AshEnterprise.Execution.Release.Gate do
            "agent_version_id" => run.agent_version_id,
            "result" => result,
            "reasons" => reasons
-         }, problems}
+         }
+         |> judged(run.summary["judged"]), problems}
     end
   end
+
+  # Information beside the result, never a problem (D9).
+  defp judged(result, nil), do: result
+  defp judged(result, report), do: Map.put(result, "judged", report)
 
   # The newest finished offline run of this suite on exactly this manifest. An imported
   # run names no candidate and is never one.

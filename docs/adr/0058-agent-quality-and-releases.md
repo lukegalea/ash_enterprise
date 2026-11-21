@@ -247,8 +247,37 @@ still cannot satisfy the gate. The amendment adds one more thing that can block 
   can be trusted is what ash_judgments certified. `Quality.SuiteGate` reads only the deterministic results. **For v1
   this holds the amendment above back**: a certified family reports and does not gate (decision D9), whatever its
   verdict.
-- **Not built.** Judged scores for suite runs started by `start` (an agent run's answer is not yet a reply subject:
-  only the assistant's turns are), the answer text in an exported log.
+- **Not built.** The answer text in an exported log. (Judged scores for suite runs started by `start` were built on
+  2026-11-21, below.)
+
+## Built, 2026-11-21: judged scores read their certification, cover `start` runs and ride on the manifest
+
+D9 still holds: judged scores report and never gate (S1-97).
+
+- **The certification read.** A band table is a platform baseline, and its certification is recorded in the
+  certifying person's own tenant, so a report read from the evaluation tenant always said `not_certified`.
+  `Gate.published_band_table/3` now reads it through `BandTableCertification`'s `:for_definition`, a named read
+  with `multitenancy :bypass`. The read matches the published definition's key, version and content hash, so a
+  certification of another version or other content never answers. It shows only `status`, `certified_at` and
+  what was certified; every other field, who certified among them, reads `%Ash.ForbiddenField{}` whatever the
+  caller selects. A person or a system actor (never `ai`) may run it, under a policy of its own that reads only the
+  actor. A revocation of that definition wins over any certification of it. Nothing certifying it, a refused or
+  failed read, and a certification older than the family's `max_age_days` all read as not certified, with
+  `"reason"` (`revoked`, `no_certification`, `certification_unreadable`) or `band_table_too_old`. A certified one
+  names `"certifier_role"`, the role the certifying act requires.
+- **`start` runs.** `AgentReply`'s `:from_run` makes an agent run's text answer the reply subject
+  `"agent_reply:<suite run id>/<case id>/1"`, read as the actor through the run's own policies and seal. When the
+  suite names the `agent_reply_style` scorer, `finish` records `summary["judged"]` and each case's `scores` from the
+  admitted facts. It asks no model: an answer nobody graded reads `unknown` (`no_fact`). A case with no text answer
+  is an unknown reply.
+- **The manifest.** The release gate carries each suite run's judged report (family, certification,
+  per-question counts) in its suite entry as `"judged"`. It never adds a problem or changes `"passed"`.
+- **Tests.** `test/ash_enterprise/quality/certification_read_test.exs` covers a certification made in another
+  tenant, revoked, another version or content, none, too old, unreadable, what the read shows and who may run it.
+  `test/ash_enterprise/releases/judged_report_test.exs` covers a `start` run whose certified family fails on hs5:
+  its report is on the manifest, and the gate passes as it does without it.
+- **Not built.** Grading a `start` run's answers. `finish` reads facts and never asks a judge, so until something
+  grades those subjects, their scores read `unknown`.
 
 ## Built, 2026-11-05: release manifests
 

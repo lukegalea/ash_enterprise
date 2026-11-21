@@ -25,8 +25,9 @@ defmodule AshEnterprise.Licences.Rungs do
   one exception is a calibration pass (`calibration?: true`), which asks the
   model about declared subjects on purpose, so its answers can be scored
   against the declaration's. A calibration pass asks only the eight model
-  questions (`model_questions/0`, the `third_party_licence` family): the
-  declaration question is refused there too.
+  questions (`model_questions/0`: the `third_party_licence` family and the
+  use-restriction question's own family): the declaration question is
+  refused there too.
   """
 
   alias AshEnterprise.Licences.DeclarationRung
@@ -64,8 +65,9 @@ defmodule AshEnterprise.Licences.Rungs do
   def questions, do: @questions
 
   @doc """
-  The eight questions a model may answer, from a licence's text: the
-  `third_party_licence` family, the unit a calibration pass asks and scores.
+  The eight questions a model may answer, from a licence's text: what a
+  calibration pass asks. Each is scored in its own family's eval set
+  (`AshEnterprise.Licences.EvalSet`).
   """
   @spec model_questions() :: [atom()]
   def model_questions, do: @model_questions

@@ -6,7 +6,8 @@ defmodule AshEnterprise.Quality do
   (S1-91), and what grades it and reads the grades:
 
     * `AshEnterprise.Quality.AgentReply`: one assistant answer, read from
-      an `AshEnterprise.Assistant.Turn` as the actor and never stored. The
+      an `AshEnterprise.Assistant.Turn` or an agent run's answer as the actor and
+      never stored. The
       eight `agent_reply_style` questions are declared on it.
     * `AshEnterprise.Quality.Projections.ReplyText`: what those questions
       see, the reply text and nothing else.
@@ -50,6 +51,7 @@ defmodule AshEnterprise.Quality do
   resources do
     resource AshEnterprise.Quality.AgentReply do
       define :reply_from_turn, action: :from_turn, args: [:turn_id], get?: true
+      define :reply_from_run, action: :from_run, args: [:agent_run_id], get?: true
     end
 
     resource AshEnterprise.Quality.Suite do

@@ -4,8 +4,9 @@ defmodule AshEnterprise.Licences.RungsTest do
 
   The nine questions on `AshEnterprise.Licences.Dependency` are the bytes
   Luke Galea confirmed on 2026-10-21 (record 73da9055): their registry
-  hashes equal the confirmed hashes and the lock's. Eight form the
-  calibrated `third_party_licence` family; the declaration question is
+  hashes equal the confirmed hashes and the lock's. Seven form the
+  calibrated `third_party_licence` family; the use-restriction question is
+  calibrated in a family of its own; the declaration question is
   answered only by the declaration or a person, so it is never calibrated. Over the hex.pm licence
   corpus (public metadata, `test/fixtures/licences/`), every subject that
   declares a single classified SPDX id is answered by the declaration rung,
@@ -79,26 +80,35 @@ defmodule AshEnterprise.Licences.RungsTest do
         assert lock[question.question_id] == %{"hash" => entry["question_hash"], "version" => 1}
       end
 
-      # Eight are the calibrated family; the declaration question is its own
-      # family, answered only by the declaration or a person (2026-11-21).
+      # Seven are the pooled family; the use-restriction question and the
+      # declaration question are each their own family (2026-11-21), and only
+      # the declaration question is never a model's.
       families = declared |> Enum.group_by(& &1.family, & &1.name)
-      assert families[:third_party_licence] == Rungs.model_questions()
+
+      assert families[:third_party_licence] ==
+               Rungs.model_questions() -- [:package_licence_has_use_restrictions]
+
+      assert families[:licence_use_restriction] == [:package_licence_has_use_restrictions]
       assert families[:licence_declaration] == [:package_licence_declaration_invalid]
+      assert EvalSet.families() == ["third_party_licence", "licence_use_restriction"]
     end
   end
 
-  describe "the third_party_licence family without the declaration question" do
-    test "its calibration input contains no lic-7 rows", %{tenant: tenant, actor: actor} do
-      subject =
-        Licences.register_dependency!(
-          %{package: "synthetic_mit", version: "1.0.0", declared_licences: ["MIT"]},
-          actor: actor,
-          tenant: tenant
-        )
+  describe "the calibrated families" do
+    test "third_party_licence's calibration input holds neither lic-7 nor lic-9 rows, and lic-9's holds only lic-9",
+         %{tenant: tenant, actor: actor} do
+      [mit, apache] =
+        for {package, spdx} <- [{"synthetic_mit", "MIT"}, {"synthetic_apache", "Apache-2.0"}] do
+          Licences.register_dependency!(
+            %{package: package, version: "1.0.0", declared_licences: [spdx]},
+            actor: actor,
+            tenant: tenant
+          )
+        end
 
       # A calibration pass may not ask the declaration question.
       assert {:error, {:answered_without_model, :package_licence_declaration_invalid}} =
-               Rungs.judge(subject, :package_licence_declaration_invalid,
+               Rungs.judge(mit, :package_licence_declaration_invalid,
                  actor: actor,
                  tenant: tenant,
                  calibration?: true,
@@ -107,44 +117,86 @@ defmodule AshEnterprise.Licences.RungsTest do
 
       assert FakeReqLLM.calls() == 0
 
-      assert {:ok, _} =
-               Rungs.judge(subject, :package_licence_is_weak_copyleft,
-                 actor: actor,
-                 tenant: tenant,
-                 calibration?: true,
-                 judgments: %{req_llm: FakeReqLLM}
-               )
+      for question <- [:package_licence_is_weak_copyleft, :package_licence_has_use_restrictions] do
+        assert {:ok, _} =
+                 Rungs.judge(mit, question,
+                   actor: actor,
+                   tenant: tenant,
+                   calibration?: true,
+                   judgments: %{req_llm: FakeReqLLM}
+                 )
+      end
 
-      # A lic-7 observation recorded under the family before it left (the
-      # 2026-10-21 pass asked all nine) stays out of the eval set.
+      assert FakeReqLLM.calls() == 2
+
       lic7 = Info.question(Dependency, :package_licence_declaration_invalid)
-
-      Judgment
-      |> Ash.Changeset.for_create(
-        :record,
-        Support.observation_inputs(
-          question_id: lic7.question_id,
-          question_hash: lic7.question_hash,
-          family: "third_party_licence",
-          subject_type: "licence_dependency",
-          subject_id: subject.id,
-          state_ref: %{"purpose" => "calibration"}
-        ),
-        actor: SystemActor.process(),
-        tenant: tenant
-      )
-      |> Ash.create!()
-
-      doc = EvalSet.build(actor: actor, tenant: tenant)
+      lic9 = Info.question(Dependency, :package_licence_has_use_restrictions)
       weak = Info.question(Dependency, :package_licence_is_weak_copyleft)
 
-      assert Enum.map(doc["pairs"], & &1["question"]) == ["package_licence_is_weak_copyleft"]
-      assert doc["question_hashes"] == [weak.question_hash]
+      # A use-restriction answer is now recorded under its own family.
+      assert [live] =
+               Judgment
+               |> Ash.read!(tenant: tenant, authorize?: false)
+               |> Enum.filter(&(&1.question_id == lic9.question_id))
 
-      bytes = Jason.encode!(doc)
-      input = CalibrationInput.input(Jason.decode!(bytes), bytes)
-      assert length(input.pairs) == 1
-      refute lic7.question_hash in input.question_hashes
+      assert live.family == "licence_use_restriction"
+
+      # Rows recorded under the pooled family before 2026-11-21, when the
+      # pass asked all nine, by the same instrument: a lic-7 row and a lic-9
+      # row.
+      for {question, subject} <- [{lic7, mit}, {lic9, apache}] do
+        Judgment
+        |> Ash.Changeset.for_create(
+          :record,
+          Support.observation_inputs(
+            question_id: question.question_id,
+            question_hash: question.question_hash,
+            family: "third_party_licence",
+            subject_type: "licence_dependency",
+            subject_id: subject.id,
+            state_ref: %{"purpose" => "calibration"},
+            model_version: live.model_version,
+            model_digest: live.model_digest,
+            runtime_version: live.runtime_version
+          ),
+          actor: SystemActor.process(),
+          tenant: tenant
+        )
+        |> Ash.create!()
+      end
+
+      pooled = EvalSet.build(actor: actor, tenant: tenant)
+      assert pooled["family"] == "third_party_licence"
+      assert Enum.map(pooled["pairs"], & &1["question"]) == ["package_licence_is_weak_copyleft"]
+      assert pooled["question_hashes"] == [weak.question_hash]
+
+      own = EvalSet.build(actor: actor, tenant: tenant, family: "licence_use_restriction")
+      assert own["family"] == "licence_use_restriction"
+
+      # Its judgments followed the question: the row recorded under the
+      # pooled family is a pair here, and gold is the declaration's answer.
+      assert own["pairs"] |> Enum.map(&{&1["question"], &1["package"], &1["gold"]}) |> Enum.sort() ==
+               [
+                 {"package_licence_has_use_restrictions", "synthetic_apache", false},
+                 {"package_licence_has_use_restrictions", "synthetic_mit", false}
+               ]
+
+      assert own["question_hashes"] == [lic9.question_hash]
+
+      for doc <- [pooled, own] do
+        bytes = Jason.encode!(doc)
+        input = CalibrationInput.input(Jason.decode!(bytes), bytes)
+        assert length(input.pairs) == length(doc["pairs"])
+        refute lic7.question_hash in input.question_hashes
+      end
+
+      bytes = Jason.encode!(pooled)
+
+      refute lic9.question_hash in CalibrationInput.input(Jason.decode!(bytes), bytes).question_hashes
+
+      assert_raise ArgumentError, ~r/not a calibrated licence family/, fn ->
+        EvalSet.build(actor: actor, tenant: tenant, family: "licence_declaration")
+      end
     end
   end
 

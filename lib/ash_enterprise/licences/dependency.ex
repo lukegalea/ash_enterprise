@@ -25,13 +25,17 @@ defmodule AshEnterprise.Licences.Dependency do
   subject is `AshEnterprise.Licences.Rungs`' decision: a declared SPDX id is
   answered without a model.
 
-  Eight are the `third_party_licence` family, the questions a model may
-  answer from a licence's text, calibrated together.
-  `package_licence_declaration_invalid` is its own family,
+  Eight are questions a model may answer from a licence's text. Seven are
+  the `third_party_licence` family, calibrated together.
+  `package_licence_has_use_restrictions` is its own family,
+  `licence_use_restriction` (Luke Galea, 2026-11-21): a model still answers
+  it, and it is calibrated on its own, so its over-firing does not pool
+  into the other seven's band table.
+  `package_licence_declaration_invalid` is its own family too,
   `licence_declaration` (Luke Galea, 2026-11-21): it asks about the
   declaration, which a model is never shown, so only the declaration or a
   person answers it, and it is never calibrated. The family is outside the
-  question hash, so the move leaves the lock unchanged.
+  question hash, so neither move changes the lock.
 
   Reference data, held per tenant: `:organization_owned`, no lifecycle, and
   no soft delete (a release is never withdrawn from the record, and a soft
@@ -215,7 +219,7 @@ defmodule AshEnterprise.Licences.Dependency do
       })
 
       version(1)
-      family(:third_party_licence)
+      family(:licence_use_restriction)
       profile(:winnow_gpu)
     end
   end

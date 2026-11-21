@@ -31,7 +31,13 @@ defmodule AshEnterprise.SystemOne do
     resource AshEnterprise.SystemOne.QuestionProposal
     resource AshEnterprise.SystemOne.Banding
     resource AshEnterprise.SystemOne.EvidenceAssertion
-    resource AshEnterprise.SystemOne.BandTableCertification
+
+    resource AshEnterprise.SystemOne.BandTableCertification do
+      define :certifications_of_definition,
+        action: :for_definition,
+        args: [:definition_key, :definition_version, :content_hash]
+    end
+
     resource AshEnterprise.SystemOne.Fact
     resource AshEnterprise.SystemOne.CalibrationRun
     resource AshEnterprise.SystemOne.CalibrationSample

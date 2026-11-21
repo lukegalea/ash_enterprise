@@ -10,6 +10,28 @@ defmodule AshEnterprise.SystemOne.BandTableCertification do
   Activation itself stays `ash_decisions`' lifecycle; this record is the
   judgment-side provenance the RFC's §8.2 chain hangs from
   (certification → calibration run → evaluation-set hash).
+
+  ## Whether a published table is certified, asked from another tenant
+
+  A certification is recorded in the certifying person's own tenant, and the
+  table it certifies is a platform baseline that every tenant bands through.
+  A tenant whose suite runs report a family's judged scores
+  (`AshEnterprise.Quality.Gate`) therefore asks about a row it cannot read.
+  `:for_definition` is that question, and nothing more:
+
+    * **What it matches.** One band-table definition, by its key, version and
+      content hash (the published definition's `content_hash`, which the
+      certification copied), so a certification of another version, or of
+      other content under the same version, never answers for it.
+    * **Across tenants.** `multitenancy :bypass`: the rows are in whichever
+      tenant the certifier works in.
+    * **What it exposes.** `status`, `certified_at` and what the row certifies
+      (`definition_key`, `definition_version`, `content_hash`, `family`).
+      Every other field, who certified among them, comes back as
+      `%Ash.ForbiddenField{}` (`StatusOnly`), whatever the caller selects.
+    * **Who may run it.** A person, or a system actor (never `ai`), by its own
+      policy, which reads only the actor and queries nothing. The certifier's
+      tenant is never named and none of its other rows are read.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -35,6 +57,27 @@ defmodule AshEnterprise.SystemOne.BandTableCertification do
     read :certified do
       description "Certifications in force."
       filter expr(status == :certified)
+    end
+
+    read :for_definition do
+      description """
+      The certifications of one band-table definition, in every tenant: their status and
+      when they were made, and nothing about who made them.
+      """
+
+      argument :definition_key, :string, allow_nil?: false
+      argument :definition_version, :string, allow_nil?: false
+      argument :content_hash, :string, allow_nil?: false
+
+      multitenancy :bypass
+
+      filter expr(
+               definition_key == ^arg(:definition_key) and
+                 definition_version == ^arg(:definition_version) and
+                 content_hash == ^arg(:content_hash)
+             )
+
+      prepare AshEnterprise.SystemOne.BandTableCertification.StatusOnly
     end
 
     # What the certifications surface's button runs (ADR 0061): the person's own
@@ -106,8 +149,15 @@ defmodule AshEnterprise.SystemOne.BandTableCertification do
       authorize_if AshEnterprise.SystemOne.Checks.PersonActor
     end
 
-    policy action_type(:read) do
+    policy action([:read, :certified]) do
       authorize_if AshEnterprise.Security.Checks.RoleGrant
+    end
+
+    # Whether a published table is certified is asked from every tenant that bands
+    # through it; the answer is status and time only (see the moduledoc).
+    policy action(:for_definition) do
+      authorize_if AshEnterprise.SystemOne.Checks.PersonActor
+      authorize_if AshEnterprise.Security.Checks.SystemActor
     end
   end
 end

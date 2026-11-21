@@ -36,12 +36,20 @@ defmodule AshEnterprise.Quality.AgentReply do
   `AshEnterprise.Quality.Projections.ReplyText` shows the model. Turns are
   append-only, so a reply's digest never changes under its facts.
 
-  `erasure_scope_id` is the turn's scope, so the text a judge reads can be
+  The `:from_run` read takes an agent run (`AshEnterprise.Execution.Run`),
+  as a suite run started with `start` runs each case, and reads its answer
+  the same way: as the actor, in the query's tenant, so the run's policies
+  and its seal decide. A run whose answer is not text (an agent with a
+  structured output type), that has no answer, or whose scope is shredded
+  reads as no reply. Its `turn_id` and `thread_id` are nil and
+  `agent_run_id` names the run.
+
+  `erasure_scope_id` is the turn's (or the run's) scope, so the text a judge reads can be
   sealed under it (`AshEnterprise.SystemOne.JudgedState`): shredding the
   thread shreds the judged text too.
 
   `used_tools` is true when the turn's `refs` or `tool_calls` are not
-  empty. `AshEnterprise.Quality.Questions` reads it: hs4 and hs7 are not
+  empty, or when a run's steps called a tool. `AshEnterprise.Quality.Questions` reads it: hs4 and hs7 are not
   asked of a reply that used tools.
 
   ## The questions
@@ -95,8 +103,12 @@ defmodule AshEnterprise.Quality.AgentReply do
       constraints: [trim?: false, allow_empty?: true],
       description: "The reply text, normalised. Decrypted from the turn as the actor."
 
-    attribute :turn_id, :uuid, allow_nil?: false, public?: true
-    attribute :thread_id, :uuid, allow_nil?: false, public?: true
+    attribute :turn_id, :uuid, public?: true, description: "The answer turn, for a turn's reply."
+    attribute :thread_id, :uuid, public?: true, description: "The turn's thread."
+
+    attribute :agent_run_id, :uuid,
+      public?: true,
+      description: "The agent run whose answer this is, for a run's reply."
 
     attribute :erasure_scope_id, :uuid,
       allow_nil?: false,
@@ -134,6 +146,22 @@ defmodule AshEnterprise.Quality.AgentReply do
       argument :epoch, :integer, constraints: [min: 0]
 
       manual AshEnterprise.Quality.AgentReply.FromTurn
+    end
+
+    read :from_run do
+      description """
+      An agent run's answer as a reply subject, read as the actor (nothing is stored),
+      named by the evaluation run's case it answered.
+      """
+
+      get? true
+
+      argument :agent_run_id, :uuid, allow_nil?: false
+      argument :run_id, :string, allow_nil?: false
+      argument :case_id, :string, allow_nil?: false
+      argument :epoch, :integer, allow_nil?: false, constraints: [min: 0]
+
+      manual AshEnterprise.Quality.AgentReply.FromRun
     end
   end
 

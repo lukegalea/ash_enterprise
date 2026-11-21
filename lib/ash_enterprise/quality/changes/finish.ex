@@ -23,13 +23,37 @@ defmodule AshEnterprise.Quality.Changes.Finish do
     * `"injection"`, only when the suite has injection cases: the lane of
       `AshEnterprise.Quality.Injection`;
     * `"provenance"`, for an `:adhoc` suite run only: what it tried and what that took
-      (`AshEnterprise.Quality.Provenance`).
+      (`AshEnterprise.Quality.Provenance`);
+    * `"judged"`, only when the suite names a judged scorer: the family report of
+      `AshEnterprise.Quality.JudgedScores`, and each case result's `scores`.
+
+  ## Judged scores
+
+  Each case's answer is the reply subject `"agent_reply:<suite run id>/<case id>/1"`
+  (`AshEnterprise.Quality.AgentReply`'s `:from_run`, read as the job runner), and its
+  judged scores are what the admitted facts say about it now
+  (`AshEnterprise.Quality.Gate.family_report/3`). Nothing here asks a model: an answer
+  no judge has graded reads `unknown` (`no_fact`), and a case with no text answer is
+  an unknown reply too, never a pass. The scores report and never gate
+  (ADR 0058, decision D9).
   """
 
   use Ash.Resource.Change
 
   alias AshEnterprise.Execution
-  alias AshEnterprise.Quality.{Assertions, Injection, Provenance, Suite, SuiteRun}
+  alias AshEnterprise.Platform.SystemActor
+  alias AshEnterprise.Quality
+
+  alias AshEnterprise.Quality.{
+    Assertions,
+    Gate,
+    Injection,
+    JudgedScores,
+    Provenance,
+    Suite,
+    SuiteRun
+  }
+
   alias AshEnterprise.Quality.Changes.RecordResults
 
   @epoch 1
@@ -50,7 +74,15 @@ defmodule AshEnterprise.Quality.Changes.Finish do
     if Enum.any?(Map.values(runs), &open?/1) do
       Ash.Changeset.add_error(changeset, field: :status, message: "its cases are still running")
     else
-      results = Enum.map(suite.cases, &result(&1, Map.get(runs, &1[:id]), tenant))
+      judged = judged(suite, suite_run, runs, tenant)
+
+      results =
+        Enum.map(suite.cases, fn c ->
+          c
+          |> result(Map.get(runs, c[:id]), tenant)
+          |> Map.put(:scores, Map.get(judged.scores, c[:id], []))
+        end)
+
       finished_at = DateTime.utc_now()
 
       changeset
@@ -58,7 +90,8 @@ defmodule AshEnterprise.Quality.Changes.Finish do
         summary:
           suite.cases
           |> summary(results)
-          |> provenance(suite_run, Map.values(runs), finished_at, tenant),
+          |> provenance(suite_run, Map.values(runs), finished_at, tenant)
+          |> put_judged(judged.report),
         finished_at: finished_at
       })
       |> Ash.Changeset.set_context(%{quality: %{results: results}})
@@ -130,6 +163,34 @@ defmodule AshEnterprise.Quality.Changes.Finish do
 
   defp answer(%{"value" => value}), do: value
   defp answer(_none), do: nil
+
+  # The families a suite names as judged scorers; `agent_reply_style` is the only one.
+  defp judged(%{scorers: scorers} = suite, suite_run, runs, tenant) do
+    if Enum.any?(scorers, &(&1["kind"] == "judged" and &1["family"] == "agent_reply_style")) do
+      opts = [tenant: tenant, actor: SystemActor.oban()]
+      replies = Enum.map(suite.cases, &reply(suite_run, &1[:id], Map.get(runs, &1[:id]), opts))
+      JudgedScores.build(replies, Gate.family_report(replies, :agent_reply_style, opts), opts)
+    else
+      %{scores: %{}, report: nil}
+    end
+  end
+
+  # The case's answer as a reply subject, or a stand-in with no text and no facts, so
+  # the report reads it unknown.
+  defp reply(suite_run, case_id, run, opts) do
+    args = %{run_id: suite_run.id, case_id: case_id, epoch: @epoch}
+
+    case run && Quality.reply_from_run(run.id, args, opts) do
+      {:ok, %Quality.AgentReply{} = reply} ->
+        reply
+
+      _no_answer ->
+        %{id: "agent_reply:#{suite_run.id}/#{case_id}/#{@epoch}", text: "", used_tools: false}
+    end
+  end
+
+  defp put_judged(summary, nil), do: summary
+  defp put_judged(summary, report), do: Map.put(summary, "judged", report)
 
   # An adhoc suite run says what it tried and what that took (`Quality.Provenance`).
   defp provenance(summary, %{mode: :adhoc} = suite_run, runs, finished_at, tenant) do

@@ -1,8 +1,9 @@
 defmodule AshEnterprise.Licences.EvalSet do
   @moduledoc """
-  The `third_party_licence` eval set (S1-63/AC-1): the model's recorded
-  answers about declared subjects, each paired with the declaration rung's
-  answer as gold.
+  A licence family's eval set (S1-63/AC-1): the model's recorded answers
+  about declared subjects, each paired with the declaration rung's answer
+  as gold. One per calibrated family (`families/0`): `third_party_licence`,
+  and `licence_use_restriction`, the use-restriction question's own.
 
   A calibration pass asks the model about subjects whose declaration
   already settles the questions (`AshEnterprise.Licences.Rungs.judge/3` with
@@ -11,10 +12,14 @@ defmodule AshEnterprise.Licences.EvalSet do
   recompute), keeps the latest per subject and question, and labels each
   with the subject's routed answer. A question the route left pending (an
   Apache-2.0 NOTICE check with no package contents) has no gold and is left
-  out, and so is a subject that is not on the declaration rung. Only the
-  family's own questions (`Rungs.model_questions/0`) are pairs: an older
-  ledger row for the declaration question, from before it left the family,
-  is not.
+  out, and so is a subject that is not on the declaration rung.
+
+  Pairs are the questions the family declares now, read by question rather
+  than by the family a ledger row was recorded under. A question that
+  moved family keeps its judgments in its new family's eval set (the
+  use-restriction question's rows, recorded under `third_party_licence`
+  before 2026-11-21), and an older row for a question that left the family
+  (the declaration question, which never calibrates) is not a pair.
 
   The document is what `AshEnterprise.SystemOne.CalibrationInput` reads.
   """
@@ -24,31 +29,45 @@ defmodule AshEnterprise.Licences.EvalSet do
   alias AshEnterprise.Licences.Dependency
   alias AshEnterprise.Licences.Rungs
   alias AshEnterprise.SystemOne.Judgment
+  alias AshJudgments.Registry.Info
 
-  @family "third_party_licence"
   @subject_type "licence_dependency"
 
-  @doc "The family this eval set calibrates."
-  def family, do: @family
+  @doc "The calibrated licence families: the families of the model questions."
+  @spec families() :: [String.t()]
+  def families do
+    Dependency
+    |> Info.questions()
+    |> Enum.filter(&(&1.name in Rungs.model_questions()))
+    |> Enum.map(&Atom.to_string(&1.family))
+    |> Enum.uniq()
+  end
 
   @doc """
-  Builds the eval-set document for one tenant's calibration observations.
+  Builds the eval-set document for one family's calibration observations
+  in one tenant.
 
   Options: `:actor` (a system actor; required), `:tenant` (required),
+  `:family` (one of `families/0`; default `"third_party_licence"`),
   `:questions` (narrow to some of the family's question names; default all
-  eight) and
-  `:created_by`.
+  of them) and `:created_by`. A family that is not calibrated raises.
   """
   @spec build(keyword()) :: map()
   def build(opts) do
     actor = Keyword.fetch!(opts, :actor)
     tenant = Keyword.fetch!(opts, :tenant)
+    family = Keyword.get(opts, :family, "third_party_licence")
+    family_questions = questions(family)
 
     wanted =
       opts
-      |> Keyword.get(:questions, Rungs.model_questions())
+      |> Keyword.get(:questions, Enum.map(family_questions, & &1.name))
       |> MapSet.new(&to_string/1)
-      |> MapSet.intersection(MapSet.new(Rungs.model_questions(), &to_string/1))
+
+    question_ids =
+      for question <- family_questions,
+          MapSet.member?(wanted, Atom.to_string(question.name)),
+          do: question.question_id
 
     subjects =
       Dependency
@@ -59,10 +78,10 @@ defmodule AshEnterprise.Licences.EvalSet do
     observations =
       Judgment
       |> Ash.Query.for_read(:read, %{}, actor: actor, tenant: tenant)
-      |> Ash.Query.filter(family == ^@family and subject_type == ^@subject_type)
+      |> Ash.Query.filter(subject_type == ^@subject_type and question_id in ^question_ids)
       |> Ash.Query.sort(recorded_at: :asc)
       |> Ash.read!()
-      |> Enum.filter(&(calibration?(&1) and MapSet.member?(wanted, question_name(&1))))
+      |> Enum.filter(&calibration?/1)
       # The latest observation per subject and question wins.
       |> Map.new(&{{&1.subject_id, &1.question_id}, &1})
       |> Map.values()
@@ -93,7 +112,7 @@ defmodule AshEnterprise.Licences.EvalSet do
       end)
 
     %{
-      "family" => @family,
+      "family" => family,
       "answer_kind" => "noul",
       "question_hashes" => pairs |> Enum.map(& &1["question_hash"]) |> Enum.uniq() |> Enum.sort(),
       "model_version" => single(observations, :model_version),
@@ -105,6 +124,17 @@ defmodule AshEnterprise.Licences.EvalSet do
       "observations_digest" => digest(Enum.map(pairs, & &1["observation_id"])),
       "pairs" => pairs
     }
+  end
+
+  defp questions(family) do
+    unless family in families() do
+      raise ArgumentError,
+            "#{inspect(family)} is not a calibrated licence family (#{Enum.join(families(), ", ")})"
+    end
+
+    Dependency
+    |> Info.questions()
+    |> Enum.filter(&(Atom.to_string(&1.family) == family))
   end
 
   defp calibration?(observation) do

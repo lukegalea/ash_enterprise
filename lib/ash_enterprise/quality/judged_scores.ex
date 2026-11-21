@@ -21,7 +21,15 @@ defmodule AshEnterprise.Quality.JudgedScores do
 
     * `"certified"`: the family's band table is published and certified, and not too old;
     * `"not_certified"`, `"no_published_band_table"`, `"band_table_too_old"`: it is not,
-      so the score is shown, and means no more than that.
+      so the score is shown, and means no more than that. A `"not_certified"` read
+      through `AshEnterprise.Quality.Gate.published_band_table/3` says why in
+      `"reason"`: `"revoked"`, `"no_certification"` (nothing certifies this version
+      and content) or `"certification_unreadable"` (the read failed).
+
+  The certification is that of the published definition the family bands through,
+  read across tenants as `Gate.published_band_table/3` reads it; a certified one also
+  names `"certifier_role"`, the role the certifying act requires, and nothing else
+  about who certified it.
 
   Every score says `"gates" => false`. `AshEnterprise.Quality.SuiteGate` reads only the
   deterministic results, so no judged score, certified or not, changes whether a release
@@ -85,13 +93,22 @@ defmodule AshEnterprise.Quality.JudgedScores do
   def certification(report) do
     table = report.band_table
 
+    read = table && Map.get(table, :certification)
+
     %{
       "status" => certification_status(report),
+      "reason" => uncertified_reason(read),
       "band_table_version" => table && table.definition_version,
-      "certified_at" => report.certified_at && DateTime.to_iso8601(to_utc(report.certified_at))
+      "certified_at" => report.certified_at && DateTime.to_iso8601(to_utc(report.certified_at)),
+      "certifier_role" => read && read[:certifier_role] && to_string(read[:certifier_role])
     }
     |> Map.reject(fn {_key, value} -> is_nil(value) end)
   end
+
+  defp uncertified_reason(%{status: :revoked}), do: "revoked"
+  defp uncertified_reason(%{status: :none}), do: "no_certification"
+  defp uncertified_reason(%{status: :unreadable}), do: "certification_unreadable"
+  defp uncertified_reason(_certified_or_not_read), do: nil
 
   defp certification_status(%{band_table: nil}), do: "no_published_band_table"
   defp certification_status(%{certified_at: nil}), do: "not_certified"
@@ -134,8 +151,22 @@ defmodule AshEnterprise.Quality.JudgedScores do
       "replies" => Map.new(report.replies, fn {key, count} -> {to_string(key), count} end),
       "rate" => report.rate,
       "decided_rate" => report.decided_rate,
+      "per_question" => per_question(report.per_question),
       "gates" => false
     }
+  end
+
+  defp per_question(per_question) do
+    Map.new(per_question, fn {name, counts} ->
+      {to_string(name),
+       %{
+         "asked" => counts.asked,
+         "compliant" => counts.compliant,
+         "violating" => counts.violating,
+         "unknown" => counts.unknown,
+         "rate" => counts.rate
+       }}
+    end)
   end
 
   defp reason({:violation, name}), do: "violation:#{name}"

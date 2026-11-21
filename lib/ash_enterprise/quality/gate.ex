@@ -72,9 +72,8 @@ defmodule AshEnterprise.Quality.Gate do
     * `:min_grade`: `:grant` (default) or `:person`
     * `:band_table`: the family's published band table as
       `%{definition_id:, definition_version:, published_at:, certified_at:}`,
-      or nil for none; read with `published_band_table/2` by default,
-      which cannot see the certification, so a report read that way is
-      `:unmeasured` with `:not_certified` until the caller supplies it
+      or nil for none; read with `published_band_table/3` by default, as
+      `:actor`, certification included
     * `:grading`: the entries `AshEnterprise.Quality.Grader.grade/2`
       returned, to count `judge_errors` and `not_banded` (the answers that
       were judged but never banded) beside the unknowns
@@ -84,11 +83,13 @@ defmodule AshEnterprise.Quality.Gate do
     * `:facts_resource`: default `AshEnterprise.SystemOne.Fact`
   """
 
+  alias AshAgent.Effects.Info, as: Effects
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Process.Resolver, as: DefinitionResolver
   alias AshEnterprise.Quality
   alias AshEnterprise.Quality.{Grader, Questions}
-  alias AshEnterprise.SystemOne.{Banding, HumanVerdict, Judgment}
+  alias AshEnterprise.SystemOne
+  alias AshEnterprise.SystemOne.{Banding, CalibrationRun, HumanVerdict, Judgment}
   alias AshEnterprise.SystemOne.Banding.Resolver, as: BandTableResolver
   alias AshJudgments.Calibration.FamilyConfig
   alias AshJudgments.Query
@@ -178,31 +179,87 @@ defmodule AshEnterprise.Quality.Gate do
   @doc """
   The family's published band table as the banding step's resolver finds
   it (`judgments_band_<family>`, the tenant's binding or the platform's
-  latest published definition): `%{definition_id, definition_key,
-  definition_version, published_at, certified_at}`, or nil when there is
-  none. `published_at` is the definition's last change, which for a
-  published definition is its publication. `certified_at` is nil here:
-  the certification is held in the certifying person's tenant, which this
-  read does not cross into; pass `:band_table` to supply it.
-  """
-  @spec published_band_table(atom() | String.t(), term()) :: map() | nil
-  def published_band_table(_family, nil), do: nil
+  latest published definition), with its certification: `%{definition_id,
+  definition_key, definition_version, content_hash, published_at,
+  certified_at, certification}`, or nil when there is none. `published_at`
+  is the definition's last change, which for a published definition is its
+  publication.
 
-  def published_band_table(family, tenant) do
+  The certification is held in the certifying person's tenant, so it is
+  read across tenants through `BandTableCertification`'s `:for_definition`
+  (as `:actor`, default the `oban` system actor), for exactly this
+  definition's key, version and content hash. `certification` is one of
+
+    * `%{status: :certified, certified_at:, certifier_role:}`: the latest
+      certification in force, made by a holder of `certifier_role`, the role
+      the certifying act requires;
+    * `%{status: :revoked}`: a certification of this definition was revoked,
+      whatever else certifies it;
+    * `%{status: :none}`: nothing certifies this definition (a certification
+      of another version or other content does not count);
+    * `%{status: :unreadable}`: the read failed or was refused, and the
+      table reads as uncertified.
+
+  `certified_at` is the certification's time when it is `:certified` and nil
+  otherwise, so only a certification in force can ever measure a family.
+  """
+  @spec published_band_table(atom() | String.t(), term(), keyword()) :: map() | nil
+  def published_band_table(family, tenant, opts \\ [])
+  def published_band_table(_family, nil, _opts), do: nil
+
+  def published_band_table(family, tenant, opts) do
     key = BandTableResolver.band_table_key(to_string(family))
 
     case DefinitionResolver.resolve(:decision, key, tenant) do
       {:ok, %{status: :published} = definition} ->
+        certification = certification(definition, tenant, opts)
+
         %{
           definition_id: definition.id,
           definition_key: key,
           definition_version: to_string(definition.version),
+          content_hash: definition.content_hash,
           published_at: Map.get(definition, :updated_at),
-          certified_at: nil
+          certified_at: Map.get(certification, :certified_at),
+          certification: certification
         }
 
       _none ->
         nil
+    end
+  end
+
+  defp certification(definition, tenant, opts) do
+    definition.key
+    |> SystemOne.certifications_of_definition(
+      to_string(definition.version),
+      definition.content_hash,
+      actor: Keyword.get(opts, :actor, SystemActor.oban()),
+      tenant: tenant,
+      # A refused read is an error, not an empty answer: it must not read as "nothing
+      # certifies this table" when the truth is "this caller may not ask".
+      authorize_with: :error
+    )
+    |> case do
+      {:ok, certifications} -> in_force(certifications)
+      {:error, _error} -> %{status: :unreadable}
+    end
+  end
+
+  defp in_force(certifications) do
+    cond do
+      Enum.any?(certifications, &(&1.status == :revoked)) ->
+        %{status: :revoked}
+
+      certifications == [] ->
+        %{status: :none}
+
+      true ->
+        %{
+          status: :certified,
+          certified_at: certifications |> Enum.map(& &1.certified_at) |> Enum.max(DateTime),
+          certifier_role: Effects.effect(CalibrationRun, :certify_and_publish).approver_role
+        }
     end
   end
 
@@ -421,7 +478,7 @@ defmodule AshEnterprise.Quality.Gate do
   defp band_table(family, opts) do
     case Keyword.fetch(opts, :band_table) do
       {:ok, table} -> table
-      :error -> published_band_table(family, Keyword.get(opts, :tenant))
+      :error -> published_band_table(family, Keyword.get(opts, :tenant), opts)
     end
   end
 
