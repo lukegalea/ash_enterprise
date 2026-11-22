@@ -18,9 +18,12 @@ defmodule AshEnterprise.SystemOne.QuestionProposal do
      output retained — never a best-effort parse.
   2. **Confirm — the person gate.** `confirm` requires a person actor
      (a user row; system actors, automation labels and the `ai` actor all
-     fail). The person may EDIT each proposal's wording before confirming;
-     the edited entry is re-validated and re-hashed, and the record is
-     stamped as confirmed. **Nothing registers on confirmation**: the
+     fail) who holds a role granting write on question proposals. The
+     person may EDIT each proposal's wording before confirming; every
+     entry, edited or not, is re-validated and re-hashed
+     (`QuestionProposal.Changes.HashEntries`), and the record is stamped
+     as confirmed. A person confirms from the question-proposals surface
+     (`AshEnterpriseWeb.A2ui.Judgments.QuestionProposalsUI`). **Nothing registers on confirmation**: the
      registry is compile-time — the confirmed declaration exists as data
      here, and as nothing else. No question is declared, no judge action
      exists, no observation is recorded, no fact is possible.
@@ -136,8 +139,30 @@ defmodule AshEnterprise.SystemOne.QuestionProposal do
     create_timestamp :proposed_at
   end
 
+  calculations do
+    calculate :question_names,
+              :string,
+              {AshEnterprise.SystemOne.QuestionProposal.Display, field: :question_names},
+              public?: true,
+              description: "The proposed questions' names, comma-separated."
+
+    calculate :questions,
+              :string,
+              {AshEnterprise.SystemOne.QuestionProposal.Display, field: :questions},
+              public?: true,
+              description:
+                "Every proposed question in full: wording, answers, criteria and state shape."
+  end
+
   actions do
     defaults [:read]
+
+    # The question-proposals surface's read (ADR 0061).
+    read :awaiting_confirmation do
+      description "Proposals no person has confirmed or rejected yet, oldest first."
+      filter expr(status == :proposed)
+      prepare build(sort: [proposed_at: :asc])
+    end
 
     create :propose do
       description """
@@ -162,10 +187,11 @@ defmodule AshEnterprise.SystemOne.QuestionProposal do
 
     update :confirm do
       description """
-      The person gate. Accepts the (possibly edited) proposals, re-validates
-      and re-hashes them, and stamps the record confirmed. Registers
-      NOTHING — declaring the question in the registry's DSL is a separate
-      act by the same or another person.
+      The person gate. Accepts the (possibly edited) proposals, or confirms
+      them as proposed when none are given, re-validates and re-hashes every
+      entry, and stamps the record confirmed. Registers NOTHING — declaring
+      the question in the registry's DSL is a separate act by the same or
+      another person.
       """
 
       accept [:proposals]
@@ -174,6 +200,7 @@ defmodule AshEnterprise.SystemOne.QuestionProposal do
         message "only a proposed record can be confirmed"
       end
 
+      change AshEnterprise.SystemOne.QuestionProposal.Changes.HashEntries
       change set_attribute(:status, :confirmed)
       require_atomic? false
     end
@@ -195,9 +222,15 @@ defmodule AshEnterprise.SystemOne.QuestionProposal do
   policies do
     # The gate: confirmation and rejection are person acts (ADR 0039 —
     # activation makes the person the author of record). A system actor,
-    # the ai label, or anything without a user row cannot confirm.
+    # the ai label, or anything without a user row cannot confirm, and a
+    # person needs a role granting write on proposals as well. Both come
+    # before the bypass, which covers only the policies after it.
     policy action_type(:update) do
       authorize_if AshEnterprise.SystemOne.Checks.PersonActor
+    end
+
+    policy action_type(:update) do
+      authorize_if AshEnterprise.Security.Checks.RoleGrant
     end
 
     # Proposing is requesting an instrument call; persons do it directly,
@@ -326,7 +359,7 @@ defmodule AshEnterprise.SystemOne.QuestionProposal do
 
   defp normalise_all(document) do
     document["proposals"]
-    |> Enum.map(&normalise_entry/1)
+    |> Enum.map(&Schema.hashed/1)
     |> Enum.reduce({:ok, []}, fn
       {:ok, entry}, {:ok, acc} -> {:ok, [entry | acc]}
       {:error, reason}, _ -> {:error, reason}
@@ -338,43 +371,22 @@ defmodule AshEnterprise.SystemOne.QuestionProposal do
     end
   end
 
-  defp normalise_entry(entry) do
-    with {:ok, declaration} <- Schema.normalise(entry) do
-      {:ok, Map.put(entry, "question_hash", Schema.question_hash(declaration))}
-    end
-  end
-
   @doc """
-  Confirms (possibly edited) proposals on a record as a person.
-
-  Re-runs the full decode contract over each entry — confirmation is not a
-  rubber stamp, it is the moment the person's wording becomes the
-  declaration — recomputes every question hash, and stamps the record.
-  Registers nothing anywhere.
+  Confirms (possibly edited) proposals on a record as a person: the
+  `:confirm` action with `entries` as the proposals. It re-runs the full
+  decode contract over each entry — confirmation is not a rubber stamp,
+  it is the moment the person's wording becomes the declaration —
+  recomputes every question hash, and stamps the record. Registers
+  nothing anywhere.
   """
-  @spec confirm(t(), [map()], keyword()) ::
-          {:ok, t()} | {:error, term()}
+  @spec confirm(t(), [map()], keyword()) :: {:ok, t()} | {:error, Ash.Error.t()}
   def confirm(record, entries, opts \\ []) do
-    entries
-    |> Enum.map(&normalise_entry/1)
-    |> Enum.reduce_while({:ok, []}, fn
-      {:ok, entry}, {:ok, acc} -> {:cont, {:ok, [entry | acc]}}
-      {:error, reason}, _acc -> {:halt, {:error, reason}}
-    end)
-    |> case do
-      {:ok, reversed} ->
-        proposals = Enum.reverse(reversed)
-
-        record
-        |> Ash.Changeset.for_update(:confirm, %{proposals: proposals},
-          actor: Keyword.fetch!(opts, :actor),
-          tenant: Keyword.get(opts, :tenant)
-        )
-        |> Ash.update()
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    record
+    |> Ash.Changeset.for_update(:confirm, %{proposals: entries},
+      actor: Keyword.fetch!(opts, :actor),
+      tenant: Keyword.get(opts, :tenant)
+    )
+    |> Ash.update()
   end
 
   @doc """

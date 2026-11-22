@@ -80,8 +80,9 @@ defmodule AshEnterprise.SystemOne.CalibrationInput do
   The §8.1 run inputs for `AshEnterprise.SystemOne.Calibration.record_run/2`,
   assembled from a seam input by the package's own modules, exactly as
   `mix ash_judgments.calibrate` assembles them: `Calibration.Metrics` for
-  the metrics and `Calibration.RiskControl` at the family's α for the
-  conformal thresholds (the upper one, and the lower one when earned).
+  the metrics, and `Calibration.conformal_thresholds/2` for the thresholds
+  earned at the family's α (the upper one, and the lower one when earned)
+  with the coverage of the table they render.
 
   The task's own recording path cannot be used on this host: its create
   carries no actor and no tenant, and `CalibrationRun` is tenanted and
@@ -91,21 +92,6 @@ defmodule AshEnterprise.SystemOne.CalibrationInput do
   @spec run_attrs(String.t(), map(), keyword()) :: map()
   def run_attrs(family, %{answer_kind: :noul} = input, opts \\ []) do
     metrics = AshJudgments.Calibration.Metrics.noul_metrics(input.pairs)
-    alpha = AshJudgments.Calibration.FamilyConfig.alpha(family)
-
-    # The upper threshold and, when the pairs earn it, the lower one, as the
-    # task records them: a family's `low_band` decides what the range at or
-    # below the lower one does, so a run that earns it can propose a
-    # three-range table. Neither earned is an empty map.
-    earned =
-      %{
-        "threshold" => AshJudgments.Calibration.RiskControl.threshold(input.scored, alpha),
-        "threshold_low" => AshJudgments.Calibration.RiskControl.threshold_low(input.scored, alpha)
-      }
-      |> Enum.reject(fn {_key, lambda} -> is_nil(lambda) end)
-      |> Map.new(fn {key, lambda} -> {key, to_string(lambda)} end)
-
-    thresholds = if earned == %{}, do: %{}, else: %{Float.to_string(alpha) => earned}
 
     %{
       family: family,
@@ -120,7 +106,7 @@ defmodule AshEnterprise.SystemOne.CalibrationInput do
       metrics: metrics,
       ece: metrics["ece"],
       brier: metrics["brier"],
-      conformal_thresholds: thresholds,
+      conformal_thresholds: AshJudgments.Calibration.conformal_thresholds(family, input.scored),
       source: Keyword.get(opts, :source, :eval_set),
       created_by: input.created_by,
       observations_digest: input.observations_digest,

@@ -111,6 +111,20 @@ defmodule AshEnterprise.SystemOne.QuestionProposal.Schema do
   end
 
   @doc """
+  One proposal entry as the record stores it: the entry, checked by
+  `normalise/1`, with its `"question_hash"` (`question_hash/1`) set. A
+  proposal stores its entries this way when it is drafted, and again when
+  a person confirms them, so a confirmed entry's hash always follows its
+  words.
+  """
+  @spec hashed(map()) :: {:ok, map()} | {:error, String.t()}
+  def hashed(entry) do
+    with {:ok, declaration} <- normalise(entry) do
+      {:ok, Map.put(entry, "question_hash", question_hash(declaration))}
+    end
+  end
+
+  @doc """
   The abstention the registry appends to a Choice's options (law 7; the
   DSL's `abstain_option` default). Proposals are hashed with it appended,
   exactly as the registry derives a declared Choice's options — the model

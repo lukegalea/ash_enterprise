@@ -89,6 +89,13 @@ defmodule AshEnterprise.SystemOne.CalibrationRun do
       run {AshEnterprise.Execution.Actions.RequestInvocation,
            target: :certify_and_publish, key: "certify", key_argument: :record_id}
     end
+
+    # The calibration surface's report (AshJudgments.A2ui.Calibration): what
+    # the band tables did with live work, beside each run's coverage.
+    action :automated_share, {:array, :map} do
+      description "Per family and week, the live bandings the band table admitted, sent to review and omitted."
+      run {AshJudgments.Banding.AutomatedShare, banding_resource: AshEnterprise.SystemOne.Banding}
+    end
   end
 
   # Certifying publishes the table that bands the family live from then on
@@ -130,6 +137,11 @@ defmodule AshEnterprise.SystemOne.CalibrationRun do
     end
 
     policy action_type(:read) do
+      authorize_if AshEnterprise.Security.Checks.RoleGrant
+    end
+
+    # A read of the runs and the bandings, each under its own policies.
+    policy action(:automated_share) do
       authorize_if AshEnterprise.Security.Checks.RoleGrant
     end
   end

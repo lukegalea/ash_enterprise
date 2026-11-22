@@ -182,8 +182,8 @@ config :phoenix_test,
     # rather than one module's.
     browser_pool_checkout_timeout: 10 * 60_000,
     assets_dir: "./assets",
-    timeout: 15_000,
-    browser_launch_timeout: 30_000,
+    timeout: 30_000,
+    browser_launch_timeout: 90_000,
     # Both halves of each pair. `screenshot_dir` without `screenshot: true`
     # writes nothing at all, which is an easy way to upload an empty directory
     # for months without noticing.

@@ -329,6 +329,13 @@
     {
       "action": null,
       "kind": "live",
+      "module": "AshEnterpriseWeb.SurfaceLive.JudgmentQuestionProposals",
+      "path": "/app/judgments/question-proposals",
+      "verb": "GET"
+    },
+    {
+      "action": null,
+      "kind": "live",
       "module": "AshEnterpriseWeb.A2uiLive.LegacyUsers",
       "path": "/app/legacy-users",
       "verb": "GET"

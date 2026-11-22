@@ -1151,6 +1151,23 @@ defmodule AshEnterprise.Surfaces do
       acp: %{command: "facts", aliases: ["judged facts"]}
     },
     %Surface{
+      key: :judgment_question_proposals,
+      audience: [:reviewer],
+      label: dgettext_noop("default", "Question proposals"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Questions drafted from policy text, awaiting a person's confirmation."
+        ),
+      group: :judgments,
+      order: 5,
+      icon: "hero-question-mark-circle",
+      path: "/app/judgments/question-proposals",
+      ui: A2ui.Judgments.QuestionProposalsUI,
+      resource: AshEnterprise.SystemOne.QuestionProposal,
+      acp: %{command: "question proposals", aliases: ["proposed questions"]}
+    },
+    %Surface{
       key: :steward,
       audience: [:reviewer],
       label: dgettext_noop("default", "Steward queue"),

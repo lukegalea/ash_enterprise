@@ -141,6 +141,10 @@ msgctxt "one_of:band"
 msgid "Admit"
 msgstr "Admettre"
 
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "Admitted"
+msgstr "Admis"
+
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
 msgctxt "one_of:status"
@@ -390,6 +394,10 @@ msgctxt "one_of:status"
 msgid "Auto merged"
 msgstr "Fusionné automatiquement"
 
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "Automated share"
+msgstr "Part automatisée"
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Automation role"
 msgstr "Rôle d’automatisation"
@@ -419,6 +427,10 @@ msgstr "Bande"
 #: lib/ash_enterprise_web/a2ui/judgments/band_tables_ui.ex:1
 msgid "Band tables to certify"
 msgstr "Tables de bandes à certifier"
+
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "Bandings"
+msgstr "Classements en bande"
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 msgid "Batch detail"
@@ -758,6 +770,10 @@ msgstr "Confirmer"
 msgid "Confirm match"
 msgstr "Confirmer la correspondance"
 
+#: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
+msgid "Confirm questions"
+msgstr "Confirmer les questions"
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Confirmed"
 msgstr "Confirmé"
@@ -828,6 +844,10 @@ msgstr "Centre de coûts"
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 msgid "Counts"
 msgstr "Totaux"
+
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "Coverage at threshold"
+msgstr "Couverture au seuil"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Create"
@@ -1122,6 +1142,10 @@ msgstr "Brouillon"
 msgctxt "one_of:status"
 msgid "Draft"
 msgstr "Brouillon"
+
+#: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
+msgid "Drafted from"
+msgstr "Rédigé à partir de"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 msgid "Drop"
@@ -1639,6 +1663,10 @@ msgstr "Installer un pack"
 msgid "Instance"
 msgstr "Instance"
 
+#: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
+msgid "Instrument"
+msgstr "Instrument"
+
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
 msgctxt "enum:Elixir.AshEnterprise.Zones.Types.DataClass"
 msgid "Internal"
@@ -2090,6 +2118,10 @@ msgstr "Non"
 msgid "No deliveries"
 msgstr "Aucune livraison"
 
+#: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
+msgid "No questions await confirmation"
+msgstr "Aucune question n’attend de confirmation"
+
 #: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
 msgctxt "one_of:result"
 msgid "No table"
@@ -2164,6 +2196,10 @@ msgstr "Groupe de bureau"
 msgctxt "one_of:band"
 msgid "Omit"
 msgstr "Omettre"
+
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "Omitted"
+msgstr "Omis"
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 msgctxt "one_of:status"
@@ -2396,6 +2432,10 @@ msgstr "Politiques dont prendre acte"
 msgid "Policy bundle"
 msgstr "Ensemble de politiques"
 
+#: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
+msgid "Policy digest"
+msgstr "Empreinte de la politique"
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Position"
 msgstr "Poste"
@@ -2456,7 +2496,16 @@ msgstr "Utilisateur projeté"
 msgid "Promote routing"
 msgstr "Promouvoir l’acheminement"
 
+#: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
+msgid "Proposal"
+msgstr "Proposition"
+
+#: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
+msgid "Proposal detail"
+msgstr "Détail de la proposition"
+
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Proposed"
@@ -2522,10 +2571,19 @@ msgstr "Question"
 msgid "Question id"
 msgstr "Identifiant de la question"
 
+#: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
+msgid "Question proposals"
+msgstr "Propositions de questions"
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
+#: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
 #, fuzzy
 msgid "Questions"
 msgstr "Question"
+
+#: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
+msgid "Questions an instrument drafts from policy text appear here until a person confirms them."
+msgstr "Les questions qu’un instrument rédige à partir du texte d’une politique apparaissent ici jusqu’à ce qu’une personne les confirme."
 
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
 msgid "Reach"
@@ -2789,6 +2847,7 @@ msgid "Retry"
 msgstr "Retirer"
 
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:121
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
 msgid "Review"
 msgstr "Revue"
@@ -3041,6 +3100,11 @@ msgstr "Sélectionner une correspondance"
 msgctxt "select_context"
 msgid "Select person"
 msgstr "Sélectionner une personne"
+
+#: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
+msgctxt "select_context"
+msgid "Select proposal"
+msgstr "Choisir une proposition"
 
 #: lib/ash_enterprise_web/a2ui/acknowledgement_ui.ex:1
 msgctxt "select_context"
@@ -3451,6 +3515,10 @@ msgstr "Les documents"
 msgid "The model"
 msgstr "Le modèle"
 
+#: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
+msgid "The questions in full"
+msgstr "Les questions en entier"
+
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
 msgid "The run's process, with a marker on each step it is on now."
 msgstr "Le processus de l’exécution, avec un marqueur sur chaque étape où elle se trouve actuellement."
@@ -3686,6 +3754,10 @@ msgstr "Livraisons de webhooks"
 msgid "Webhook endpoints"
 msgstr "Points de terminaison webhook"
 
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "Week"
+msgstr "Semaine"
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "What happened, and why you know: succeeded (it happened), failed (it did not), or retry (it did not happen, you checked, and it runs again)"
 msgstr "Ce qui s’est passé et comment vous le savez : réussi (c’est arrivé), échoué (ce n’est pas arrivé), ou réessayer (ce n’est pas arrivé, vous avez vérifié, et cela s’exécute à nouveau)"
@@ -3891,6 +3963,10 @@ msgstr "table de bandes proposée"
 #: lib/ash_enterprise_web/a2ui/paper_questions_ui.ex:1
 msgid "question"
 msgstr "question"
+
+#: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
+msgid "question proposal"
+msgstr "proposition de questions"
 
 #: lib/ash_enterprise_web/a2ui/role_ui.ex:1
 msgid "role"

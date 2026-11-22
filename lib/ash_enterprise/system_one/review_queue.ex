@@ -60,8 +60,7 @@ defmodule AshEnterprise.SystemOne.ReviewQueue do
   defp collect(:question_proposal, read_opts) do
     {:ok, proposals} =
       QuestionProposal
-      |> Ash.Query.filter(status == ^:proposed)
-      |> Ash.Query.sort(proposed_at: :asc)
+      |> Ash.Query.for_read(:awaiting_confirmation)
       |> Ash.read(read_opts)
 
     Enum.map(proposals, fn proposal ->

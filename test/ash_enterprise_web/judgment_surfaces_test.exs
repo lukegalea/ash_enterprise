@@ -51,7 +51,8 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
              "/app/judgments/band-tables",
              "/app/judgments/certifications",
              "/app/judgments/calibration",
-             "/app/judgments/facts"
+             "/app/judgments/facts",
+             "/app/judgments/question-proposals"
            ]
 
     # The acts are person-gated by policy, not by a door.
@@ -64,7 +65,8 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
           Judgments.BandTablesUI,
           Judgments.CertificationsUI,
           Judgments.CalibrationUI,
-          Judgments.FactsUI
+          Judgments.FactsUI,
+          Judgments.QuestionProposalsUI
         ] do
       messages = AshA2ui.Info.build_surface(ui)
       assert Enum.any?(messages, &Map.has_key?(&1, "createSurface")), inspect(ui)
@@ -688,6 +690,95 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
     end
   end
 
+  describe "the automated share, on the calibration surface" do
+    setup :tenant
+
+    setup do
+      AshEnterprise.SystemOne.Support.put_family!(@family, %{
+        min_n: 2,
+        min_n_per_class: nil,
+        alpha: 0.016,
+        max_age_days: 90
+      })
+    end
+
+    test "per family and week: the live bandings admitted, sent to review and omitted", ctx do
+      # A family with a run and no bandings yet, and one with bandings and no run.
+      proposed_run!(ctx.org)
+
+      for band <- [:admit, :admit, :review] do
+        review_banding!(record!(tenant: ctx.org), ctx.org, band: band)
+      end
+
+      review_banding!(record!(tenant: ctx.org), ctx.org, band: :admit, mode: :shadow)
+      week = Date.utc_today() |> Date.beginning_of_week() |> Date.to_iso8601()
+
+      assert {:ok, rows} = automated_share(ctx.actor, ctx.org)
+
+      assert rows == [
+               %{
+                 family: @family,
+                 week: "no bandings yet",
+                 bandings: 0,
+                 admitted: "—",
+                 review: "—",
+                 omitted: "—"
+               },
+               %{
+                 family: "system_one_notes",
+                 week: week,
+                 bandings: 3,
+                 admitted: "2 (67%)",
+                 review: "1 (33%)",
+                 omitted: "0 (0%)"
+               }
+             ]
+    end
+
+    test "the surface shows each run's coverage and runs the report", ctx do
+      run = proposed_run!(ctx.org)
+      review_banding!(record!(tenant: ctx.org), ctx.org)
+
+      [%{"createSurface" => surface}] =
+        AshA2ui.Info.build_surface(Judgments.CalibrationUI, actor: ctx.actor, tenant: ctx.org)
+
+      assert [%{"id" => id, "coverage" => "0.8"}] = surface["dataModel"]["records"]
+      assert id == run.id
+
+      {:ok, messages} =
+        AshA2ui.ActionHandler.handle(
+          Judgments.CalibrationUI,
+          AshEnterprise.A2uiMessage.ash_action(Judgments.CalibrationUI, "report", %{
+            "component" => "automated_share"
+          }),
+          actor: ctx.actor,
+          tenant: ctx.org
+        )
+
+      assert [rows] =
+               for(
+                 %{"updateDataModel" => %{"path" => "/report/automated_share/rows", "value" => v}} <-
+                   messages,
+                 do: v
+               )
+
+      assert [
+               %{"family" => @family, "week" => "no bandings yet"},
+               %{"family" => "system_one_notes", "review" => "1 (100%)"}
+             ] = rows
+    end
+
+    test "an agent's label reads nothing through it", ctx do
+      assert {:error, %Ash.Error.Forbidden{}} = automated_share(SystemActor.ai(), ctx.org)
+    end
+  end
+
+  defp automated_share(actor, org) do
+    CalibrationRun
+    |> Ash.ActionInput.for_action(:automated_share, %{}, actor: actor, tenant: org)
+    |> Ash.run_action()
+  end
+
   describe "certify and publish, more" do
     setup :tenant
 
@@ -893,7 +984,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
       :record,
       %{
         observation_ids: [judgment.id],
-        band: :review,
+        band: Keyword.get(opts, :band, :review),
         reason_code: "below_conformal_threshold",
         matched_rule_ids: ["rule_review"],
         band_table:
@@ -908,7 +999,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
             "notes_follow_up__present" => "true",
             "notes_follow_up__p_true" => "0.9"
           }),
-        mode: :live
+        mode: Keyword.get(opts, :mode, :live)
       },
       actor: SystemActor.process(),
       tenant: org
@@ -938,7 +1029,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
           metrics: %{},
           ece: "0.03",
           brier: "0.08",
-          conformal_thresholds: %{"0.016" => %{"threshold" => "0.9"}},
+          conformal_thresholds: %{"0.016" => %{"threshold" => "0.9", "coverage" => "0.8"}},
           source: :eval_set,
           created_by: "calibration-harness",
           observations_digest: "sha256:" <> String.duplicate("d", 64),

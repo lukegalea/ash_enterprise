@@ -15,7 +15,9 @@ defmodule AshEnterprise.SystemOne.QuestionProposalTest do
   import AshEnterprise.SystemOne.Support
 
   alias AshEnterprise.Platform.Correlation
+  alias AshEnterprise.Platform.Seeder
   alias AshEnterprise.Platform.SystemActor
+  alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.SystemOne.QuestionProposal
   alias AshEnterprise.SystemOne.QuestionProposal.Schema
   alias AshEnterprise.SystemOne.TestSupport.{FakeTransport, Note, Standard}
@@ -372,6 +374,20 @@ defmodule AshEnterprise.SystemOne.QuestionProposalTest do
   end
 
   describe "the person-confirm gate" do
+    # Confirming needs a person who holds a role granting write on
+    # proposals: the tenant's administrator has one.
+    setup do
+      n = System.unique_integer([:positive])
+
+      %{organization: organization, user: admin} =
+        Seeder.seed_tenant(name: "Proposals #{n}", unique_name: "proposals-#{n}")
+
+      %{
+        org: organization.id,
+        person: ActorContext.attach(admin, ActorContext.build(admin, tenant: organization.id))
+      }
+    end
+
     test "confirmation is a person act; system machinery and the ai label cannot", ctx do
       {:ok, record} = propose_fixed(@valid_output, ctx)
       entries = record.proposals
@@ -387,6 +403,34 @@ defmodule AshEnterprise.SystemOne.QuestionProposalTest do
 
         assert forbidden |> Exception.message() =~ ~r/forbidden/i
       end
+    end
+
+    test "a person without a role granting write on proposals cannot confirm", ctx do
+      {:ok, record} = propose_fixed(@valid_output, ctx)
+      roleless = person(tenant: ctx.org)
+      roleless = ActorContext.attach(roleless, ActorContext.build(roleless, tenant: ctx.org))
+
+      assert {:error, %Ash.Error.Forbidden{}} =
+               QuestionProposal.confirm(record, record.proposals,
+                 actor: roleless,
+                 tenant: ctx.org
+               )
+
+      assert Ash.reload!(record, authorize?: false).status == :proposed
+    end
+
+    test "confirming with no entries given confirms them as proposed, re-hashed", ctx do
+      {:ok, record} = propose_fixed(@valid_output, ctx)
+
+      assert {:ok, confirmed} =
+               record
+               |> Ash.Changeset.for_update(:confirm, %{}, actor: ctx.person, tenant: ctx.org)
+               |> Ash.update()
+
+      assert confirmed.status == :confirmed
+
+      assert Enum.map(confirmed.proposals, & &1["question_hash"]) ==
+               Enum.map(record.proposals, & &1["question_hash"])
     end
 
     test "a person confirms; the registry still registers nothing", ctx do
@@ -458,10 +502,10 @@ defmodule AshEnterprise.SystemOne.QuestionProposalTest do
       {:ok, record} = propose_fixed(@valid_output, ctx)
       ghost = raw("ghost_criteria.json") |> Jason.decode!() |> Map.get("proposals")
 
-      assert {:error, reason} =
+      assert {:error, error} =
                QuestionProposal.confirm(record, ghost, actor: ctx.person, tenant: ctx.org)
 
-      assert reason =~ "criteria keys"
+      assert Exception.message(error) =~ "criteria keys"
 
       reloaded = Ash.reload!(record, authorize?: false)
       assert reloaded.status == :proposed

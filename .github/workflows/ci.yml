@@ -863,6 +863,20 @@ jobs:
       - name: Locate Chromium
         run: echo "E2E_CHROMIUM=$(command -v chromium || command -v chromium-browser || command -v google-chrome)" >> "$GITHUB_ENV"
 
+      # A cold runner sometimes takes over 30 s to start Chromium for the first time,
+      # which failed the suite before any spec ran (ECL-66). Pay that cost here, with
+      # its own bound, so the launch inside the suite is a warm one.
+      - name: Warm Chromium
+        run: |
+          start=$(date +%s)
+          for attempt in 1 2 3; do
+            if timeout 60 "$E2E_CHROMIUM" --headless --no-sandbox --disable-gpu --dump-dom about:blank > /dev/null; then
+              break
+            fi
+            echo "warm-up attempt $attempt did not finish in 60 s"
+          done
+          echo "Chromium warm-up took $(( $(date +%s) - start )) s"
+
       - name: Test
         run: mix test
 
