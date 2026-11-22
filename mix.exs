@@ -179,6 +179,7 @@ defmodule AshEnterprise.MixProject do
         {:ash_judgments, link: :markdown},
         {:ash_mdm, link: :markdown},
         {:ash_rules, link: :markdown},
+        {:ash_versions, link: :markdown},
         :phoenix,
         {:igniter, link: :markdown},
         {:reactor, link: :markdown},
@@ -337,6 +338,9 @@ defmodule AshEnterprise.MixProject do
       # Declared provider operations over Req (ADR 0063): the credential registry's
       # connector and the provider webhook ingress. mix.lock pins the SHA.
       {:ash_operations, github: "lukegalea/ash_operations"},
+      # The version pages' framework (`AshEnterprise.Artifacts` is the host's registry over
+      # `AshVersions.Registry`) and temporal history through as-of reads. mix.lock pins the SHA.
+      {:ash_versions, github: "lukegalea/ash_versions"},
       # ADR 0032: the greenmask config is generated from the `greenmask` blocks
       # the platform base enables on every resource. Metadata only, no runtime;
       # `mix ash_greenmask.gen.config --check` gates drift.

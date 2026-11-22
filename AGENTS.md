@@ -2848,6 +2848,12 @@ missing data is never a pass._
 
 [ash_rules usage rules](deps/ash_rules/usage-rules.md)
 <!-- ash_rules-end -->
+<!-- ash_versions-start -->
+## ash_versions usage
+_Versions of Ash records: a registry of versioned artifacts with semantic diffs, and every version of a temporal record through as-of reads._
+
+[ash_versions usage rules](deps/ash_versions/usage-rules.md)
+<!-- ash_versions-end -->
 <!-- phoenix:ecto-start -->
 ## phoenix:ecto usage
 ## Ecto Guidelines

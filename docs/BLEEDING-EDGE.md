@@ -124,6 +124,7 @@ confined so that removing one is a deletion, not a refactor.
 | `ash_events_chain` | the audit log's hash chain, its verifier and its verified move to the archive (`AshEnterprise.Audit.EventLog`) | none | yes |
 | `ash_evidence` | evidence pipeline records (System One); declared `branch: "main"` | none | yes |
 | `ash_bpmn` | BPMN process engine (ADR 0009) | none | yes |
+| `ash_versions` | the version registry the artifact pages read through (`AshEnterprise.Artifacts` implements `AshVersions.Registry`; its entries and differs stay here) and temporal history through as-of reads (`AshVersions.TemporalHistory`) | none | yes |
 | `ash_planning` | planning kernel: fragments, backend behaviour, IR and validators (ADR 0062) | `ash_open_lineage` | after `ash_open_lineage` |
 | `ash_agent` | agent runtime fragments, extension and host behaviours (ADR 0056); upstream [lukegalea/ash_agent](https://github.com/lukegalea/ash_agent); `Execution.Invocation` instantiates the invocation fragment | none | none planned: the Hex name `ash_agent` belongs to an unrelated project (ADR 0056) |
 | `ash_signatures` | signing request, signer, event and completion fragments, a provider behaviour and the in-platform and upload providers (ADR 0074); `AshEnterprise.Signatures` instantiates all five, signed in the app | none | yes |
