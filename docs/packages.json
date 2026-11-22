@@ -321,6 +321,26 @@
       "carry": "Arrives through ash_compliance, but the host configures it and mounts its three resources in the compliance domain, so its schema is the host's to migrate."
     },
     {
+      "name": "ash_provenance",
+      "module": "AshProvenance",
+      "repo": "https://github.com/lukegalea/ash_provenance",
+      "purpose": "A plain-data contract for explaining a value: addresses, PROV-DM steps, typed gaps and a PROV-O JSON-LD export. No runtime dependencies, no data layer, no processes.",
+      "used_for": "The shape ash_judgments explains a materialised fact in (AshJudgments.Explain.fact/3). Nothing here calls it yet.",
+      "adr": "0078",
+      "declared": "transitive",
+      "only": null,
+      "ref": "ac73afc99f467f248d2ad980fec77e4d54acbdb4",
+      "version": "0.1.0",
+      "stated_status": null,
+      "maturity": "declared-not-used-here",
+      "battery": false,
+      "distribution": "git only",
+      "builds_on": [],
+      "hex_name": "free",
+      "hex_path": "No git dependencies of its own.",
+      "carry": "Arrives through ash_judgments; mix.lock pins the commit."
+    },
+    {
       "name": "ash_evidence",
       "module": "AshEvidence",
       "repo": "https://github.com/lukegalea/ash_evidence",
@@ -378,7 +398,7 @@
       "adr": "0039",
       "declared": "direct",
       "only": null,
-      "ref": "c495c022fbf1a6bd3182f9d272fad687b0453859",
+      "ref": "8921933889962e9c124ea06235ebdf303b9f6241",
       "version": "0.3.3",
       "stated_status": null,
       "maturity": "used-and-tested-here",
@@ -394,6 +414,7 @@
         "ash_bpmn",
         "ash_decisions",
         "ash_a2ui",
+        "ash_provenance",
         "ash_events"
       ],
       "hex_name": "free",

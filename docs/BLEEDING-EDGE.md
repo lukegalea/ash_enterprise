@@ -121,6 +121,7 @@ confined so that removing one is a deletion, not a refactor.
 | `ash_acp` | Agent Client Protocol adapter | none | yes |
 | `ash_rules` | rule IR, fact schemas, evaluator | none | yes |
 | `ash_events_projections` | projector engine (transitive, via `ash_compliance`) | none | yes |
+| `ash_provenance` | the explanation contract a materialised fact is explained on (transitive, via `ash_judgments`) | none | yes |
 | `ash_events_chain` | the audit log's hash chain, its verifier and its verified move to the archive (`AshEnterprise.Audit.EventLog`) | none | yes |
 | `ash_evidence` | evidence pipeline records (System One); declared `branch: "main"` | none | yes |
 | `ash_bpmn` | BPMN process engine (ADR 0009) | none | yes |
@@ -131,7 +132,7 @@ confined so that removing one is a deletion, not a refactor.
 | `ash_decisions` | DMN decisions | `boxic_dmn` fork | no: needs `boxic_dmn` upstream |
 | `ash_discrete_business_events` | business-event ledger (ADR 0051) | `ash_events` fork | no: needs an `ash_events` release |
 | `ash_mdm` | master data: mappings, matching, survivorship merge (ADR 0054) | `ash_discrete_business_events` | no: after `ash_discrete_business_events` |
-| `ash_judgments` | judgment substrate (System One); tracks the default branch, declared without `branch:` to match `ash_agent_tools` | `ash_rules`, `ash_compliance`, `ash_bpmn`, `ash_decisions`, `ash_events` fork | no: needs both forks gone |
+| `ash_judgments` | judgment substrate (System One); tracks the default branch, declared without `branch:` to match `ash_agent_tools` | `ash_rules`, `ash_compliance`, `ash_bpmn`, `ash_decisions`, `ash_provenance`, `ash_events` fork | no: needs both forks gone |
 | `ash_agent_tools` | read-only Ash introspection for coding agents, and the code subjects the standards are judged over (dev and test only) | `ash_rules`, `ash_bpmn`, `ash_decisions`, `ash_judgments` (all optional) | after those four, so after `boxic_dmn` and both forks |
 
 **Path to Hex:** a Hex package can only depend on Hex packages, so publish from the leaves up:
