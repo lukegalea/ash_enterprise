@@ -1425,8 +1425,9 @@ The artifact registry: every versioned thing a person authors, reviews or releas
 | `ash_discrete_business_events` | first-party | git @ 23ea5336 | [Business events](#business-events) | SourceRecord landing + chained event ledger. |
 | `ash_mdm` | first-party | git @ f8db5fb3 | [Master data](#mdm) | Mappings-as-data, resolution, survivorship, merge. |
 | `ash_open_lineage` | first-party | git @ c35de0bc | [Lineage](#lineage) | Run events from action notifications. |
-| `ash_judgments` | first-party | git @ c495c022 | [System One](#system-one) | Declared questions, judgment ledger fragments, calibration. |
+| `ash_judgments` | first-party | git @ 89219338 | [System One](#system-one) | Declared questions, judgment ledger fragments, calibration. |
 | `ash_evidence` | first-party | git @ 3e2ce790 | [System One](#system-one) | Document versions, addressed atoms, parse runs, assertions. |
+| `ash_provenance` | transitive | git @ ac73afc9 | [System One](#system-one) | The explanation contract a materialised fact is explained on. |
 | `ash_rules` | first-party | git @ ab97fdc8 | [Compliance](#compliance) | Serializable rule IR, fact schemas, evaluator seam. |
 | `ash_compliance` | first-party | git @ b1ddecde | [Compliance](#compliance) | Catalogs/profiles/waivers → immutable bundles; findings projection. |
 | `ash_decisions` | first-party | git @ 1a01808e | [Decisions](#decisions) | Decisions as versioned resources; TCK-measured. |

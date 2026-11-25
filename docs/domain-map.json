@@ -1522,6 +1522,15 @@
       "role": "Document versions, addressed atoms, parse runs, assertions."
     },
     {
+      "package": "ash_provenance",
+      "repo": "lukegalea/ash_provenance",
+      "kind": "transitive",
+      "context": [
+        "system-one"
+      ],
+      "role": "The explanation contract a materialised fact is explained on."
+    },
+    {
       "package": "ash_rules",
       "repo": "lukegalea/ash_rules",
       "kind": "first-party",
