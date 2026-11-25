@@ -25,17 +25,19 @@ defmodule AshEnterprise.Licences.Dependency do
   subject is `AshEnterprise.Licences.Rungs`' decision: a declared SPDX id is
   answered without a model.
 
-  Eight are questions a model may answer from a licence's text. Seven are
-  the `third_party_licence` family, calibrated together.
-  `package_licence_has_use_restrictions` is its own family,
-  `licence_use_restriction` (Luke Galea, 2026-11-21): a model still answers
-  it, and it is calibrated on its own, so its over-firing does not pool
-  into the other seven's band table.
-  `package_licence_declaration_invalid` is its own family too,
-  `licence_declaration` (Luke Galea, 2026-11-21): it asks about the
-  declaration, which a model is never shown, so only the declaration or a
-  person answers it, and it is never calibrated. The family is outside the
-  question hash, so neither move changes the lock.
+  Every question is a family of its own (Luke Galea, 2026-11-21). Eight are
+  questions a model may answer from a licence's text, and each earns its
+  own band table: `licence_permissive`, `licence_strong_copyleft`,
+  `licence_weak_copyleft`, `licence_network_copyleft`,
+  `licence_attribution`, `licence_notice_file`, `licence_public_domain` and
+  `licence_use_restriction`. Calibrated together, the common questions set
+  one low threshold that let the rare ones (NOTICE, weak copyleft, public
+  domain) admit more false yeses than true ones. The ninth,
+  `package_licence_declaration_invalid`, is family `licence_declaration`: it
+  asks about the declaration, which a model is never shown, so only the
+  declaration or a person answers it, and it is never calibrated. The
+  family is outside the question hash, so these families leave the lock
+  unchanged.
 
   Reference data, held per tenant: `:organization_owned`, no lifecycle, and
   no soft delete (a release is never withdrawn from the record, and a soft
@@ -68,7 +70,7 @@ defmodule AshEnterprise.Licences.Dependency do
       })
 
       version(1)
-      family(:third_party_licence)
+      family(:licence_permissive)
       profile(:winnow_gpu)
     end
 
@@ -87,7 +89,7 @@ defmodule AshEnterprise.Licences.Dependency do
       })
 
       version(1)
-      family(:third_party_licence)
+      family(:licence_strong_copyleft)
       profile(:winnow_gpu)
     end
 
@@ -103,7 +105,7 @@ defmodule AshEnterprise.Licences.Dependency do
       })
 
       version(1)
-      family(:third_party_licence)
+      family(:licence_weak_copyleft)
       profile(:winnow_gpu)
     end
 
@@ -122,7 +124,7 @@ defmodule AshEnterprise.Licences.Dependency do
       })
 
       version(1)
-      family(:third_party_licence)
+      family(:licence_network_copyleft)
       profile(:winnow_gpu)
     end
 
@@ -142,7 +144,7 @@ defmodule AshEnterprise.Licences.Dependency do
       })
 
       version(1)
-      family(:third_party_licence)
+      family(:licence_attribution)
       profile(:winnow_gpu)
     end
 
@@ -161,7 +163,7 @@ defmodule AshEnterprise.Licences.Dependency do
       })
 
       version(1)
-      family(:third_party_licence)
+      family(:licence_notice_file)
       profile(:winnow_gpu)
     end
 
@@ -200,7 +202,7 @@ defmodule AshEnterprise.Licences.Dependency do
       })
 
       version(1)
-      family(:third_party_licence)
+      family(:licence_public_domain)
       profile(:winnow_gpu)
     end
 

@@ -121,6 +121,7 @@ change its status in the same commit.
 | [0082](0082-an-effect-is-an-edit-set.md) | An effect is an edit set: pure previews, a declared write footprint, and the edits in the review packet | proposed (2026-11-19) |
 | [0083](0083-an-ontology-facade-is-a-resource-over-resources.md) | An ontology façade is a resource over resources: a computed resource that renames, reads as the viewer and writes through named source actions | proposed (2026-11-19) |
 | [0084](0084-eligibility-is-a-conjunct-in-every-grant.md) | Eligibility is a conjunct in every grant: information-flow labels without `forbid_if` | proposed (2026-11-19) |
+| [0085](0085-the-domain-map-is-generated.md) | The domain map is generated from `domain-map.json` and domain introspection | accepted |
 
 Records 0001–0005, 0007–0009, 0020–0023, 0026 (as amended 2026-11-16: a metadata-only call record and the tenant's opt-in at the one model-call guard), 0027–0031, 0033–0037, 0050–0054, 0059 and 0061 are `accepted` and describe code that exists. 0006 is superseded by 0050, and 0016 by 0072. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed. 0060 is accepted and in progress: its phases 1 (ash_a2ui) and 2 (this repository) have landed; the downstream host's phases and CLDR formatting are not built.
 0076 and 0077 are `accepted, not built (2026-11-18)`: they extend 0067 and 0068 to the two acts around an issued
