@@ -22,6 +22,14 @@ defmodule AshEnterprise.Quality do
       (`/app/judgments`), admitted as the reply's fact at person grade, so
       the gate reads it `in` or `out` (S1-96).
 
+  And the pre-flight gate's System One rung (AST-79):
+
+    * `AshEnterprise.Quality.ToolCall`: a tool call a coding agent is about
+      to make, never stored, with the two `agent_gate_*` questions.
+    * `AshEnterprise.Quality.ToolCalls`: asks them about a call the gate's
+      rules deferred and bands the answers; `ToolCalls.Rung` is the gate's
+      rung (`config :ash_agent_tools, :gate, system_one: ...`).
+
   And the suites an agent is evaluated on (AGT-43):
 
     * `AshEnterprise.Quality.Suite`: versioned cases in Inspect's `Sample` shape, with
@@ -53,6 +61,8 @@ defmodule AshEnterprise.Quality do
       define :reply_from_turn, action: :from_turn, args: [:turn_id], get?: true
       define :reply_from_run, action: :from_run, args: [:agent_run_id], get?: true
     end
+
+    resource AshEnterprise.Quality.ToolCall
 
     resource AshEnterprise.Quality.Suite do
       define :create_suite_draft, action: :create_draft, args: [:key]

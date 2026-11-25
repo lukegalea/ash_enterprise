@@ -240,6 +240,7 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_a
 - `mix ash_agent.edit` - Semantic DSL-entity edits (dry-run by default) as JSON
 - `mix ash_agent.evaluate` - Dry-evaluates a DMN decision against JSON inputs
 - `mix ash_agent.gaps` - Digests the kaizen tool-gap telemetry aggregate as JSON
+- `mix ash_agent.gate` - Explains a pre-flight gate decision, or verifies the gate's tables, as JSON
 - `mix ash_agent.graph` - Prints one BPMN definition's compiled graph as JSON
 - `mix ash_agent.instance` - Shows in-flight BPMN instances, tokens, and open tasks as JSON
 - `mix ash_agent.laws` - Judges code against the codified iron laws as JSON

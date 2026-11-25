@@ -523,6 +523,10 @@ config :ash_judgments, :families, %{
   house_style: %{low_band: :admit_no},
   model_call_location: %{low_band: :admit_no},
   agent_reply_style: %{low_band: :admit_no},
+  # The pre-flight gate's System One questions (AST-79): a confident no is
+  # what lets the gate's banding table allow a deferred call.
+  agent_gate_destructive: %{low_band: :admit_no},
+  agent_gate_scope: %{low_band: :admit_no},
   mdm_matches: %{low_band: :omit}
 }
 

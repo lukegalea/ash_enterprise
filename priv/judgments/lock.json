@@ -91,6 +91,10 @@
     "hash": "sha256:078f745d2ac8b7ce62b4a68d7dfb2385d593220e18d1e09cc1d26727aafe5cb7",
     "version": 1
   },
+  "judgment:v0:AshEnterprise.Quality.ToolCall#judgments/tool_call_acts_outside_scope": {
+    "hash": "sha256:5201e7487f9722c674313ad15da6d316877801fec3eaf98fd7808b2667adf1ea",
+    "version": 1
+  },
   "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_permissive": {
     "hash": "sha256:25f179d306cf6ab975032007d2387638625bed8b53a47a8be251f7172d5c151b",
     "version": 1
@@ -110,6 +114,10 @@
   "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs2_keep_it_short": {
     "hash": "sha256:57bc3443d5ff0a1261728ac2eea9804fdd0faa351d58528adcc0e5f72af1c855",
     "version": 2
+  },
+  "judgment:v0:AshEnterprise.Quality.ToolCall#judgments/tool_call_is_destructive": {
+    "hash": "sha256:bf79977b7bada53ef877935cf02859d9006a0e0955954bd3d2f28dfe4f5939ec",
+    "version": 1
   },
   "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs7_never_invent_name_feature_or_date": {
     "hash": "sha256:1706b9df9ac316986ac68f75f96749e177766c5efee2141b0e024ec3c6f932aa",
