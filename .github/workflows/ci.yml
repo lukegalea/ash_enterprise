@@ -10,7 +10,7 @@ on:
 
 # A failed run tells you nothing if a later push is already superseding it.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 env:
