@@ -8,8 +8,8 @@ defmodule AshEnterprise.SystemOne.CalibrationInput do
   The package never sees a model or an eval store, so the pairs come from
   the host. This host keeps them as a file per family,
   `<eval_set_dir>/<family>.eval-set.json`, written once from the judgment
-  ledger by the family's exporter (for `third_party_licence`,
-  `AshEnterprise.Licences.EvalSet`). Reading a file rather than the ledger
+  ledger by the family's exporter (for each licence family, such as
+  `licence_weak_copyleft`, `AshEnterprise.Licences.EvalSet`). Reading a file rather than the ledger
   keeps the seam free of a database (the task boots no repo), makes the
   eval set a reviewable artifact, and gives `eval_set_hash` a plain meaning:
   the sha256 of the file's bytes.
@@ -23,7 +23,10 @@ defmodule AshEnterprise.SystemOne.CalibrationInput do
   before a question moved to another family still names that question, in
   its `question_hashes` and its pairs' `question_hash` and `question`; it
   is refused (`{:questions_outside_family, names}`), and so is a hash no
-  declared question has. Rebuild the file from the ledger instead.
+  declared question has. A file saved under a family that no longer
+  exists, such as the pooled `third_party_licence` the licence questions
+  shared until 2026-11-21, declares none of its questions and is refused
+  the same way. Rebuild the file from the ledger instead.
 
   ## The file
 

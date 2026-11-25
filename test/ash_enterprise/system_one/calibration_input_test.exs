@@ -7,7 +7,7 @@ defmodule AshEnterprise.SystemOne.CalibrationInputTest do
   alias AshEnterprise.SystemOne.CalibrationInput
   alias AshJudgments.Registry.Info
 
-  @family "third_party_licence"
+  @family "licence_weak_copyleft"
 
   setup do
     dir = Path.join(System.tmp_dir!(), "calibration-input-#{System.unique_integer([:positive])}")
@@ -39,6 +39,28 @@ defmodule AshEnterprise.SystemOne.CalibrationInputTest do
       bytes = File.read!(Path.join(dir, "#{@family}.eval-set.json"))
       CalibrationInput.input(Jason.decode!(bytes), bytes)
     end
+  end
+
+  # The pooled family the licence questions shared until 2026-11-21 is
+  # gone: a set saved under it declares none of its questions.
+  test "an eval set saved under a retired family is refused", %{dir: dir} do
+    weak = Info.question(Dependency, :package_licence_is_weak_copyleft)
+    moved = Info.question(Dependency, :package_licence_has_use_restrictions)
+    retired = "third_party_licence"
+    assert CalibrationInput.family_questions(retired) == []
+
+    File.write!(
+      Path.join(dir, "#{retired}.eval-set.json"),
+      Jason.encode!(%{
+        doc([pair(weak, 0.9, true), pair(moved, 0.8, false)])
+        | "family" => retired
+      })
+    )
+
+    assert CalibrationInput.load(retired, :eval_set) ==
+             {:error,
+              {:questions_outside_family,
+               ["package_licence_has_use_restrictions", "package_licence_is_weak_copyleft"]}}
   end
 
   test "a hash the family does not declare is refused, even with no pair naming it", %{dir: dir} do
