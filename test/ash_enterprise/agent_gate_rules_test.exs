@@ -35,7 +35,15 @@ defmodule AshEnterprise.AgentGateRulesTest do
     File.cp!(Path.join(@root, ".agents/gate.json"), Path.join(dir, ".agents/gate.json"))
     on_exit(fn -> File.rm_rf!(dir) end)
 
-    %{dir: dir, tables: [@host_table, Gate.seed_table()]}
+    tables = [@host_table, Gate.seed_table()]
+
+    # The evaluator gives each table one second; the first evaluation also
+    # compiles the tables and loads the FEEL modules, which a loaded host can
+    # stretch past that. Pay for both once, as the daemon does at start.
+    assert Gate.warm(root: dir, tables: tables) == []
+    Gate.explain(%{"tool" => "Bash", "command" => "ls", "cwd" => dir}, root: dir, tables: tables)
+
+    %{dir: dir, tables: tables}
   end
 
   defp bash(ctx, command) do
