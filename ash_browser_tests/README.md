@@ -282,13 +282,9 @@ surface's own deep link (`?ctx[<name>]=<id>`). It has its own ledger
 checkbox and date prompt widgets — and a host can use them directly when it wants to
 declare a row action's `run` itself rather than take the generated one.
 
-> #### Two row-action paths {: .warning}
->
-> `Surfaces` generates row actions with its own `run_row_action/3`, which clicks by row
-> text and fills prompts with `PhoenixTest.fill_in/3`. `RowActions.perform/3` waits for
-> the row, locates it by `data-a2ui-row-id` and handles the widget types. They overlap,
-> and a host currently picks one by either taking the generated action or declaring its
-> own `run:`. Reconciling them is a follow-up, not a thing to discover mid-debugging.
+Generated row actions go through `RowActions.perform/3` too: the host's `row_for/3`
+returns the record's `:id` (as its row's `data-a2ui-row-id` renders it), a `:text` for
+failure messages and the prompt `:inputs`, and the action asserts `RowActions.chain/1`.
 
 ## Journeys
 

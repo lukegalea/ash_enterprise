@@ -146,7 +146,7 @@ defmodule AshBrowserTests.Fixture.WidgetsLive do
     <button id="crash" phx-click="crash">Crash</button>
     <table>
       <tbody id="rows">
-        <tr :for={widget <- @widgets} id={"row-#{widget.id}"}>
+        <tr :for={widget <- @widgets} id={"row-#{widget.id}"} data-a2ui-row-id={widget.id}>
           <td>{widget.name}</td>
           <td>{if widget.active, do: "active", else: "inactive"}</td>
           <td>

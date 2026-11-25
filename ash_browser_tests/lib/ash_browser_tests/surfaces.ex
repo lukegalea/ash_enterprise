@@ -44,12 +44,14 @@ defmodule AshBrowserTests.Surfaces do
 
   When the host implements `c:AshBrowserTests.Surfaces.Host.a2ui_manifest/0` and
   `c:AshBrowserTests.Surfaces.Host.row_for/3`, each row action in the manifest for a
-  surface becomes an action with id `"row:<id>"`.
+  surface becomes an action with id `"row:<id>"`, driven by
+  `AshBrowserTests.RowActions.perform/3` on the row `row_for/3` names by its id.
   """
 
   alias AshBrowserTests.Action
   alias AshBrowserTests.Browser
   alias AshBrowserTests.Ledger
+  alias AshBrowserTests.RowActions
   alias AshBrowserTests.Surface
   alias AshBrowserTests.Trace
 
@@ -73,9 +75,10 @@ defmodule AshBrowserTests.Surfaces do
     @callback a2ui_manifest() :: module()
 
     @doc """
-    The row a generated row-action test acts on: a map with `:text`, identifying the
-    row, and `:inputs`, a map of field name to value for `prompt_fields`. `nil` fails
-    the test.
+    The row a generated row-action test acts on: a map with `:id`, the record's id as
+    its row's `data-a2ui-row-id` renders it, `:text`, naming the row in failure
+    messages, and `:inputs`, a map of field name to value for `prompt_fields`. `nil`
+    fails the test, and so does a row with no `:id`.
     """
     @callback row_for(Surface.t(), A2uiManifest.row_action(), context :: map()) :: map() | nil
 
@@ -184,13 +187,9 @@ defmodule AshBrowserTests.Surfaces do
     %Action{
       id: "row:#{row_action.id}",
       setup: &row_setup(&1, surface, row_action, host),
-      run: &run_row_action(&1, &2, row_action),
+      run: &RowActions.perform(&1, &2.row, row_action),
       verify: &verify_row_action(&1, &2, host),
-      chain: [
-        Trace.browser_event(),
-        Trace.handle_event(),
-        Trace.ash_action(action: row_action.ash_action)
-      ]
+      chain: RowActions.chain(row_action)
     }
   end
 
@@ -241,28 +240,21 @@ defmodule AshBrowserTests.Surfaces do
   def row_setup(context, surface, row_action, host) do
     row = host.row_for(surface, row_action, context)
 
-    if row == nil do
-      raise ExUnit.AssertionError,
-        message:
-          "no row to act on for #{surface.id} / #{row_action.id}; seed one in row_for/3 " <>
-            "or waive the action"
-    end
+    case row do
+      nil ->
+        raise ExUnit.AssertionError,
+          message:
+            "no row to act on for #{surface.id} / #{row_action.id}; seed one in row_for/3 " <>
+              "or waive the action"
 
-    Map.put(context, :row, row)
-  end
+      %{id: id} when id != nil ->
+        Map.put(context, :row, %{id: to_string(id), text: row[:text], inputs: row[:inputs] || %{}})
 
-  @doc false
-  def run_row_action(conn, %{row: row}, row_action) do
-    conn = click_in_row(conn, row.text, row_action.label)
-
-    conn =
-      Enum.reduce(row_action[:prompt_fields] || [], conn, fn field, acc ->
-        PhoenixTest.fill_in(acc, field.label, with: Map.fetch!(row[:inputs] || %{}, field.name))
-      end)
-
-    case row_action[:confirm_label] do
-      nil -> conn
-      label -> Browser.deep_click(conn, "button, atlas-button", text: label)
+      _no_id ->
+        raise ExUnit.AssertionError,
+          message:
+            "row_for/3 returned no :id for #{surface.id} / #{row_action.id}: the row is found " <>
+              "by its data-a2ui-row-id, so return the record's id as the row renders it"
     end
   end
 
@@ -271,40 +263,6 @@ defmodule AshBrowserTests.Surfaces do
   defp verify_row_action([_browser, event | _rest], context, host) do
     if function_exported?(host, :assert_audit, 2) do
       host.assert_audit(event.attributes["ash.correlation_id"], context)
-    end
-  end
-
-  defp click_in_row(conn, row_text, label) do
-    clicked =
-      eval(conn, """
-      (() => {
-        #{Browser.walker()}
-        const row = deep(document, 'tr, [role="row"]').find((el) => el.textContent.includes(#{Jason.encode!(row_text)}))
-        if (!row) return "no row"
-        const button = deep(row, 'button, atlas-button, a').find((el) => el.textContent.trim() === #{Jason.encode!(label)})
-        if (!button) return "no button"
-        ;(button.shadowRoot && button.shadowRoot.querySelector("button") || button).click()
-        return "clicked"
-      })()
-      """)
-
-    if clicked != "clicked" do
-      raise ExUnit.AssertionError,
-        message: "row action #{inspect(label)} in row #{inspect(row_text)}: #{clicked}"
-    end
-
-    conn
-  end
-
-  defp eval(conn, expression) do
-    parent = self()
-    ref = make_ref()
-    PhoenixTest.Playwright.evaluate(conn, expression, &send(parent, {ref, &1}))
-
-    receive do
-      {^ref, result} -> result
-    after
-      5_000 -> raise ExUnit.AssertionError, message: "the page did not answer evaluate"
     end
   end
 end
