@@ -1415,7 +1415,9 @@
       "domain": null,
       "plane": "experience",
       "mission": "The artifact registry: every versioned thing a person authors, reviews or releases, declared once.",
-      "packages": [],
+      "packages": [
+        "ash_versions"
+      ],
       "adrs": [],
       "terms": [
         {
@@ -1655,6 +1657,15 @@
         "signatures"
       ],
       "role": "The signature and acknowledgement fragments the host instantiates (ADR 0074)."
+    },
+    {
+      "package": "ash_versions",
+      "repo": "lukegalea/ash_versions",
+      "kind": "first-party",
+      "context": [
+        "artifacts"
+      ],
+      "role": "The version registry the artifact pages read through, and temporal history."
     }
   ],
   "adopted": [
