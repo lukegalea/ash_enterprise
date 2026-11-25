@@ -1,0 +1,1754 @@
+{
+  "planes": [
+    {
+      "id": "platform",
+      "name": "Platform",
+      "purpose": "The inherited base: one base resource, identity, grants, audit, erasure, tenancy — everything arrives by inheritance, nothing by discipline."
+    },
+    {
+      "id": "canonical",
+      "name": "Canonical record",
+      "purpose": "The operational data spine: ingestion edges, the strangler'd legacy estate, the CDM-derived store, the business-event ledger, master data."
+    },
+    {
+      "id": "knowledge",
+      "name": "Evidence & judgment",
+      "purpose": "Recorded observations over any subject: questions, judgment ledger, banding, evidence adjudication, lineage, licences."
+    },
+    {
+      "id": "decision",
+      "name": "Deterministic authority",
+      "purpose": "Rules, DMN decision tables, compliance projection, constraint planning — declarations that decide, with audit trails."
+    },
+    {
+      "id": "process",
+      "name": "Orchestration",
+      "purpose": "BPMN processes, event-triggered dispatch, execution identity and the governed-invocation machinery service tasks run through."
+    },
+    {
+      "id": "agency",
+      "name": "Agents & models",
+      "purpose": "The agent runtime, model residency zones, assistant surfaces, quality gating and releases — agents as users, never a parallel path."
+    },
+    {
+      "id": "experience",
+      "name": "Surfaces",
+      "purpose": "Everything rendered from the declarations: A2UI surfaces, admin, canvas, showcase, localization, telemetry."
+    }
+  ],
+  "contexts": [
+    {
+      "id": "platform",
+      "name": "Platform",
+      "domain": null,
+      "plane": "platform",
+      "mission": "The base resource and its inherited concerns; the cross-substrate battery proving the seams.",
+      "packages": [
+        "battery"
+      ],
+      "adrs": [
+        4,
+        52,
+        59
+      ],
+      "terms": [
+        {
+          "term": "base resource",
+          "definition": "Every resource uses AshEnterprise.Platform.Resource; opting out is explicit and greppable, never silent."
+        },
+        {
+          "term": "ActorContext",
+          "definition": "Everything a policy check needs is precomputed once per request into ActorContext; a check that queries is a bug, not a slow path."
+        },
+        {
+          "term": "battery",
+          "definition": "The cross-substrate integration battery, run over its own reference instantiation on dependency bumps."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "accounts",
+      "name": "Accounts",
+      "domain": "AshEnterprise.Accounts",
+      "plane": "platform",
+      "mission": "Identity: users, teams, from the published schema commons.",
+      "packages": [],
+      "adrs": [
+        2,
+        3
+      ],
+      "terms": [
+        {
+          "term": "user",
+          "definition": "A person who can sign in, and the actor every policy is evaluated against."
+        },
+        {
+          "term": "organization",
+          "definition": "A tenant."
+        },
+        {
+          "term": "business unit",
+          "definition": "A node in the organizational hierarchy, and the unit of the Local and Deep access levels."
+        },
+        {
+          "term": "team",
+          "definition": "A group of users; by type either a principal that can own records and hold roles, or a lightweight bucket for sharing."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "security",
+      "name": "Security",
+      "domain": "AshEnterprise.Security",
+      "plane": "platform",
+      "mission": "Authorization as data: (role, privilege, depth) grants as a pure union; the automation principal and its grants.",
+      "packages": [],
+      "adrs": [
+        3,
+        23,
+        43,
+        52
+      ],
+      "terms": [
+        {
+          "term": "role",
+          "definition": "A named bag of (privilege, depth) grants."
+        },
+        {
+          "term": "privilege",
+          "definition": "One (resource, verb) pair that a role can grant."
+        },
+        {
+          "term": "role privilege",
+          "definition": "The (role, privilege, depth) triple; depth scopes it to global, business unit or record."
+        },
+        {
+          "term": "access grant",
+          "definition": "An explicit share: (principal, record, rights)."
+        },
+        {
+          "term": "automation role",
+          "definition": "Assigns a role to an automation principal, scoped to a business unit (ADR 0043)."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "flags",
+      "name": "Flags",
+      "domain": "AshEnterprise.Flags",
+      "plane": "platform",
+      "mission": "Feature flags, tenant by tenant, resolved once per request into the actor's context.",
+      "packages": [],
+      "adrs": [
+        72
+      ],
+      "terms": [
+        {
+          "term": "catalogue",
+          "definition": "The keys this build declares, and the ones the deployment killed."
+        },
+        {
+          "term": "flag",
+          "definition": "One tenant's decision for one key: off, on, or on for named people, teams, business-unit subtrees and a percentage."
+        },
+        {
+          "term": "targeting",
+          "definition": "Whether a row is on for a person, pure."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "audit",
+      "name": "Audit",
+      "domain": "AshEnterprise.Audit",
+      "plane": "platform",
+      "mission": "The tamper-evident, tenant-scoped event ledger every projection reads from.",
+      "packages": [
+        "ash_events",
+        "ash_events_projections",
+        "ash_events_chain"
+      ],
+      "adrs": [
+        2,
+        20,
+        22,
+        24
+      ],
+      "terms": [
+        {
+          "term": "event log",
+          "definition": "The central audit trail."
+        },
+        {
+          "term": "hash chain",
+          "definition": "Each chain's rows link by hash; the verifier walks every chain and reports where, if anywhere, it stops adding up."
+        },
+        {
+          "term": "projection",
+          "definition": "A read model built from the event log; how far each projector has processed is its checkpoint."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "erasure",
+      "name": "Erasure",
+      "domain": "AshEnterprise.Erasure",
+      "plane": "platform",
+      "mission": "Crypto-shredding and retention: the right to be forgotten over an append-only ledger.",
+      "packages": [
+        "ash_greenmask"
+      ],
+      "adrs": [
+        24,
+        32
+      ],
+      "terms": [
+        {
+          "term": "erasure scope",
+          "definition": "The unit that one key encrypts and one shred destroys."
+        },
+        {
+          "term": "key",
+          "definition": "One erasure scope's data-encryption key, stored wrapped under the master key."
+        },
+        {
+          "term": "crypto-shredding",
+          "definition": "Destroying a scope's key renders everything the scope covered unreadable, without rewriting a single appended row."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "standards",
+      "name": "Standards",
+      "domain": null,
+      "plane": "platform",
+      "mission": "The advisory standards review over this repository's own code; never fails a build.",
+      "packages": [
+        "ash_agent_tools"
+      ],
+      "adrs": [
+        45
+      ],
+      "terms": [
+        {
+          "term": "standards review",
+          "definition": "The cheapest place to use a fast typed judgment is not the product; it is the tooling around it — the review judges this repository's own code."
+        },
+        {
+          "term": "advisory",
+          "definition": "A finding here never fails a build; it is reported for a person to weigh."
+        },
+        {
+          "term": "standing check",
+          "definition": "The standing review records the last checkout HEAD it judged in full, per tenant and repository."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "faults",
+      "name": "Faults",
+      "domain": null,
+      "plane": "platform",
+      "mission": "Named fault points: places in production code where a test can make the process fail.",
+      "packages": [],
+      "adrs": [],
+      "terms": [
+        {
+          "term": "fault point",
+          "definition": "A named place in production code where a test can make the process fail, because the code that commits is the code that must stop."
+        },
+        {
+          "term": "arm",
+          "definition": "A test arms a fault point by name before the code under test runs."
+        },
+        {
+          "term": "kill",
+          "definition": "The fault that kills the calling process outright, uncatchable — the nearest thing to the node dying that a test can do without stopping the node."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "reference",
+      "name": "Reference",
+      "domain": "AshEnterprise.Reference",
+      "plane": "canonical",
+      "mission": "Published-model reference data; do not invent your nouns.",
+      "packages": [],
+      "adrs": [
+        2
+      ],
+      "terms": [
+        {
+          "term": "reference data",
+          "definition": "Published-model reference data, generated from the vendored corpus rather than invented."
+        },
+        {
+          "term": "generated resource",
+          "definition": "Generated by mix cdm.gen.resource from a resolved corpus document."
+        },
+        {
+          "term": "CDM",
+          "definition": "The frozen, hybrid, vendored corpus the reference data is generated from."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "ingestion",
+      "name": "Ingestion",
+      "domain": "AshEnterprise.Ingestion",
+      "plane": "canonical",
+      "mission": "External corpora land as Ash resources, not staging schemas.",
+      "packages": [],
+      "adrs": [
+        10
+      ],
+      "terms": [
+        {
+          "term": "source object",
+          "definition": "The immutable raw-landing record for one external object."
+        },
+        {
+          "term": "landing",
+          "definition": "External corpora land into an Ash resource, not a staging schema."
+        },
+        {
+          "term": "tap",
+          "definition": "The deterministic fixture tap lands records as source objects."
+        }
+      ],
+      "edges": [
+        {
+          "to": "canonical",
+          "pattern": "customer–supplier",
+          "note": "Lands as resources shaped by the schema commons."
+        }
+      ]
+    },
+    {
+      "id": "integration",
+      "name": "Integration",
+      "domain": "AshEnterprise.Integration",
+      "plane": "canonical",
+      "mission": "The provider edge: declared operations, webhook ingress, scoped landing under erasure scopes.",
+      "packages": [
+        "ash_operations"
+      ],
+      "adrs": [
+        11,
+        63
+      ],
+      "terms": [
+        {
+          "term": "linked account",
+          "definition": "One of an actor's own provider accounts, mapped to the connection that holds its credentials; the unit of credential ownership is the user account."
+        },
+        {
+          "term": "declared operation",
+          "definition": "One generic action and one code interface per provider operation, with a vendored spec pinned by sha-256 and one transport per provider."
+        },
+        {
+          "term": "delivery",
+          "definition": "A provider webhook delivery, recorded once."
+        }
+      ],
+      "edges": [
+        {
+          "to": "canonical",
+          "pattern": "anticorruption",
+          "note": "Scoped landing; nothing lands outside an erasure scope."
+        }
+      ]
+    },
+    {
+      "id": "legacy",
+      "name": "Legacy estate",
+      "domain": "AshEnterprise.Legacy",
+      "plane": "canonical",
+      "mission": "The projected read model over the strangler'd legacy schema.",
+      "packages": [
+        "ash_strangler"
+      ],
+      "adrs": [
+        8,
+        9,
+        31
+      ],
+      "terms": [
+        {
+          "term": "read model",
+          "definition": "A platform resource whose data layer is a compatibility view over a legacy table rather than a table this application owns."
+        },
+        {
+          "term": "mapping",
+          "definition": "A typed expression over a legacy relation's columns, with a proven inverse."
+        },
+        {
+          "term": "legacy user",
+          "definition": "The read model over the legacy users table."
+        }
+      ],
+      "edges": [
+        {
+          "to": "canonical",
+          "pattern": "anticorruption",
+          "note": "The drain projects ledger rows into canonical actions."
+        }
+      ]
+    },
+    {
+      "id": "legacy-twins",
+      "name": "Legacy twins",
+      "domain": "AshEnterprise.Legacy.Twins",
+      "plane": "canonical",
+      "mission": "Twin/shadow resources proving projection parity before cutover.",
+      "packages": [
+        "ash_strangler"
+      ],
+      "adrs": [
+        31
+      ],
+      "terms": [
+        {
+          "term": "twin",
+          "definition": "The legacy relation declared as an ordinary Ash resource, so a mapping can name its columns and have them mean something."
+        },
+        {
+          "term": "parity",
+          "definition": "The twin and its projection must agree before anything cuts over; the twin makes the disagreement visible."
+        },
+        {
+          "term": "cutover",
+          "definition": "The legacy estate is projected, not cut over."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "ledger",
+      "name": "Change ledger",
+      "domain": null,
+      "plane": "canonical",
+      "mission": "The change ledger a legacy trigger writes; the drain turns a row into a canonical action in one transaction.",
+      "packages": [
+        "ash_strangler"
+      ],
+      "adrs": [
+        30,
+        35
+      ],
+      "terms": [
+        {
+          "term": "ledger row",
+          "definition": "The row a legacy trigger writes recording that a legacy write happened."
+        },
+        {
+          "term": "drain",
+          "definition": "An at-least-once worker that projects a ledger row into a canonical action in one transaction."
+        },
+        {
+          "term": "legacy write",
+          "definition": "A write in the old schema; the chain legacy write → ledger row → drain → canonical action is the strangler demo in one line."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "canonical",
+      "name": "Canonical store",
+      "domain": "AshEnterprise.Canonical",
+      "plane": "canonical",
+      "mission": "The CDM-derived operational store on the temporal validity substrate.",
+      "packages": [],
+      "adrs": [
+        1,
+        2,
+        49
+      ],
+      "terms": [
+        {
+          "term": "person",
+          "definition": "A person in the operator's world: the organizer of a meeting, a message correspondent, a task's assignee."
+        },
+        {
+          "term": "conversation",
+          "definition": "A thread: an email thread, a chat channel or DM, or a face-to-face the operator logged."
+        },
+        {
+          "term": "message",
+          "definition": "One sent or received item in a conversation, with its sender, timestamp and direction."
+        },
+        {
+          "term": "task",
+          "definition": "A commitment with a status."
+        },
+        {
+          "term": "calendar event",
+          "definition": "One calendar event, projected from landed source objects."
+        }
+      ],
+      "edges": [
+        {
+          "to": "business-events",
+          "pattern": "published language",
+          "note": "Events derived from canonical writes (ADR 0051)."
+        },
+        {
+          "to": "compliance",
+          "pattern": "published language",
+          "note": "Findings project from the event log (ADR 0035)."
+        }
+      ]
+    },
+    {
+      "id": "business-events",
+      "name": "Business events",
+      "domain": "AshEnterprise.BusinessEvents",
+      "plane": "canonical",
+      "mission": "The chained, commit-ordered discrete event ledger derived from canonical writes.",
+      "packages": [
+        "ash_discrete_business_events"
+      ],
+      "adrs": [
+        51,
+        30
+      ],
+      "terms": [
+        {
+          "term": "ledger",
+          "definition": "The business-event ledger, a :ledger macro instantiated on the platform base so the tables are this application's."
+        },
+        {
+          "term": "region",
+          "definition": "A partition of the ledger's chain, lock and feed; every row declares its residency tag."
+        },
+        {
+          "term": "residency tag",
+          "definition": "What every row declares."
+        }
+      ],
+      "edges": [
+        {
+          "to": "mdm",
+          "pattern": "customer–supplier",
+          "note": "Temporal SourceRecord landing feeds resolution."
+        }
+      ]
+    },
+    {
+      "id": "mdm",
+      "name": "Master data",
+      "domain": "AshEnterprise.Mdm",
+      "plane": "canonical",
+      "mission": "Versioned mappings, deterministic entity resolution, survivorship, non-destructive merges over golden records.",
+      "packages": [
+        "ash_mdm"
+      ],
+      "adrs": [
+        17,
+        54
+      ],
+      "terms": [
+        {
+          "term": "mapping",
+          "definition": "A versioned schema mapping, ingress or egress."
+        },
+        {
+          "term": "staged record",
+          "definition": "One landed source row, mapped into canonical shape by the batch's pinned mapping."
+        },
+        {
+          "term": "match candidate",
+          "definition": "One (staged record, golden record) candidate pair with its score and per-rule explanation."
+        },
+        {
+          "term": "source identity",
+          "definition": "The cross-reference registry: which external source identity points at which golden record, right now — temporal, one open period per identity."
+        },
+        {
+          "term": "golden record",
+          "definition": "The survived, merged record the operational store reads; merges are non-destructive."
+        }
+      ],
+      "edges": [
+        {
+          "to": "system-one",
+          "pattern": "conformist",
+          "note": "Stewardship is System One machinery (ADR 0054)."
+        }
+      ]
+    },
+    {
+      "id": "lineage",
+      "name": "Lineage",
+      "domain": "AshEnterprise.Lineage",
+      "plane": "canonical",
+      "mission": "Run-event lineage emitted from action notifications.",
+      "packages": [
+        "ash_open_lineage"
+      ],
+      "adrs": [
+        12
+      ],
+      "terms": [
+        {
+          "term": "run",
+          "definition": "One operation: every lineage event that shared a correlation id."
+        },
+        {
+          "term": "job",
+          "definition": "One lineage job, per tenant, named structurally."
+        },
+        {
+          "term": "job run",
+          "definition": "One lineage run: one job inside one operation, keyed by the event's run id."
+        }
+      ],
+      "edges": [
+        {
+          "to": "canonical",
+          "pattern": "open host service",
+          "note": "Observes action notifications, emits run events."
+        }
+      ]
+    },
+    {
+      "id": "exports",
+      "name": "Exports",
+      "domain": "AshEnterprise.Exports",
+      "plane": "canonical",
+      "mission": "Bulk export out: a tenant's data as CSV, under the same policies as every other read.",
+      "packages": [],
+      "adrs": [
+        59
+      ],
+      "terms": [
+        {
+          "term": "export",
+          "definition": "The export privilege: one more grantable (resource, verb) row, held by default by the tenant's Administrator role and nobody else."
+        },
+        {
+          "term": "exportable",
+          "definition": "Which resources are exportable."
+        },
+        {
+          "term": "csv stream",
+          "definition": "The stream of one exportable resource, read in keyset pages as the requester."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "system-one",
+      "name": "System One",
+      "domain": "AshEnterprise.SystemOne",
+      "plane": "knowledge",
+      "mission": "Declared questions, the append-only judgment ledger, banding, admitted facts, human verdicts; evidence adjudication as assertions.",
+      "packages": [
+        "ash_judgments",
+        "ash_evidence"
+      ],
+      "adrs": [
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        53
+      ],
+      "terms": [
+        {
+          "term": "judgment",
+          "definition": "One append-only observation per question per call, in the judgment ledger."
+        },
+        {
+          "term": "human verdict",
+          "definition": "A person's confirmation or correction of a recorded observation."
+        },
+        {
+          "term": "banding",
+          "definition": "Which band-table row a judged answer fell into."
+        },
+        {
+          "term": "calibration run",
+          "definition": "One calibration record per (family, question hashes, model digest, runtime version, eval-set hash, region), whose metrics earn a band-table proposal."
+        },
+        {
+          "term": "fact",
+          "definition": "The materialised-facts table: what the set evaluator, the filters and the standing queries read."
+        },
+        {
+          "term": "evidence assertion",
+          "definition": "The aggregate evidence verdict one packet's adjudication produced — the admission's provenance."
+        }
+      ],
+      "edges": [
+        {
+          "to": "canonical",
+          "pattern": "conformist",
+          "note": "Questions declared on canonical subjects; observations recorded, never authoritative."
+        },
+        {
+          "to": "compliance",
+          "pattern": "partnership",
+          "note": "Judgments as predicates over sets (ADR 0048, proposed)."
+        }
+      ]
+    },
+    {
+      "id": "credentialing",
+      "name": "Credentialing",
+      "domain": "AshEnterprise.Credentialing",
+      "plane": "knowledge",
+      "mission": "The credentialing vertical slice composing evidence, judgment and process end to end.",
+      "packages": [],
+      "adrs": [],
+      "terms": [
+        {
+          "term": "clinic",
+          "definition": "The organization a clinician works for."
+        },
+        {
+          "term": "clinician",
+          "definition": "A clinician a clinic is onboarding."
+        },
+        {
+          "term": "credential",
+          "definition": "A clinician's licence or certification, recorded at the clinic and activated with the registry before the clinician may practise there."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "licences",
+      "name": "Licences",
+      "domain": "AshEnterprise.Licences",
+      "plane": "knowledge",
+      "mission": "Dependency licence adjudication; judgments declared on dependency resources.",
+      "packages": [],
+      "adrs": [],
+      "terms": [
+        {
+          "term": "dependency",
+          "definition": "A third-party package at the version the lockfile resolves: the subject of the licence policy."
+        },
+        {
+          "term": "licence policy",
+          "definition": "The declared policy the dependency's questions are answered against."
+        },
+        {
+          "term": "rung",
+          "definition": "Which rung answers a licence subject; a release reaches the model only when its declaration cannot settle the questions."
+        },
+        {
+          "term": "declaration rung",
+          "definition": "The release declares exactly one licence id the policy classifies; every question is answered from the id."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "signatures",
+      "name": "Signatures",
+      "domain": "AshEnterprise.Signatures",
+      "plane": "knowledge",
+      "mission": "Signature and acknowledgement requests: the five fragments on the platform base.",
+      "packages": [
+        "ash_signatures"
+      ],
+      "adrs": [
+        74,
+        32
+      ],
+      "terms": [
+        {
+          "term": "request",
+          "definition": "People asked to sign or acknowledge exact document versions, in order."
+        },
+        {
+          "term": "request document",
+          "definition": "One document version a request shows, with its SHA-256 copied from it."
+        },
+        {
+          "term": "signer",
+          "definition": "One person asked, acting on their own row."
+        },
+        {
+          "term": "signer event",
+          "definition": "One thing that happened, append-only."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "compliance",
+      "name": "Compliance",
+      "domain": "AshEnterprise.Compliance",
+      "plane": "decision",
+      "mission": "Findings projected from the event log under immutable, content-hashed rule bundles; missing evidence is unknown, never compliant.",
+      "packages": [
+        "ash_rules",
+        "ash_compliance"
+      ],
+      "adrs": [
+        21,
+        35
+      ],
+      "terms": [
+        {
+          "term": "catalog",
+          "definition": "A compliance catalog: the stable identity a stream of immutable revisions hangs off."
+        },
+        {
+          "term": "policy bundle",
+          "definition": "The immutable, content-hashed compiled artifact: the effective rule bundle for an organization at a point in time."
+        },
+        {
+          "term": "finding",
+          "definition": "The current compliance state of one subject against one control."
+        },
+        {
+          "term": "policy override",
+          "definition": "An approval-bearing exception: a replacement of a rule, or a waiver of one, with the accountability the framework requires."
+        },
+        {
+          "term": "evaluation",
+          "definition": "The append-only record of one evaluation: what the engine decided and why."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "decisions",
+      "name": "Decisions",
+      "domain": "AshEnterprise.Decisions",
+      "plane": "decision",
+      "mission": "DMN decisions as versioned resources over a native expression engine; band tables live here.",
+      "packages": [
+        "ash_decisions",
+        "boxic_dmn",
+        "boxic_feel"
+      ],
+      "adrs": [
+        27,
+        28,
+        41
+      ],
+      "terms": [
+        {
+          "term": "definition",
+          "definition": "A published decision document, compiled into an immutable versioned snapshot."
+        },
+        {
+          "term": "evaluation",
+          "definition": "What a decision was asked, and what it answered."
+        },
+        {
+          "term": "band table",
+          "definition": "The versioned threshold table a judged answer is banded against, earned by a certified calibration run."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "planning",
+      "name": "Planning",
+      "domain": "AshEnterprise.Planning",
+      "plane": "decision",
+      "mission": "Constraint models propose; declarations and people commit.",
+      "packages": [
+        "ash_planning",
+        "solverl"
+      ],
+      "adrs": [
+        62
+      ],
+      "terms": [
+        {
+          "term": "model version",
+          "definition": "One immutable planning model version."
+        },
+        {
+          "term": "binding",
+          "definition": "A tenant's binding of (model key, purpose) to the definitions a plan is made with."
+        },
+        {
+          "term": "run",
+          "definition": "One planning run."
+        },
+        {
+          "term": "candidate",
+          "definition": "One candidate plan a run proposed."
+        },
+        {
+          "term": "check result",
+          "definition": "One check of one candidate."
+        }
+      ],
+      "edges": [
+        {
+          "to": "canonical",
+          "pattern": "customer–supplier",
+          "note": "Planning proposes; people commit (ADR 0062)."
+        }
+      ]
+    },
+    {
+      "id": "bpmn",
+      "name": "Processes",
+      "domain": "AshEnterprise.Bpmn",
+      "plane": "process",
+      "mission": "BPMN documents compiled to immutable graphs, executed by a token interpreter.",
+      "packages": [
+        "ash_bpmn"
+      ],
+      "adrs": [
+        9,
+        29,
+        36
+      ],
+      "terms": [
+        {
+          "term": "definition",
+          "definition": "A published process document, compiled into an immutable versioned graph."
+        },
+        {
+          "term": "instance",
+          "definition": "One run of a process, pinned to the definition version it started on."
+        },
+        {
+          "term": "token",
+          "definition": "One live branch of a running process."
+        },
+        {
+          "term": "human task",
+          "definition": "A work item waiting on a person: an approval, a review, a decision someone has to make."
+        },
+        {
+          "term": "subscription",
+          "definition": "A declaration that something happening in the audit log should start a process."
+        },
+        {
+          "term": "cursor",
+          "definition": "How far the trigger sweep has read into one tenant's audit chain."
+        }
+      ],
+      "edges": [
+        {
+          "to": "decisions",
+          "pattern": "customer–supplier",
+          "note": "Via the configured DecisionResolver; no package dependency."
+        },
+        {
+          "to": "execution",
+          "pattern": "partnership",
+          "note": "Service tasks run as governed invocations (ADR 0055)."
+        }
+      ]
+    },
+    {
+      "id": "process",
+      "name": "Process instances",
+      "domain": "AshEnterprise.Process",
+      "plane": "process",
+      "mission": "Host process instances and the dispatched-cursor event triggers.",
+      "packages": [],
+      "adrs": [
+        15,
+        30,
+        36
+      ],
+      "terms": [
+        {
+          "term": "binding",
+          "definition": "Which definition of a given key this tenant runs."
+        },
+        {
+          "term": "dispatched cursor",
+          "definition": "Events trigger processes through a dispatched cursor, not a handler."
+        },
+        {
+          "term": "approval",
+          "definition": "Approvals and process modelling stay inside Ash."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "automation",
+      "name": "Automation",
+      "domain": "AshEnterprise.Automation",
+      "plane": "process",
+      "mission": "What a tenant's recipes react to when the thing that happened is not an audited tenant write.",
+      "packages": [],
+      "adrs": [
+        71
+      ],
+      "terms": [
+        {
+          "term": "occurrence",
+          "definition": "A fact recorded into a tenant's audit chain so that a subscription can match it: a user deactivated, a sign-in refused, a break-glass session approved, an API key issued, an inbound alert."
+        },
+        {
+          "term": "incident",
+          "definition": "The alerts that share a key, from the first one that fired until it closes; a duplicate alert joins the open incident."
+        },
+        {
+          "term": "alert webhook",
+          "definition": "How inbound alerts reach occurrences."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "execution",
+      "name": "Execution",
+      "domain": "AshEnterprise.Execution",
+      "plane": "process",
+      "mission": "Identity resolution and the governed-invocation lease/job handoff every consequential act runs through.",
+      "packages": [],
+      "adrs": [
+        55
+      ],
+      "terms": [
+        {
+          "term": "invocation",
+          "definition": "One governed invocation: the invocation fragment on the platform base."
+        },
+        {
+          "term": "agent version",
+          "definition": "One version of an agent."
+        },
+        {
+          "term": "release manifest",
+          "definition": "A release: an immutable set of the things that were tested together, named by digest, and the one pointer that says which set is live."
+        },
+        {
+          "term": "intervention",
+          "definition": "A person's act on one invocation from the recovery surface, with who did it and why; an act that is refused leaves no row."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "execution-sources",
+      "name": "Execution sources",
+      "domain": null,
+      "plane": "process",
+      "mission": "Provenance sources for executions.",
+      "packages": [],
+      "adrs": [
+        55
+      ],
+      "terms": [
+        {
+          "term": "source",
+          "definition": "The provenance a governed invocation names for what it read or acted on."
+        },
+        {
+          "term": "target",
+          "definition": "A target names <resource module>.<action> and must carry an effects declaration."
+        },
+        {
+          "term": "effects declaration",
+          "definition": "An action declares the effects it may have; a governed act runs only through a target that carries one."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "agents",
+      "name": "Agents",
+      "domain": "AshEnterprise.Agents",
+      "plane": "agency",
+      "mission": "Governed invocations, durable runs, the coding-agent bridge; effects declared per action.",
+      "packages": [
+        "ash_agent"
+      ],
+      "adrs": [
+        55,
+        56,
+        57
+      ],
+      "terms": [
+        {
+          "term": "agent session",
+          "definition": "A persistent coding-agent session identity and lifecycle."
+        },
+        {
+          "term": "agent run",
+          "definition": "One requested unit of coding-agent work: a prompt handed to the process of a session, the messages it streamed back, and the tool invocations it asked for."
+        },
+        {
+          "term": "tool call",
+          "definition": "A coding agent's tool call, asked of the person its run belongs to."
+        },
+        {
+          "term": "console",
+          "definition": "The terminal's prompts, each answering from ordinary reads as the calling actor — the same read actions, under the same policies, the matching web surface uses."
+        }
+      ],
+      "edges": [
+        {
+          "to": "platform",
+          "pattern": "conformist",
+          "note": "Same action layer and policies as every other actor (thesis 5)."
+        }
+      ]
+    },
+    {
+      "id": "ai",
+      "name": "AI",
+      "domain": "AshEnterprise.AI",
+      "plane": "agency",
+      "mission": "Model wiring and residency: in-zone inference; leaving the zone is a disclosure.",
+      "packages": [],
+      "adrs": [
+        26,
+        42
+      ],
+      "terms": [
+        {
+          "term": "model call",
+          "definition": "One model call: the flow record."
+        },
+        {
+          "term": "model profile",
+          "definition": "Which model a profile runs, what it may be used for, whether it is known to answer, and what it is restricted from."
+        },
+        {
+          "term": "in-zone inference",
+          "definition": "Inference runs in-zone; leaving the zone is a disclosure."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "zones",
+      "name": "Residency zones",
+      "domain": null,
+      "plane": "agency",
+      "mission": "The residency policy deciding which zones instruments may run in; configuration, never code.",
+      "packages": [],
+      "adrs": [
+        42
+      ],
+      "terms": [
+        {
+          "term": "zone",
+          "definition": "A declared boundary with a jurisdiction, a classification ceiling and the residency restrictions it cannot satisfy."
+        },
+        {
+          "term": "residency policy",
+          "definition": "May this tenant's data be answered by an instrument of this residency class?"
+        },
+        {
+          "term": "disclosure",
+          "definition": "Leaving the zone is a disclosure, not a second authorization model."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "assistant",
+      "name": "Assistant",
+      "domain": "AshEnterprise.Assistant",
+      "plane": "agency",
+      "mission": "The host assistant and its evaluation harness.",
+      "packages": [],
+      "adrs": [],
+      "terms": [
+        {
+          "term": "thread",
+          "definition": "One assistant conversation: the person's question-and-answer history."
+        },
+        {
+          "term": "turn",
+          "definition": "One question or one answer in a thread."
+        },
+        {
+          "term": "pinned app",
+          "definition": "A surface the person composed in the agent chat and pinned: a personal app on their launcher."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "legacy-agent",
+      "name": "Legacy agent",
+      "domain": "AshEnterprise.LegacyAgent",
+      "plane": "agency",
+      "mission": "The agent console over the legacy estate.",
+      "packages": [],
+      "adrs": [
+        5
+      ],
+      "terms": [
+        {
+          "term": "console",
+          "definition": "The agent console over the legacy estate."
+        },
+        {
+          "term": "legacy estate",
+          "definition": "The projected read model over the strangler'd legacy schema."
+        },
+        {
+          "term": "division of labour",
+          "definition": "Two derived UI layers that overlap, and the overlap is the point of the decision."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "quality",
+      "name": "Quality",
+      "domain": "AshEnterprise.Quality",
+      "plane": "agency",
+      "mission": "Agent-quality suites and gated, attested releases.",
+      "packages": [],
+      "adrs": [
+        58
+      ],
+      "terms": [
+        {
+          "term": "suite",
+          "definition": "A suite of evaluation cases for an agent: a key and a version, draft then published then retired."
+        },
+        {
+          "term": "suite run",
+          "definition": "One run of a published suite against a candidate agent: running, then finished."
+        },
+        {
+          "term": "case result",
+          "definition": "What one case of a suite run scored, at one epoch; written once, never changed."
+        }
+      ],
+      "edges": [
+        {
+          "to": "agents",
+          "pattern": "customer–supplier",
+          "note": "Suites gate attested releases (ADR 0058)."
+        }
+      ]
+    },
+    {
+      "id": "acp",
+      "name": "Agent protocol",
+      "domain": null,
+      "plane": "agency",
+      "mission": "The agent-client wire adapter: sessions and permission requests over host behaviours.",
+      "packages": [
+        "ash_acp"
+      ],
+      "adrs": [],
+      "terms": [
+        {
+          "term": "session",
+          "definition": "An agent-client session; the host owns the session table and its store."
+        },
+        {
+          "term": "permission request",
+          "definition": "A permission the agent asks of a person, resolved through the host's approvals."
+        },
+        {
+          "term": "prompt target",
+          "definition": "What an arriving prompt may act on, resolved by the host's session store."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "surfaces",
+      "name": "Surfaces",
+      "domain": null,
+      "plane": "experience",
+      "mission": "The agent-renderable experience layer bound to host resources.",
+      "packages": [
+        "ash_a2ui"
+      ],
+      "adrs": [
+        5,
+        33,
+        61
+      ],
+      "terms": [
+        {
+          "term": "surface",
+          "definition": "A surface renders from a payload the experience library encodes; it renders declared actions and adds no authorization of its own."
+        },
+        {
+          "term": "payload",
+          "definition": "The agent-renderable payload generated from the resource declarations."
+        },
+        {
+          "term": "client catalog",
+          "definition": "A client-side catalog renders the payload."
+        }
+      ],
+      "edges": [
+        {
+          "to": "platform",
+          "pattern": "conformist",
+          "note": "Renders declared actions; no parallel authorization (ADR 0033)."
+        }
+      ]
+    },
+    {
+      "id": "canvas",
+      "name": "Canvas",
+      "domain": null,
+      "plane": "experience",
+      "mission": "The dev-only object graph inspector.",
+      "packages": [],
+      "adrs": [
+        34
+      ],
+      "terms": [
+        {
+          "term": "canvas",
+          "definition": "The dev-only object graph over the running application's records."
+        },
+        {
+          "term": "naked-object inspector",
+          "definition": "The inspector that renders a record from its own declaration, with no per-type page."
+        },
+        {
+          "term": "canvas contract",
+          "definition": "The contract the dev-only object graph is described by; the library tier implements it."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "showcase",
+      "name": "Showcase",
+      "domain": null,
+      "plane": "experience",
+      "mission": "The guided demonstration estate.",
+      "packages": [],
+      "adrs": [],
+      "terms": [
+        {
+          "term": "showcase",
+          "definition": "The governed-invocation programme's scenario as a running application a person can click through, built in slices over the demo data."
+        },
+        {
+          "term": "slice",
+          "definition": "One tour segment of the showcase, added on top of the demo data."
+        },
+        {
+          "term": "fault panel",
+          "definition": "The showcase's panel that arms named fault points, so a tour can show what a death between commits does."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "l10n",
+      "name": "Localization",
+      "domain": null,
+      "plane": "experience",
+      "mission": "Gettext catalogs and library-shipped translations.",
+      "packages": [],
+      "adrs": [
+        60
+      ],
+      "terms": [
+        {
+          "term": "catalog",
+          "definition": "A translation catalog; the POT templates are derived from the source calls, like migrations are from the resources."
+        },
+        {
+          "term": "library-shipped translation",
+          "definition": "Translations a dependency ships for its own strings, extracted with their own metadata."
+        },
+        {
+          "term": "host copy",
+          "definition": "The application's own text: static, in source control, shipped with the app."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "telemetry",
+      "name": "Telemetry",
+      "domain": null,
+      "plane": "experience",
+      "mission": "Tracer → OpenTelemetry → OTLP wiring.",
+      "packages": [],
+      "adrs": [
+        18
+      ],
+      "terms": [
+        {
+          "term": "tracer",
+          "definition": "The instrumentation seam actions and transports report through."
+        },
+        {
+          "term": "exporter",
+          "definition": "The wiring that ships spans off-node to the collector."
+        },
+        {
+          "term": "OTLP",
+          "definition": "The wire the exporter ships over: tracer to the telemetry SDK to the collector."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "artifacts",
+      "name": "Artifacts",
+      "domain": null,
+      "plane": "experience",
+      "mission": "The artifact registry: every versioned thing a person authors, reviews or releases, declared once.",
+      "packages": [],
+      "adrs": [],
+      "terms": [
+        {
+          "term": "artifact",
+          "definition": "An entry naming a resource and what the artifact pages need to know about its rows: its version, lifecycle, content hash, scope and differ."
+        },
+        {
+          "term": "differ",
+          "definition": "A module that compares two versions by meaning — graph nodes, cases, tools — never by text."
+        },
+        {
+          "term": "semantic diff",
+          "definition": "The comparison of one version against its predecessor or any other version, by meaning."
+        },
+        {
+          "term": "header",
+          "definition": "Identity, version, lifecycle, content hash, provenance and who published it, with the run it was opened from."
+        }
+      ],
+      "edges": []
+    }
+  ],
+  "substrates": [
+    {
+      "package": "ash_events",
+      "repo": "lukegalea/ash_events",
+      "kind": "fork",
+      "context": [
+        "audit"
+      ],
+      "role": "Audit/event ledger with as-of capture/replay (ADR 0002)."
+    },
+    {
+      "package": "ash_events_projections",
+      "repo": "lukegalea/ash_events_projections",
+      "kind": "transitive",
+      "context": [
+        "compliance"
+      ],
+      "role": "The projector engine behind compliance findings."
+    },
+    {
+      "package": "ash_strangler",
+      "repo": "lukegalea/ash_strangler",
+      "kind": "first-party",
+      "context": [
+        "legacy",
+        "ledger"
+      ],
+      "role": "Strangler-fig mappings, ledger, drain."
+    },
+    {
+      "package": "ash_operations",
+      "repo": "lukegalea/ash_operations",
+      "kind": "first-party",
+      "context": [
+        "integration"
+      ],
+      "role": "Declared provider operations + webhook ingress."
+    },
+    {
+      "package": "ash_discrete_business_events",
+      "repo": "lukegalea/ash_discrete_business_events",
+      "kind": "first-party",
+      "context": [
+        "business-events"
+      ],
+      "role": "SourceRecord landing + chained event ledger."
+    },
+    {
+      "package": "ash_mdm",
+      "repo": "lukegalea/ash_mdm",
+      "kind": "first-party",
+      "context": [
+        "mdm"
+      ],
+      "role": "Mappings-as-data, resolution, survivorship, merge."
+    },
+    {
+      "package": "ash_open_lineage",
+      "repo": "lukegalea/ash_open_lineage",
+      "kind": "first-party",
+      "context": [
+        "lineage"
+      ],
+      "role": "Run events from action notifications."
+    },
+    {
+      "package": "ash_judgments",
+      "repo": "lukegalea/ash_judgments",
+      "kind": "first-party",
+      "context": [
+        "system-one"
+      ],
+      "role": "Declared questions, judgment ledger fragments, calibration."
+    },
+    {
+      "package": "ash_evidence",
+      "repo": "lukegalea/ash_evidence",
+      "kind": "first-party",
+      "context": [
+        "system-one"
+      ],
+      "role": "Document versions, addressed atoms, parse runs, assertions."
+    },
+    {
+      "package": "ash_rules",
+      "repo": "lukegalea/ash_rules",
+      "kind": "first-party",
+      "context": [
+        "compliance"
+      ],
+      "role": "Serializable rule IR, fact schemas, evaluator seam."
+    },
+    {
+      "package": "ash_compliance",
+      "repo": "lukegalea/ash_compliance",
+      "kind": "first-party",
+      "context": [
+        "compliance"
+      ],
+      "role": "Catalogs/profiles/waivers → immutable bundles; findings projection."
+    },
+    {
+      "package": "ash_decisions",
+      "repo": "lukegalea/ash_decisions",
+      "kind": "first-party",
+      "context": [
+        "decisions"
+      ],
+      "role": "Decisions as versioned resources; TCK-measured."
+    },
+    {
+      "package": "boxic_dmn",
+      "repo": "lukegalea/boxic_dmn",
+      "kind": "transitive",
+      "context": [
+        "decisions"
+      ],
+      "role": "Decision-document validation (ADR 0027)."
+    },
+    {
+      "package": "boxic_feel",
+      "repo": "hex",
+      "kind": "transitive",
+      "context": [
+        "decisions"
+      ],
+      "role": "The FEEL expression engine (ADR 0027)."
+    },
+    {
+      "package": "ash_bpmn",
+      "repo": "lukegalea/ash_bpmn",
+      "kind": "first-party",
+      "context": [
+        "bpmn"
+      ],
+      "role": "Process documents → graph snapshot → token interpreter."
+    },
+    {
+      "package": "ash_planning",
+      "repo": "lukegalea/ash_planning",
+      "kind": "first-party",
+      "context": [
+        "planning"
+      ],
+      "role": "Planning fragments, IR, validators; solver backend."
+    },
+    {
+      "package": "ash_agent",
+      "repo": "lukegalea/ash_agent",
+      "kind": "first-party",
+      "context": [
+        "agents"
+      ],
+      "role": "Governed invocations and durable agent runs (host-instantiated)."
+    },
+    {
+      "package": "ash_acp",
+      "repo": "lukegalea/ash_acp",
+      "kind": "first-party",
+      "context": [
+        "acp"
+      ],
+      "role": "The agent-client wire adapter; no second authorization model."
+    },
+    {
+      "package": "ash_a2ui",
+      "repo": "lukegalea/ash_a2ui",
+      "kind": "first-party",
+      "context": [
+        "surfaces"
+      ],
+      "role": "Agent-renderable payloads generated from resources."
+    },
+    {
+      "package": "ash_agent_tools",
+      "repo": "lukegalea/ash_agent_tools",
+      "kind": "first-party dev",
+      "context": [
+        "standards"
+      ],
+      "role": "Read-only introspection CLI + the iron laws."
+    },
+    {
+      "package": "battery",
+      "repo": "in-repo",
+      "kind": "in-repo",
+      "context": [
+        "platform"
+      ],
+      "role": "Cross-substrate integration battery over its own reference instantiation."
+    },
+    {
+      "package": "ash_events_chain",
+      "repo": "lukegalea/ash_events_chain",
+      "kind": "first-party",
+      "context": [
+        "audit"
+      ],
+      "role": "The audit log's hash chain: immutability triggers, the verifier over hot log and archive as one chain, the verified move to the archive."
+    },
+    {
+      "package": "ash_greenmask",
+      "repo": "lukegalea/ash_greenmask",
+      "kind": "first-party",
+      "context": [
+        "erasure"
+      ],
+      "role": "Masking blocks for sensitive attributes; the generated config's drift gate."
+    },
+    {
+      "package": "ash_signatures",
+      "repo": "lukegalea/ash_signatures",
+      "kind": "first-party",
+      "context": [
+        "signatures"
+      ],
+      "role": "The signature and acknowledgement fragments the host instantiates (ADR 0074)."
+    }
+  ],
+  "adopted": [
+    {
+      "package": "ash",
+      "role": "The declarative framework every resource, action and policy is written in."
+    },
+    {
+      "package": "ash_postgres",
+      "role": "The data layer; temporal resources, aggregates and codegen live on it."
+    },
+    {
+      "package": "ash_phoenix",
+      "role": "Forms and LiveView integration for the resources."
+    },
+    {
+      "package": "ash_authentication",
+      "role": "Sign-in, tokens, confirmation and password reset."
+    },
+    {
+      "package": "ash_authentication_phoenix",
+      "role": "The sign-in routes and plugs for the authentication package."
+    },
+    {
+      "package": "ash_admin",
+      "role": "The operator-facing admin surface over the resources."
+    },
+    {
+      "package": "ash_oban",
+      "role": "Triggers and scheduled actions on the resources."
+    },
+    {
+      "package": "ash_state_machine",
+      "role": "Lifecycle state machines on resources that have one."
+    },
+    {
+      "package": "ash_archival",
+      "role": "Soft archival where deletion must not mean loss."
+    },
+    {
+      "package": "ash_cloak",
+      "role": "Encrypted attributes (the erasure scopes' payloads)."
+    },
+    {
+      "package": "ash_money",
+      "role": "The money type where amounts are currency-bearing."
+    },
+    {
+      "package": "ash_graphql",
+      "role": "One API presentation of the domains."
+    },
+    {
+      "package": "ash_json_api",
+      "role": "The other API presentation of the domains."
+    },
+    {
+      "package": "ash_ai",
+      "role": "Tool and prompt-backed action integration for the model plane."
+    },
+    {
+      "package": "req_llm",
+      "role": "Model calls: key resolution and model selection, owned by the application."
+    },
+    {
+      "package": "ash_diagram",
+      "role": "Diagrams generated from the domains."
+    },
+    {
+      "package": "clarity",
+      "role": "The dev-only semantic graph and visualization companion."
+    },
+    {
+      "package": "cinder",
+      "role": "Tables for the resource lists."
+    },
+    {
+      "package": "reactor",
+      "role": "Transactional workflows with compensation (Ash.Reactor)."
+    },
+    {
+      "package": "oban",
+      "role": "Durable jobs: triggers, sweeps, drains, workers."
+    },
+    {
+      "package": "solverl",
+      "role": "The constraint-solver adapter behind the planning backend."
+    },
+    {
+      "package": "usage_rules",
+      "role": "Dependency usage rules gathered into the agent guidance."
+    },
+    {
+      "package": "igniter",
+      "role": "Code generation and project patching."
+    }
+  ]
+}
