@@ -1513,6 +1513,15 @@
       "role": "Declared questions, judgment ledger fragments, calibration."
     },
     {
+      "package": "ash_provenance",
+      "repo": "lukegalea/ash_provenance",
+      "kind": "transitive",
+      "context": [
+        "system-one"
+      ],
+      "role": "The explanation contract a materialised fact is explained on."
+    },
+    {
       "package": "ash_evidence",
       "repo": "lukegalea/ash_evidence",
       "kind": "first-party",
