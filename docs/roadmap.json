@@ -583,10 +583,12 @@
       "id": "q56",
       "section": "evidence",
       "question": "Can a document issued here be stood behind years later, and who decides what it asks and says?",
-      "answer": "Planned, and not built in this repository, which does not issue documents yet. The rendering package (`ash_paper`, MIT) is public. A document is a pure function of recorded inputs (ADR 0067): its payload and typed facts are frozen at issue, the issued bytes are the record, and a snapshot pins every definition, the engine and the fonts by hash, so a re-render within that pinned environment is digest-equal. Schema, layout, theme and wording are separate axes (ADR 0068): a tenant changes wording and theme as data, and a layout is reviewed code. What a person must confirm before a document issues is derived from the requirement's `unknown` verdicts, never designed as a form, and an answer is a person-grade fact that is not asked for again while the state it answered still holds (ADR 0076). A wording or decision-table change is measured against the documents already issued before a second person admits it, and the admission is refused on a missing, stale, errored or failed measurement (ADR 0077).",
-      "status": "planned",
+      "answer": "Partly built. A tenant issues a document from its own rows: the document's kind reads them server-side as the issuing person, through their policies, so a caller passes which record and never what it says, and a document cannot state what its issuer could not read. The worked example is a credential status letter from the synthetic clinic to a clinician. A document is a pure function of recorded inputs (ADR 0067): its payload and typed facts are frozen at issue, the issued bytes are the record, and a snapshot pins every definition, the engine and the fonts by hash, so a re-render of a stored run within that pinned environment is digest-equal. What the document said is sealed under the erasure scope of the person it is about (the letter's clinician), named by the kind, or the requester's own when the kind names none; a shred makes it unreadable and destroys the issued bytes unless a run in a surviving scope shares them, and the stored snapshot names nobody. Schema, layout, theme and wording are separate axes (ADR 0068); the clause, draft, interview (ADR 0076) and impact (ADR 0077) machinery ships with it and is exercised on synthetic kinds, while the worked example carries no clause, question or fee line yet.",
+      "status": "partial",
       "adr": "0067",
-      "item": "documents"
+      "item": "documents",
+      "proof": "test/ash_enterprise/credentialing/credential_status_letter_test.exs",
+      "test": "two clinicians' scopes share identical bytes: one shred keeps them, the second destroys them"
     }
   ],
   "items": [
@@ -861,8 +863,8 @@
       "priority": 2,
       "choice": "ash_paper: a document rendered from recorded inputs; questions derived from requirements; changes measured against issued documents",
       "adr": "0067",
-      "status": "planned",
-      "effort": "The kernel is public and built (ADRs 0067 and 0068). What remains is here: issuing a document from a tenant's own rows, with shredding that destroys its bytes; versioned clauses and the decision tables that select them; drafts; the interview (ADR 0076), on a planned `AshCompliance.Status.questions/2`; and the impact gate (ADR 0077), on the public `AshDecisions.Replay` and a planned `mix paper.impact` for layouts.",
+      "status": "partial",
+      "effort": "Landed: issuing a document from a tenant's own rows (`AshEnterprise.Documents`, the credential status letter as the worked example), sealed under the scope of the person it is about with shredding that destroys its bytes by refcount, and the clause, draft, interview and impact machinery on the kernel (ADRs 0067, 0068, 0076, 0077). Pending: a clause, a fee line and a question on the worked example, and a layout's `mix paper.impact` run in CI.",
       "bar": "Yes. Rendering takes no actor: it is a pure function over frozen inputs. The payload is read as the issuing actor, so a document cannot state what its issuer could not read; questions are answered self-service by the person they were asked of; and measuring a change is a granted action whose read of the tenant's other documents is a disclosure ADR 0077 states rather than hides."
     }
   ]
