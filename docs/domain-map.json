@@ -1436,6 +1436,43 @@
         }
       ],
       "edges": []
+    },
+    {
+      "id": "documents",
+      "name": "Documents",
+      "domain": "AshEnterprise.Documents",
+      "plane": "experience",
+      "mission": "Issuing real documents from the host's own data through the paper kernel: a document is a pure function of recorded inputs.",
+      "packages": [
+        "ash_paper"
+      ],
+      "adrs": [
+        67,
+        68
+      ],
+      "terms": [
+        {
+          "term": "binding",
+          "definition": "What a document kind is rendered with, one temporal row per (organization, kind)."
+        },
+        {
+          "term": "run",
+          "definition": "One attempt to produce a document: the stored bytes are the record, the render and its read-back are its two status axes, and the payload it rendered is sealed."
+        },
+        {
+          "term": "clause",
+          "definition": "The wording a document may carry, per locale: tenant data, drafted and admitted with maker-checker, pinned by a binding."
+        },
+        {
+          "term": "draft",
+          "definition": "A rendered document waiting for a person: approved, then issued exactly as rendered while nothing it was made from has moved, or marked stale and never issued."
+        },
+        {
+          "term": "answer",
+          "definition": "A person's answer to a question a requirement asked on a blocked run, admitted as a person-grade fact so the next document in the same scope is not asked again."
+        }
+      ],
+      "edges": []
     }
   ],
   "substrates": [
