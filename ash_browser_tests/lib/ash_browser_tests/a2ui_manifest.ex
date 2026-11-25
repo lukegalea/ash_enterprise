@@ -4,10 +4,10 @@ defmodule AshBrowserTests.A2uiManifest do
   presets, row actions, `visible_when` and `prompt_fields`, built by `ash_a2ui` from
   `AshA2ui.Info`.
 
-  `ash_a2ui` does not ship this yet (`Stub` below is the placeholder until it does);
-  this behaviour is the shape to build toward. `README.md` lists what is needed from
-  it. `Static` serves a manifest written by hand, for tests and for hosts that want
-  row-action coverage before the upstream manifest exists.
+  `ash_a2ui` builds it: `AshA2ui.Manifest.for_surface/2` returns this shape for
+  a surface, so a host's module is usually one clause per surface over its own
+  registry. `Stub` below answers `nil` for every surface, for a host with no A2UI;
+  `Static` serves a manifest written by hand, for tests.
   """
 
   @type prompt_field :: %{
@@ -40,8 +40,8 @@ defmodule AshBrowserTests.A2uiManifest do
 
   defmodule Stub do
     @moduledoc """
-    The placeholder until `ash_a2ui` ships a manifest: every surface answers `nil`,
-    so A2UI row actions contribute no obligations and no tests.
+    For a host with no A2UI: every surface answers `nil`, so A2UI row actions
+    contribute no obligations and no tests.
     """
     @behaviour AshBrowserTests.A2uiManifest
 

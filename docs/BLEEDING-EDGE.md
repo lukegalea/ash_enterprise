@@ -134,6 +134,10 @@ confined so that removing one is a deletion, not a refactor.
 | `ash_judgments` | judgment substrate (System One); tracks the default branch, declared without `branch:` to match `ash_agent_tools` | `ash_rules`, `ash_compliance`, `ash_bpmn`, `ash_decisions`, `ash_events` fork | no: needs both forks gone |
 | `ash_agent_tools` | read-only Ash introspection for coding agents, and the code subjects the standards are judged over (dev and test only) | `ash_rules`, `ash_bpmn`, `ash_decisions`, `ash_judgments` (all optional) | after those four, so after `boxic_dmn` and both forks |
 
+`ash_browser_tests`, a package of this repository, takes `ash_journeys` as an optional, test-only `github:`
+dependency for its journey runner. It is not in this app's lock: a host that runs journeys declares it beside them,
+and it gets a row in this table when this app does.
+
 **Path to Hex:** a Hex package can only depend on Hex packages, so publish from the leaves up:
 1. The packages with no git dependencies of their own.
 2. `ash_compliance`.

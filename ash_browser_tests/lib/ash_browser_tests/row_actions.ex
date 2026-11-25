@@ -74,9 +74,12 @@ defmodule AshBrowserTests.RowActions do
   (values by field name; a choice picker selects the option whose value it
   is), and confirms through the prompt's `confirm_label` when one is
   declared.
+
+  `confirm: false` stops before confirming, leaving the prompt or confirmation
+  dialog open (to capture it, say); `confirm/2` then confirms it.
   """
-  @spec perform(struct(), map(), map()) :: struct()
-  def perform(conn, %{id: row_id, text: row_text, inputs: inputs}, row_action) do
+  @spec perform(struct(), map(), map(), keyword()) :: struct()
+  def perform(conn, %{id: row_id, text: row_text, inputs: inputs}, row_action, opts \\ []) do
     conn = wait_for_row(conn, row_id, row_text, row_action)
     conn = click(conn, row_id, row_text, row_action)
 
@@ -85,9 +88,18 @@ defmodule AshBrowserTests.RowActions do
         fill_prompt(acc, field, Map.fetch!(inputs || %{}, field.name))
       end)
 
+    if Keyword.get(opts, :confirm, true), do: confirm(conn, row_action), else: conn
+  end
+
+  @doc """
+  Confirms `row_action`'s open prompt or confirmation dialog through its
+  `confirm_label` control. Does nothing for an action that declares none.
+  """
+  @spec confirm(struct(), map()) :: struct()
+  def confirm(conn, row_action) do
     case row_action[:confirm_label] do
       nil -> conn
-      label -> confirm(conn, label)
+      label -> click_confirm(conn, label)
     end
   end
 
@@ -97,7 +109,7 @@ defmodule AshBrowserTests.RowActions do
   # closed dialogs included, and a text-only click lands in the first of
   # them. Only the clicked action's prompt is open, so the visible confirm
   # is the right one.
-  defp confirm(conn, label) do
+  defp click_confirm(conn, label) do
     expression = """
     (() => {
       #{Browser.walker()}
@@ -111,7 +123,15 @@ defmodule AshBrowserTests.RowActions do
           (visible(el) ||
             (el.shadowRoot && [...el.shadowRoot.querySelectorAll("button")].some(visible)))
       )
-      const el = candidates[0]
+      // A confirmation dialog's control before a same-named one behind it (the
+      // row's own button, for a destructive action confirmed under its name).
+      const inDialog = (el) => {
+        for (let node = el; node; node = node.parentNode || node.host) {
+          if (node.matches && node.matches('[role="dialog"], [role="alertdialog"], dialog[open]')) return true
+        }
+        return false
+      }
+      const el = candidates.find(inDialog) || candidates[0]
       if (!el) return false
       const inner = el.shadowRoot && el.shadowRoot.querySelector("button")
       ;(inner || el).click()

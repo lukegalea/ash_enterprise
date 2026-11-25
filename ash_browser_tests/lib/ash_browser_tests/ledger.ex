@@ -11,6 +11,20 @@ defmodule AshBrowserTests.Ledger do
   A waiver is `{:surface, id, reason}` or `{:action, surface_id, action_id, reason}`.
   A waived surface covers its actions: nothing can be driven on a page that is not
   opened.
+
+  ## Documented by a journey
+
+  A second, separate account (`documentation_problems/3`): every surface and
+  action is either walked by one of the host's journeys (`ash_journeys`,
+  `AshBrowserTests.Journeys.documented/1`) or carries an `:undocumented` waiver
+  with a reason: `{:undocumented, :surface, id, reason}` or
+  `{:undocumented, :action, {surface_id, action_id}, reason}`. It lives in the
+  same waiver list as the exercise waivers, and each account reads only its own
+  kind. A journey names a surface by its registry id (`:people` is `"people"`)
+  and a row action by its manifest id, as the generator does (`"row:<id>"`).
+
+  An `:undocumented` waiver goes stale like any other: when it names nothing
+  declared, or something a journey now walks.
   """
 
   alias AshBrowserTests.Action
@@ -19,6 +33,10 @@ defmodule AshBrowserTests.Ledger do
   @type waiver ::
           {:surface, String.t(), String.t()}
           | {:action, String.t(), String.t(), String.t()}
+          | {:undocumented, :surface, String.t(), String.t()}
+          | {:undocumented, :action, {String.t(), String.t()}, String.t()}
+  @type documented ::
+          {:journey, String.t(), {:surface, String.t()} | {:action, String.t(), String.t()}}
   @type problem :: {atom(), term()}
 
   @doc """
@@ -28,6 +46,7 @@ defmodule AshBrowserTests.Ledger do
   """
   @spec problems([Surface.t()], [waiver()], list()) :: [problem()]
   def problems(surfaces, waivers, exercised) do
+    waivers = Enum.reject(waivers, &undocumented?/1)
     exercised = MapSet.new(exercised)
     obligations = obligations(surfaces)
 
@@ -50,6 +69,72 @@ defmodule AshBrowserTests.Ledger do
               Enum.map_join(problems, "\n", &format/1)
     end
   end
+
+  @doc """
+  The problems in the documentation account (see the moduledoc): `documented` is
+  what the host's journeys walk, as `{:journey, journey_id, {:surface, id}}` and
+  `{:journey, journey_id, {:action, surface_id, action_id}}`. Exercise waivers in
+  `waivers` are ignored.
+  """
+  @spec documentation_problems([Surface.t()], [waiver()], [documented()]) :: [problem()]
+  def documentation_problems(surfaces, waivers, documented) do
+    waivers = Enum.filter(waivers, &undocumented?/1)
+    walked = Map.new(documented, fn {:journey, journey, key} -> {key, journey} end)
+    known = MapSet.new(obligations(surfaces))
+
+    undocumented =
+      Enum.flat_map(surfaces, fn %Surface{} = surface ->
+        if waived?(waivers, {:undocumented, :surface, surface.id}) do
+          []
+        else
+          surface_key = {:surface, surface.id}
+
+          surface_problem =
+            if Map.has_key?(walked, surface_key),
+              do: [],
+              else: [{:undocumented_surface, surface.id}]
+
+          action_problems =
+            for %Action{id: id} <- surface.actions,
+                not Map.has_key?(walked, {:action, surface.id, id}),
+                not waived?(waivers, {:undocumented, :action, {surface.id, id}}),
+                do: {:undocumented_action, {surface.id, id}}
+
+          surface_problem ++ action_problems
+        end
+      end)
+
+    waiver_problems =
+      Enum.flat_map(waivers, fn {:undocumented, kind, id, reason} = waiver ->
+        key = if kind == :surface, do: {:surface, id}, else: Tuple.insert_at(id, 0, :action)
+
+        cond do
+          not reason_ok?(reason) -> [{:waiver_without_reason, waiver}]
+          not MapSet.member?(known, key) -> [{:stale_waiver, waiver}]
+          journey = walked[key] -> [{:documented_waiver, {waiver, journey}}]
+          true -> []
+        end
+      end)
+
+    undocumented ++ waiver_problems
+  end
+
+  @doc "Raises `ExUnit.AssertionError` if `documentation_problems/3` finds anything."
+  @spec assert_documented!([Surface.t()], [waiver()], [documented()]) :: :ok
+  def assert_documented!(surfaces, waivers, documented) do
+    case documentation_problems(surfaces, waivers, documented) do
+      [] ->
+        :ok
+
+      problems ->
+        raise ExUnit.AssertionError,
+          message:
+            "the documentation ledger is not complete:\n" <>
+              Enum.map_join(problems, "\n", &format/1)
+    end
+  end
+
+  defp undocumented?(waiver), do: elem(waiver, 0) == :undocumented
 
   defp obligations(surfaces) do
     Enum.flat_map(surfaces, fn %Surface{} = surface ->
@@ -97,6 +182,10 @@ defmodule AshBrowserTests.Ledger do
     Enum.any?(waivers, &match?({:action, ^surface_id, ^action_id, _reason}, &1))
   end
 
+  defp waived?(waivers, {:undocumented, kind, id}) do
+    Enum.any?(waivers, &match?({:undocumented, ^kind, ^id, _reason}, &1))
+  end
+
   defp malformed_waivers(waivers) do
     Enum.flat_map(waivers, fn waiver ->
       if reason_ok?(reason(waiver)), do: [], else: [{:waiver_without_reason, waiver}]
@@ -132,6 +221,19 @@ defmodule AshBrowserTests.Ledger do
 
   defp format({:waiver_without_reason, waiver}) do
     "  waiver #{inspect(waiver)} has no reason"
+  end
+
+  defp format({:undocumented_surface, id}) do
+    "  surface #{inspect(id)} is in no journey and has no :undocumented waiver"
+  end
+
+  defp format({:undocumented_action, {surface_id, action_id}}) do
+    "  action #{inspect(action_id)} on surface #{inspect(surface_id)} is in no journey " <>
+      "and has no :undocumented waiver"
+  end
+
+  defp format({:documented_waiver, {waiver, journey}}) do
+    "  waiver #{inspect(waiver)} excuses what journey #{journey} walks; remove it"
   end
 
   defp format({:stale_waiver, waiver}) do
