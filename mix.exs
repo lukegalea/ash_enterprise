@@ -405,6 +405,16 @@ defmodule AshEnterprise.MixProject do
       # supplies the judge actions and the embeddings.
       {:ash_evidence, github: "lukegalea/ash_evidence", branch: "main"},
 
+      # --- The paper kernel ----------------------------------------------------
+      # Deterministic PDF documents from Ash data: schemas naming read paths,
+      # host-owned Typst layouts, typed themes, a run fragment with the two
+      # status axes (render / read-back), and `mix paper.lock` for the host's
+      # declared schemas and layouts. Pinned by ref while the API settles
+      # (docs/BLEEDING-EDGE.md has the row). The wiring lives in
+      # AshEnterprise.Documents.
+      {:ash_paper,
+       github: "lukegalea/ash_paper", ref: "e14889c94d64da0198ea21fc854201b0368f7f42"},
+
       # --- Business processes and the decisions they route on ------------------
       # The other half of ADR 0009. `ash_bpmn` compiles a BPMN document into an
       # immutable versioned graph and executes it with a token interpreter over

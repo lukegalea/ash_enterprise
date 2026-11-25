@@ -23,6 +23,10 @@ layer (`AshEvidence.EvalSet`, `AshEvidence.EvalItem`,
 - **Never call an instrument from this package.** No HTTP client, no Req, no
   model id, no endpoint, no key literal — in source, config or fixtures. The
   host starts a `ParseRun`, does its OCR/LLM work outside, and closes the run.
+  A deterministic check the host has already run is recorded with
+  `record_check(version_id, instrument, config, passed?)`: one run, closed on
+  insert. Pass `passed?: true` only for a check that ran and passed; an errored
+  or unmeasured check is `false`.
   The same applies to embeddings and adjudication: the host embeds and judges;
   `retrieve/3`, `record_embedding` and the aggregation only ever record, score
   and compose what the host computed.
@@ -120,7 +124,8 @@ layer (`AshEvidence.EvalSet`, `AshEvidence.EvalItem`,
   own test-host tables (`test_host_*`); never point a host at it.
 - Point `AshEvidence.Repo` at the host's own database (residency is the
   host's concern); PostgreSQL 18 is the declared floor, with the `vector`
-  extension installed. A host with its own schema sets `default_prefix:` and
+  extension installed where the server ships it (without it the migrations
+  skip `atom_representations.embedding` and retrieval is lexical-only). A host with its own schema sets `default_prefix:` and
   `migration_default_prefix:` (same repo config) to it and puts it first on
   the repo's `search_path`; a migration resolves a foreign key with
   `prefix()`, never a literal `"public"`.

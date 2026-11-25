@@ -115,7 +115,8 @@ defmodule AshEnterprise.Anonymization.GreenmaskConfigTest do
   end
 
   # Free-form JSON columns a copy holds as they are, carried as they stood on 2026-11-18
-  # when the MDM landing and staging columns were found copied in plaintext. Each still needs
+  # when the MDM landing and staging columns were found copied in plaintext, and the
+  # document columns added on 2026-11-21 (a decision table's impact report among them). Each still needs
   # a decision in its resource's `greenmask` block (a transform, or a keep with its reason in
   # the generated header); until then it is listed here and in
   # docs/runbooks/production-copy.md. A JSON column added to a stored resource fails the
@@ -139,10 +140,19 @@ defmodule AshEnterprise.Anonymization.GreenmaskConfigTest do
     AshEnterprise.Credentialing.DocumentEvent.data
     AshEnterprise.Decisions.Definition.errors
     AshEnterprise.Decisions.Definition.graph
+    AshEnterprise.Decisions.Definition.impact_report
     AshEnterprise.Decisions.Definition.verification
     AshEnterprise.Decisions.Evaluation.error
     AshEnterprise.Decisions.Evaluation.inputs
     AshEnterprise.Decisions.Evaluation.outputs
+    AshEnterprise.Documents.PaperAnswer.scope
+    AshEnterprise.Documents.PaperBinding.selection
+    AshEnterprise.Documents.PaperClause.runs
+    AshEnterprise.Documents.PaperDraft.issue_outcomes
+    AshEnterprise.Documents.PaperDraft.unresolved_obligations
+    AshEnterprise.Documents.PaperRun.clause_reasons
+    AshEnterprise.Documents.PaperRun.problems
+    AshEnterprise.Documents.PaperRun.snapshot
     AshEnterprise.Erasure.PersonErasure.counts
     AshEnterprise.Execution.AgentVersion.authority
     AshEnterprise.Execution.AgentVersion.limits

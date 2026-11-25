@@ -89,7 +89,7 @@ flowchart LR
     ctx_zones["Residency zones"]
     ctx_assistant["Assistant<br/>18 resources"]
     ctx_legacy-agent["Legacy agent"]
-    ctx_quality["Quality<br/>5 resources"]
+    ctx_quality["Quality<br/>4 resources"]
     ctx_acp["Agent protocol"]
   end
   subgraph experience["Surfaces"]
@@ -1262,7 +1262,7 @@ Agent-quality suites and gated, attested releases.
 | **suite run** | One run of a published suite against a candidate agent: running, then finished. |
 | **case result** | What one case of a suite run scored, at one epoch; written once, never changed. |
 
-**Resources** — 5 introspected
+**Resources** — 4 introspected
 
 | Resource | Description | Aggregates | Calculations |
 |---|---|---|---|
@@ -1270,7 +1270,6 @@ Agent-quality suites and gated, attested releases.
 | `AshEnterprise.Quality.CaseResult` | — | 0 | 0 |
 | `AshEnterprise.Quality.Suite` | — | 0 | 1 |
 | `AshEnterprise.Quality.SuiteRun` | — | 0 | 2 |
-| `AshEnterprise.Quality.ToolCall` | — | 0 | 0 |
 
 
 <!-- domain-map:context:quality:end -->
@@ -1438,7 +1437,7 @@ The artifact registry: every versioned thing a person authors, reviews or releas
 | `ash_agent` | first-party | git @ c3bd9892 | [Agents](#agents) | Governed invocations and durable agent runs (host-instantiated). |
 | `ash_acp` | first-party | git @ 536a404d | [Agent protocol](#acp) | The agent-client wire adapter; no second authorization model. |
 | `ash_a2ui` | first-party | git @ 9b1957cd | [Surfaces](#surfaces) | Agent-renderable payloads generated from resources. |
-| `ash_agent_tools` | first-party dev | git @ ca3168ce | [Standards](#standards) | Read-only introspection CLI + the iron laws. |
+| `ash_agent_tools` | first-party dev | git @ 0171a910 | [Standards](#standards) | Read-only introspection CLI + the iron laws. |
 | `battery` | in-repo | in-repo (`battery/`) | [Platform](#platform) | Cross-substrate integration battery over its own reference instantiation. |
 | `ash_events_chain` | first-party | git @ cd122991 | [Audit](#audit) | The audit log's hash chain: immutability triggers, the verifier over hot log and archive as one chain, the verified move to the archive. |
 | `ash_greenmask` | first-party | git @ 24b0c882 | [Erasure](#erasure) | Masking blocks for sensitive attributes; the generated config's drift gate. |

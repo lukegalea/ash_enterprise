@@ -192,7 +192,7 @@ metadata:
 ## Searching Documentation
 
 ```sh
-mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_admin -p ash_agent -p ash_agent_tools -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_bpmn -p ash_cloak -p ash_compliance -p ash_credo -p ash_decisions -p ash_diagram -p ash_discrete_business_events -p ash_enterprise_telemetry -p ash_events -p ash_events_chain -p ash_evidence -p ash_graphql -p ash_greenmask -p ash_json_api -p ash_judgments -p ash_mdm -p ash_money -p ash_oban -p ash_open_lineage -p ash_operations -p ash_phoenix -p ash_planning -p ash_postgres -p ash_rules -p ash_signatures -p ash_state_machine -p ash_strangler
+mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_admin -p ash_agent -p ash_agent_tools -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_bpmn -p ash_cloak -p ash_compliance -p ash_credo -p ash_decisions -p ash_diagram -p ash_discrete_business_events -p ash_enterprise_telemetry -p ash_events -p ash_events_chain -p ash_evidence -p ash_graphql -p ash_greenmask -p ash_json_api -p ash_judgments -p ash_mdm -p ash_money -p ash_oban -p ash_open_lineage -p ash_operations -p ash_paper -p ash_phoenix -p ash_planning -p ash_postgres -p ash_rules -p ash_signatures -p ash_state_machine -p ash_strangler
 ```
 
 ## Available Mix Tasks
@@ -295,6 +295,8 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_a
 - `mix ash_oban.set_default_module_names.docs`
 - `mix ash_oban.upgrade`
 - `mix ash_operations.install` - Installs AshOperations: formatter entry and a commented provider example
+- `mix paper.impact` - Prints what a layout would change in the configured sample documents
+- `mix paper.lock` - Writes or checks the lock of schemas and layouts
 - `mix ash_phoenix.gen.html` - Generates a controller and HTML views for an existing Ash resource.
 - `mix ash_phoenix.gen.live` - Generates liveviews for a given domain and resource.
 - `mix ash_phoenix.install` - Installs AshPhoenix into a project. Should be called with `mix igniter.install ash_phoenix`
