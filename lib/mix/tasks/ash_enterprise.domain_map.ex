@@ -110,7 +110,7 @@ defmodule Mix.Tasks.AshEnterprise.DomainMap do
 
       {:ok, _} ->
         Mix.raise(
-          ~s|#{@source} must contain exactly the keys #{@top_level_keys |> Enum.map(&inspect/1) |> Enum.join(", ")}.|
+          ~s|#{@source} must contain exactly the keys #{Enum.map_join(@top_level_keys, ", ", &inspect/1)}.|
         )
 
       {:error, error} ->
@@ -140,86 +140,11 @@ defmodule Mix.Tasks.AshEnterprise.DomainMap do
       Mix.raise("Plane #{inspect(plane["id"])} needs a purpose.")
     end
 
-    for context <- contexts do
-      id = context["id"]
-
-      unless context["plane"] in plane_ids do
-        Mix.raise(
-          "Context #{inspect(id)} names plane #{inspect(context["plane"])}, which is not defined."
-        )
-      end
-
-      unless is_binary(context["mission"]) and context["mission"] != "" do
-        Mix.raise("Context #{inspect(id)} needs a mission.")
-      end
-
-      domain = context["domain"]
-
-      if !(is_binary(domain) or is_nil(domain)) do
-        Mix.raise("Context #{inspect(id)}: \"domain\" must be the domain module string or null.")
-      end
-
-      len = length(context["terms"])
-
-      if len < 3 or len > 8 do
-        Mix.raise(
-          "Context #{inspect(id)} has #{len} terms; the ubiquitous language wants three to eight per context."
-        )
-      end
-
-      Enum.each(context["terms"], fn term ->
-        reject_unknown_keys!(term, @term_keys, "term of #{inspect(id)}")
-
-        if term["term"] in [nil, ""] or term["definition"] in [nil, ""] do
-          Mix.raise("A term of #{inspect(id)} needs both a term and a definition.")
-        end
-      end)
-
-      Enum.each(context["edges"], fn edge ->
-        reject_unknown_keys!(edge, @edge_keys, "edge of #{inspect(id)}")
-
-        unless edge["to"] in context_ids do
-          Mix.raise(
-            "Edge of #{inspect(id)} points at context #{inspect(edge["to"])}, which is not defined."
-          )
-        end
-      end)
-    end
+    Enum.each(contexts, &validate_context!(&1, plane_ids, context_ids))
 
     lock = read_lock!()
 
-    Enum.each(data["substrates"], fn substrate ->
-      package = substrate["package"]
-
-      unless substrate["kind"] in @substrate_kinds do
-        Mix.raise(
-          "Substrate #{inspect(package)}: unknown kind #{inspect(substrate["kind"])}. " <>
-            "Legal kinds: #{@substrate_kinds |> Enum.join(", ")}."
-        )
-      end
-
-      ctx = normalize_ctx(substrate["context"])
-
-      Enum.each(ctx, fn id ->
-        unless id in context_ids do
-          Mix.raise(
-            "Substrate #{inspect(package)} names context #{inspect(id)}, which is not defined."
-          )
-        end
-      end)
-
-      if substrate["kind"] == "in-repo" do
-        unless File.dir?(@battery_dir) do
-          Mix.raise(
-            "Substrate #{inspect(package)} is in-repo, but #{@battery_dir}/ does not exist."
-          )
-        end
-      else
-        unless Map.has_key?(lock, package) do
-          Mix.raise("Substrate #{inspect(package)} is not in #{@lock}.")
-        end
-      end
-    end)
+    Enum.each(data["substrates"], &validate_substrate!(&1, context_ids, lock))
 
     Enum.each(data["adopted"], fn adopted ->
       unless Map.has_key?(lock, adopted["package"]) do
@@ -230,13 +155,95 @@ defmodule Mix.Tasks.AshEnterprise.DomainMap do
     :ok
   end
 
+  defp validate_context!(context, plane_ids, context_ids) do
+    id = context["id"]
+
+    unless context["plane"] in plane_ids do
+      Mix.raise(
+        "Context #{inspect(id)} names plane #{inspect(context["plane"])}, which is not defined."
+      )
+    end
+
+    unless is_binary(context["mission"]) and context["mission"] != "" do
+      Mix.raise("Context #{inspect(id)} needs a mission.")
+    end
+
+    domain = context["domain"]
+
+    if !(is_binary(domain) or is_nil(domain)) do
+      Mix.raise("Context #{inspect(id)}: \"domain\" must be the domain module string or null.")
+    end
+
+    len = length(context["terms"])
+
+    if len < 3 or len > 8 do
+      Mix.raise(
+        "Context #{inspect(id)} has #{len} terms; the ubiquitous language wants three to eight per context."
+      )
+    end
+
+    Enum.each(context["terms"], &validate_term!(&1, id))
+    Enum.each(context["edges"], &validate_edge!(&1, id, context_ids))
+  end
+
+  defp validate_term!(term, id) do
+    reject_unknown_keys!(term, @term_keys, "term of #{inspect(id)}")
+
+    if term["term"] in [nil, ""] or term["definition"] in [nil, ""] do
+      Mix.raise("A term of #{inspect(id)} needs both a term and a definition.")
+    end
+  end
+
+  defp validate_edge!(edge, id, context_ids) do
+    reject_unknown_keys!(edge, @edge_keys, "edge of #{inspect(id)}")
+
+    unless edge["to"] in context_ids do
+      Mix.raise(
+        "Edge of #{inspect(id)} points at context #{inspect(edge["to"])}, which is not defined."
+      )
+    end
+  end
+
+  defp validate_substrate!(substrate, context_ids, lock) do
+    package = substrate["package"]
+
+    unless substrate["kind"] in @substrate_kinds do
+      Mix.raise(
+        "Substrate #{inspect(package)}: unknown kind #{inspect(substrate["kind"])}. " <>
+          "Legal kinds: #{@substrate_kinds |> Enum.join(", ")}."
+      )
+    end
+
+    Enum.each(normalize_ctx(substrate["context"]), fn id ->
+      unless id in context_ids do
+        Mix.raise(
+          "Substrate #{inspect(package)} names context #{inspect(id)}, which is not defined."
+        )
+      end
+    end)
+
+    validate_substrate_source!(substrate["kind"], package, lock)
+  end
+
+  defp validate_substrate_source!("in-repo", package, _lock) do
+    unless File.dir?(@battery_dir) do
+      Mix.raise("Substrate #{inspect(package)} is in-repo, but #{@battery_dir}/ does not exist.")
+    end
+  end
+
+  defp validate_substrate_source!(_kind, package, lock) do
+    unless Map.has_key?(lock, package) do
+      Mix.raise("Substrate #{inspect(package)} is not in #{@lock}.")
+    end
+  end
+
   defp reject_unknown_keys!(entry, legal, where) when is_map(entry) do
     unknown = Map.keys(entry) -- legal
 
     unless unknown == [] do
       Mix.raise(
-        "Unknown key(s) #{unknown |> Enum.map(&inspect/1) |> Enum.join(", ")} at #{where}. " <>
-          "Legal keys: #{legal |> Enum.map(&inspect/1) |> Enum.join(", ")}."
+        "Unknown key(s) #{Enum.map_join(unknown, ", ", &inspect/1)} at #{where}. " <>
+          "Legal keys: #{Enum.map_join(legal, ", ", &inspect/1)}."
       )
     end
   end
@@ -275,7 +282,7 @@ defmodule Mix.Tasks.AshEnterprise.DomainMap do
     unless missing_domains == [] do
       Mix.raise(
         "These registered domains have no context in #{@source}: " <>
-          (missing_domains |> Enum.map(&inspect/1) |> Enum.join(", ")) <>
+          Enum.map_join(missing_domains, ", ", &inspect/1) <>
           ". Add a context with \"domain\" set, or remove the domain from :ash_domains."
       )
     end
@@ -293,7 +300,7 @@ defmodule Mix.Tasks.AshEnterprise.DomainMap do
     unless unclaimed == [] do
       Mix.raise(
         "These first-party entries in #{@lock} are claimed by no substrate or context package: " <>
-          (unclaimed |> Enum.map(&inspect/1) |> Enum.join(", ")) <> "."
+          Enum.map_join(unclaimed, ", ", &inspect/1) <> "."
       )
     end
   end
@@ -368,27 +375,23 @@ defmodule Mix.Tasks.AshEnterprise.DomainMap do
   end
 
   defp relationship_edges(resources, ctx_by_resource, ctx_by_domain) do
-    resources
-    |> Enum.flat_map(fn resource ->
-      from = ctx_of(resource, ctx_by_resource, ctx_by_domain)
-
-      if from do
-        Enum.flat_map(Ash.Resource.Info.relationships(resource), fn rel ->
-          dest = rel.destination
-          dest_domain = Map.get(rel, :domain) || Ash.Resource.Info.domain(dest)
-
-          to =
-            ctx_of(dest, ctx_by_resource, ctx_by_domain) ||
-              ctx_by_domain[module_name(dest_domain)]
-
-          if to && to != from, do: [{from, to}], else: []
-        end)
-      else
-        []
-      end
-    end)
+    for resource <- resources,
+        from = ctx_of(resource, ctx_by_resource, ctx_by_domain),
+        from,
+        rel <- Ash.Resource.Info.relationships(resource),
+        to = rel_ctx(rel, ctx_by_resource, ctx_by_domain),
+        to && to != from do
+      {from, to}
+    end
     |> Enum.frequencies()
     |> Enum.sort()
+  end
+
+  defp rel_ctx(rel, ctx_by_resource, ctx_by_domain) do
+    dest = rel.destination
+    dest_domain = Map.get(rel, :domain) || Ash.Resource.Info.domain(dest)
+
+    ctx_of(dest, ctx_by_resource, ctx_by_domain) || ctx_by_domain[module_name(dest_domain)]
   end
 
   defp module_name(nil), do: nil
@@ -546,22 +549,18 @@ defmodule Mix.Tasks.AshEnterprise.DomainMap do
 
   # -- graph ----------------------------------------------------------------
 
+  defp context_label(%{resource_count: count} = context) when count > 0,
+    do: "#{context["name"]}<br/>#{count} resources"
+
+  defp context_label(context), do: context["name"]
+
   defp graph(model) do
     subgraphs =
       for plane <- model.data["planes"] do
         body =
           model.contexts
           |> Enum.filter(&(&1["plane"] == plane["id"]))
-          |> Enum.map_join("\n", fn context ->
-            label =
-              if context[:resource_count] > 0 do
-                "#{context["name"]}<br/>#{context[:resource_count]} resources"
-              else
-                context["name"]
-              end
-
-            ~s(    ctx_#{context["id"]}[#{mermaid_label(label)}])
-          end)
+          |> Enum.map_join("\n", &~s(    ctx_#{&1["id"]}[#{mermaid_label(context_label(&1))}]))
 
         "  subgraph #{plane["id"]}[#{mermaid_label(plane["name"])}]\n#{body}\n  end"
       end
@@ -644,7 +643,7 @@ defmodule Mix.Tasks.AshEnterprise.DomainMap do
         "Plane: **#{plane_name(model, context["plane"])}**",
         context["domain"] && "Domain: `#{context["domain"]}`",
         context["packages"] != [] &&
-          "Packages: #{context["packages"] |> Enum.map(&"`#{&1}`") |> Enum.join(", ")}",
+          "Packages: #{Enum.map_join(context["packages"], ", ", &"`#{&1}`")}",
         context["adrs"] != [] && "ADRs: #{Enum.map_join(context["adrs"], ", ", &adr_link/1)}"
       ]
       |> Enum.reject(&blank?/1)
@@ -899,20 +898,17 @@ defmodule Mix.Tasks.AshEnterprise.DomainMap do
 
     rows =
       for from <- ctx_ids do
-        cells =
-          for to <- ctx_ids do
-            case Map.get(pairs, {from, to}) do
-              nil -> " "
-              n -> "#{n}"
-            end
-          end
+        cells = Enum.map_join(ctx_ids, " | ", &matrix_cell(Map.get(pairs, {from, &1})))
 
-        "| [#{context_name(model, from)}](##{from}) | " <> Enum.join(cells, " | ") <> " |"
+        "| [#{context_name(model, from)}](##{from}) | " <> cells <> " |"
       end
       |> Enum.join("\n")
 
     header <> rule <> rows
   end
+
+  defp matrix_cell(nil), do: " "
+  defp matrix_cell(n), do: "#{n}"
 
   # -- adopted ---------------------------------------------------------------
 
