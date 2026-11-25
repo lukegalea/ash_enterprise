@@ -485,6 +485,7 @@ The reasoning, the sequencing and what stays deliberately open is [`docs/ROADMAP
 | [`docs/QUESTIONS.md`](docs/QUESTIONS.md) | **The ledger** — every question, our answer, and what proves it |
 | [`docs/COMPLIANCE.md`](docs/COMPLIANCE.md) | **The control map** — SOC 2, ISO 27001 and GDPR controls, and the test that proves each |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Where the gaps go, in what order, and what each choice beat |
+| [`docs/DOMAIN-MAP.md`](docs/DOMAIN-MAP.md) | **The domain map** — bounded contexts, capability planes, and the edges between them, generated from `docs/domain-map.json` |
 | [`docs/HANDOFF.md`](docs/HANDOFF.md) | **Start here in a new session** — current state, and findings that cost time to discover |
 | [`docs/manifesto/`](docs/manifesto/00-index.md) | The eight theses, including [what we do not have](docs/manifesto/07-what-we-do-not-have.md) |
 | [`docs/adr/`](docs/adr/README.md) | Decision records, with the reversal path for each |

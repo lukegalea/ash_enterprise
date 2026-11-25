@@ -221,6 +221,14 @@ jobs:
       - name: Report the control ownership gaps
         run: mix ash_compliance.controls.check --report --require-producer-proof --categories security,availability,processing_integrity,confidentiality,privacy
 
+      # docs/domain-map.json is the editorial source of docs/DOMAIN-MAP.md, as
+      # roadmap.json is for the status tables — but the domain map's regions
+      # also render what the registered domains introspect (resources,
+      # relationships, the declared signal graph), so drift here can mean the
+      # map disagrees with the code, not only with the JSON.
+      - name: Check the domain map is rendered
+        run: mix ash_enterprise.domain_map --check
+
       # `--skip` honours the `@sobelow_skip` attributes in the source. There is
       # exactly one, on `AshEnterprise.Audit.Export`, and it says why next to
       # itself -- which is the point of the attribute over a config file.

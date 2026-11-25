@@ -2,8 +2,8 @@ defmodule AshEnterprise.Licences.EvalSet do
   @moduledoc """
   A licence family's eval set (S1-63/AC-1): the model's recorded answers
   about declared subjects, each paired with the declaration rung's answer
-  as gold. One per calibrated family (`families/0`): `third_party_licence`,
-  and `licence_use_restriction`, the use-restriction question's own.
+  as gold. One per calibrated family (`families/0`): each model question is
+  a family of its own, so each eval set holds one question's pairs.
 
   A calibration pass asks the model about subjects whose declaration
   already settles the questions (`AshEnterprise.Licences.Rungs.judge/3` with
@@ -16,10 +16,10 @@ defmodule AshEnterprise.Licences.EvalSet do
 
   Pairs are the questions the family declares now, read by question rather
   than by the family a ledger row was recorded under. A question that
-  moved family keeps its judgments in its new family's eval set (the
-  use-restriction question's rows, recorded under `third_party_licence`
-  before 2026-11-21), and an older row for a question that left the family
-  (the declaration question, which never calibrates) is not a pair.
+  moved family keeps its judgments in its new family's eval set (every
+  licence judgment recorded under the pooled family the eight model
+  questions shared until 2026-11-21), and the declaration question, which
+  never calibrates, is in no eval set.
 
   The document is what `AshEnterprise.SystemOne.CalibrationInput` reads.
   """
@@ -48,26 +48,15 @@ defmodule AshEnterprise.Licences.EvalSet do
   in one tenant.
 
   Options: `:actor` (a system actor; required), `:tenant` (required),
-  `:family` (one of `families/0`; default `"third_party_licence"`),
-  `:questions` (narrow to some of the family's question names; default all
-  of them) and `:created_by`. A family that is not calibrated raises.
+  `:family` (one of `families/0`; required) and `:created_by`. A family
+  that is not calibrated raises.
   """
   @spec build(keyword()) :: map()
   def build(opts) do
     actor = Keyword.fetch!(opts, :actor)
     tenant = Keyword.fetch!(opts, :tenant)
-    family = Keyword.get(opts, :family, "third_party_licence")
-    family_questions = questions(family)
-
-    wanted =
-      opts
-      |> Keyword.get(:questions, Enum.map(family_questions, & &1.name))
-      |> MapSet.new(&to_string/1)
-
-    question_ids =
-      for question <- family_questions,
-          MapSet.member?(wanted, Atom.to_string(question.name)),
-          do: question.question_id
+    family = Keyword.fetch!(opts, :family)
+    question_ids = family |> questions() |> Enum.map(& &1.question_id)
 
     subjects =
       Dependency
