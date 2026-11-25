@@ -3,8 +3,8 @@ defmodule AshEnterpriseWeb.StalledReviewsLiveTest do
   The stalled-reviews surface (`/app/reviews/stalled`, AGT-61), the page that shows
   without chat what the assistant's `stalled_reviews` tool shows in an answer: on the
   seeded clinic, a committee member sees the activation approval that has waited three
-  days, under the context band, and a colleague with no grant and no candidacy sees an
-  empty table, not the task.
+  days and is past its due date, under the context band, and a colleague with no grant
+  and no candidacy sees an empty table, not the task.
   """
 
   use AshEnterpriseWeb.ConnCase, async: false
@@ -54,10 +54,17 @@ defmodule AshEnterpriseWeb.StalledReviewsLiveTest do
     %{task_id: task_id} =
       coordinator |> Tour.activations() |> Enum.find(&(&1.credential_id == waiting.id))
 
+    # The activation approval carries a due date, and a task with a due date is stalled
+    # only once that date has passed: it opened three days ago and fell due yesterday.
+    now = DateTime.utc_now()
+
     {1, _} =
       AshEnterprise.Repo.update_all(
         Ecto.Query.from(t in "bpmn_human_tasks", where: t.id == type(^task_id, Ecto.UUID)),
-        set: [inserted_at: DateTime.add(DateTime.utc_now(), -3 * 86_400, :second)]
+        set: [
+          inserted_at: DateTime.add(now, -3 * 86_400, :second),
+          due_at: DateTime.add(now, -86_400, :second)
+        ]
       )
 
     {:ok, view, html} = live(sign_in(hd(ctx.clinic.committee)), "/app/reviews/stalled")

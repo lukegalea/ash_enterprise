@@ -38,7 +38,7 @@ defmodule AshEnterprise.Assistant.Lookup.StalledReview do
 
   actions do
     read :stalled_reviews do
-      description "Reviews and other tasks waiting on people for more than two days."
+      description "Reviews and other tasks waiting on people past their due date, or more than two days with none."
       manual Lookups.StalledReviews
     end
   end

@@ -1443,11 +1443,6 @@ msgstr ""
 msgid "Every version of what is authored here, what it references, whether it checks out and what changed."
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:673
-#, elixir-autogen, elixir-format
-msgid "Reviews and other process tasks you can see that have waited more than two days."
-msgstr ""
-
 #: lib/ash_enterprise/surfaces.ex:671
 #, elixir-autogen, elixir-format
 msgid "Stalled reviews"
@@ -1751,4 +1746,9 @@ msgstr ""
 #: lib/ash_enterprise/surfaces.ex:1263
 #, elixir-autogen, elixir-format
 msgid "Proposed match rules"
+msgstr ""
+
+#: lib/ash_enterprise/surfaces.ex:673
+#, elixir-autogen, elixir-format
+msgid "Reviews and other process tasks you can see that are past their due date, or have waited more than two days with none."
 msgstr ""

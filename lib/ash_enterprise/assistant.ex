@@ -186,10 +186,10 @@ defmodule AshEnterprise.Assistant do
 
     tool :stalled_reviews, AshEnterprise.Assistant.Lookup.StalledReview, :stalled_reviews do
       description """
-      Reviews and other tasks that have waited on people for more than two days,
-      as the person may read them: how many, the oldest with a ref to cite, and
-      the same list put on their screen in your answer (it is also a page of its
-      own). Use it for "stalled", "overdue" or "waiting too long" reviews.
+      Reviews and other tasks waiting on people past their due date (or, with no
+      due date, for more than two days), as the person may read them: how many,
+      the oldest with a ref to cite, and the same list put on their screen in
+      your answer (it is also a page of its own). Use it for "stalled", "overdue" or "waiting too long" reviews.
       """
 
       action_parameters []

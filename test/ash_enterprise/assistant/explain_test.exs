@@ -230,18 +230,22 @@ defmodule AshEnterprise.Assistant.ExplainTest do
     end
 
     test "stalled reviews: the tool's view is the declared surface's read, as the reader", ctx do
-      # DEMO-SLT-0004's approval has waited three days; a fresh one has not.
+      # DEMO-SLT-0004's approval has waited three days and fell due yesterday (a task
+      # with a due date is stalled only once it has passed); a fresh one has not.
       waiting = Enum.find(ctx.clinic.credentials, &(&1.number == "DEMO-SLT-0004"))
 
       %{task_id: stalled_id} =
         ctx.rosa.actor |> Tour.activations() |> Enum.find(&(&1.credential_id == waiting.id))
 
-      three_days_ago = DateTime.add(DateTime.utc_now(), -3 * 86_400, :second)
+      now = DateTime.utc_now()
 
       {1, _} =
         AshEnterprise.Repo.update_all(
           Ecto.Query.from(t in "bpmn_human_tasks", where: t.id == type(^stalled_id, Ecto.UUID)),
-          set: [inserted_at: three_days_ago]
+          set: [
+            inserted_at: DateTime.add(now, -3 * 86_400, :second),
+            due_at: DateTime.add(now, -86_400, :second)
+          ]
         )
 
       fresh = Enum.find(ctx.clinic.credentials, &(&1.number == "DEMO-RN-0002"))

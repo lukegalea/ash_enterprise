@@ -165,9 +165,38 @@ defmodule AshEnterprise.Audit.PackageTest do
       assert entry["status"] == "completed"
       assert entry["outcome"] == "approved"
       assert entry["decided_after_period"] == false
+      assert entry["decided_on_authority_of"] == "candidate"
       assert {:ok, decided_at, _} = DateTime.from_iso8601(entry["decided_at"])
       assert DateTime.compare(decided_at, from) == :gt
       assert DateTime.compare(decided_at, to) == :lt
+    end
+
+    test "a review decided on an escalation's authority says so", ctx do
+      brief!(ctx.ours)
+      [task] = open_tasks!(ctx.ours)
+
+      {from, _} = window()
+      complete!(ctx.ours, task)
+
+      # What the engine writes when the decider was a candidate only because an escalation
+      # added them (ash_bpmn DESIGN.md §11.6).
+      Ash.create!(
+        AshEnterprise.Bpmn.ProcessEvent,
+        %{
+          task_id: task.id,
+          kind: :task_completed,
+          data: %{"authority" => "escalation", "escalation_keys" => ["#{task.id}/x/0/1"]}
+        },
+        action: :create,
+        authorize?: false,
+        tenant: ctx.ours.tenant
+      )
+
+      to = DateTime.add(DateTime.utc_now(), 1, :hour)
+      {:ok, package} = export_period(ctx.auditor, from, to)
+      [entry] = Enum.filter(package["reviews"]["tasks"], &(&1["id"] == task.id))
+
+      assert entry["decided_on_authority_of"] == "escalation"
     end
 
     test "another tenant's review decided in the period is not in this tenant's package", ctx do

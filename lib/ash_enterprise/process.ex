@@ -27,7 +27,8 @@ defmodule AshEnterprise.Process do
 
   Also the three host callbacks the process engine requires — `AssignmentResolver`,
   `ActionInvoker` and `DecisionResolver` — which are the seams that keep business logic out of
-  the diagram.
+  the diagram, and `TaskNotices`, the engine's `AshBpmn.TaskNotifier`, which tells the people a
+  task's reminder, escalation or expiry names and keeps one `TaskNotice` per firing and person.
 
   The design, and the measurements the event dispatch rests on, are in
   `docs/plans/event-triggered-processes.md`; the replacement of the prototype's trigger
@@ -44,5 +45,7 @@ defmodule AshEnterprise.Process do
 
   resources do
     resource AshEnterprise.Process.Binding
+    # The people a task's timer told, one row per firing and person (`TaskNotices`).
+    resource AshEnterprise.Process.TaskNotice
   end
 end

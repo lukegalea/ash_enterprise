@@ -125,7 +125,7 @@ confined so that removing one is a deletion, not a refactor.
 | `ash_evidence` | evidence pipeline records (System One); declared `branch: "main"` | none | yes |
 | `ash_paper` | deterministic PDF documents (the paper kernel): schemas, layouts, themes, the run fragment and `mix paper.lock`; pinned by ref `e14889c` (upstream [lukegalea/ash_paper](https://github.com/lukegalea/ash_paper)) while the API settles | `ash_typst` 0.6.1 from Hex (its two-week age rule waived by Luke on 2026-11-11), `ash_open_lineage` (the pin above) | yes, once the API settles: a Hex release, then `{:ash_paper, "~> <release>"}` |
 | `ash_provenance` | the value-explanation contract: addresses, PROV-DM steps, typed gaps and the PROV-O JSON-LD export (ADR 0078); upstream [lukegalea/ash_provenance](https://github.com/lukegalea/ash_provenance) | none | yes |
-| `ash_bpmn` | BPMN process engine (ADR 0009) | none | yes |
+| `ash_bpmn` | BPMN process engine (ADR 0009), its timer ledger (`AshEnterprise.Bpmn.TimerJob`) and data-driven due dates | none | yes |
 | `ash_versions` | the version registry the artifact pages read through (`AshEnterprise.Artifacts` implements `AshVersions.Registry`; its entries and differs stay here) and temporal history through as-of reads (`AshVersions.TemporalHistory`) | none | yes |
 | `ash_planning` | planning kernel: fragments, backend behaviour, IR and validators (ADR 0062) | `ash_open_lineage` | after `ash_open_lineage` |
 | `ash_agent` | agent runtime fragments, extension and host behaviours (ADR 0056); upstream [lukegalea/ash_agent](https://github.com/lukegalea/ash_agent); `Execution.Invocation` instantiates the invocation fragment | none | none planned: the Hex name `ash_agent` belongs to an unrelated project (ADR 0056) |

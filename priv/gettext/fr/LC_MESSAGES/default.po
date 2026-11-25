@@ -1443,11 +1443,6 @@ msgstr "Artefacts"
 msgid "Every version of what is authored here, what it references, whether it checks out and what changed."
 msgstr "Chaque version de ce qui est créé ici, ce qu’elle référence, si elle est valide et ce qui a changé."
 
-#: lib/ash_enterprise/surfaces.ex:673
-#, elixir-autogen, elixir-format
-msgid "Reviews and other process tasks you can see that have waited more than two days."
-msgstr "Revues et autres tâches de processus visibles qui attendent depuis plus de deux jours."
-
 #: lib/ash_enterprise/surfaces.ex:671
 #, elixir-autogen, elixir-format
 msgid "Stalled reviews"
@@ -1743,12 +1738,17 @@ msgstr "Cherchez parmi des cliniciens inventés et voyez ce qui est dedans, ce q
 msgid "Three-valued search"
 msgstr "Recherche à trois valeurs"
 
-#: lib/ash_enterprise/surfaces.ex:1217
+#: lib/ash_enterprise/surfaces.ex:1265
 #, elixir-autogen, elixir-format
 msgid "Match-rule weights learned from steward verdicts, replayed over them, for a person to activate."
 msgstr "Poids des règles d’appariement appris des verdicts des gardiens, rejoués sur ces verdicts, à activer par une personne."
 
-#: lib/ash_enterprise/surfaces.ex:1215
+#: lib/ash_enterprise/surfaces.ex:1263
 #, elixir-autogen, elixir-format
 msgid "Proposed match rules"
 msgstr "Règles d’appariement proposées"
+
+#: lib/ash_enterprise/surfaces.ex:673
+#, elixir-autogen, elixir-format
+msgid "Reviews and other process tasks you can see that are past their due date, or have waited more than two days with none."
+msgstr "Revues et autres tâches de processus visibles dont l’échéance est passée, ou qui attendent depuis plus de deux jours sans échéance."
