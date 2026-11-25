@@ -1436,7 +1436,7 @@ The artifact registry: every versioned thing a person authors, reviews or releas
 | `ash_planning` | first-party | git @ 4d7b3c12 | [Planning](#planning) | Planning fragments, IR, validators; solver backend. |
 | `ash_agent` | first-party | git @ c3bd9892 | [Agents](#agents) | Governed invocations and durable agent runs (host-instantiated). |
 | `ash_acp` | first-party | git @ 536a404d | [Agent protocol](#acp) | The agent-client wire adapter; no second authorization model. |
-| `ash_a2ui` | first-party | git @ 9b1957cd | [Surfaces](#surfaces) | Agent-renderable payloads generated from resources. |
+| `ash_a2ui` | first-party | git @ e417c6e7 | [Surfaces](#surfaces) | Agent-renderable payloads generated from resources. |
 | `ash_agent_tools` | first-party dev | git @ 0171a910 | [Standards](#standards) | Read-only introspection CLI + the iron laws. |
 | `battery` | in-repo | in-repo (`battery/`) | [Platform](#platform) | Cross-substrate integration battery over its own reference instantiation. |
 | `ash_events_chain` | first-party | git @ cd122991 | [Audit](#audit) | The audit log's hash chain: immutability triggers, the verifier over hot log and archive as one chain, the verified move to the archive. |

@@ -82,6 +82,7 @@ msgstr "Éléments d’action"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
 msgid "Activate"
 msgstr "Activer"
 
@@ -895,6 +896,7 @@ msgstr "Jeu de données"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
 msgid "Deactivate"
 msgstr "Désactiver"
 

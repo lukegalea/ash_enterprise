@@ -26,6 +26,7 @@ defmodule AshBrowserTests.A2uiManifest do
           optional(:table) => String.t(),
           optional(:visible_when) => term(),
           optional(:prompt_fields) => [prompt_field()],
+          optional(:confirm) => :prompt | :destructive | nil,
           optional(:confirm_label) => String.t() | nil
         }
 

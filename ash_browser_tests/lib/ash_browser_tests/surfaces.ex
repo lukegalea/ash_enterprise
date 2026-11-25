@@ -44,12 +44,15 @@ defmodule AshBrowserTests.Surfaces do
 
   When the host implements `c:AshBrowserTests.Surfaces.Host.a2ui_manifest/0` and
   `c:AshBrowserTests.Surfaces.Host.row_for/3`, each row action in the manifest for a
-  surface becomes an action with id `"row:<id>"`.
+  surface becomes an action with id `"row:<id>"`. Its chain is
+  `c:AshBrowserTests.Surfaces.Host.row_action_chain/1` when the host implements it.
   """
 
   alias AshBrowserTests.Action
   alias AshBrowserTests.Browser
   alias AshBrowserTests.Ledger
+  alias AshBrowserTests.RowActions
+  alias AshBrowserTests.Span
   alias AshBrowserTests.Surface
   alias AshBrowserTests.Trace
 
@@ -79,10 +82,21 @@ defmodule AshBrowserTests.Surfaces do
     """
     @callback row_for(Surface.t(), A2uiManifest.row_action(), context :: map()) :: map() | nil
 
-    @doc "Runs after a row action, with its correlation id, to assert an audit row."
-    @callback assert_audit(correlation_id :: String.t(), context :: map()) :: any()
+    @doc """
+    Runs after a row action, with the correlation id of its `handle_event` span, to
+    assert an audit row.
+    """
+    @callback assert_audit(correlation_id :: String.t() | nil, context :: map()) :: any()
 
-    @optional_callbacks a2ui_manifest: 0, row_for: 3, assert_audit: 2
+    @doc """
+    The span chain a generated row-action test asserts. Without it the chain is rooted
+    at the browser's event span: browser event, `handle_event`, the Ash action. A host
+    with no browser tracing roots it at `handle_event` instead. Keep `handle_event()`
+    in it: `assert_audit/2` gets that span's correlation id.
+    """
+    @callback row_action_chain(A2uiManifest.row_action()) :: [AshBrowserTests.Span.matcher()]
+
+    @optional_callbacks a2ui_manifest: 0, row_for: 3, assert_audit: 2, row_action_chain: 1
   end
 
   defmacro __using__(opts) do
@@ -186,12 +200,20 @@ defmodule AshBrowserTests.Surfaces do
       setup: &row_setup(&1, surface, row_action, host),
       run: &run_row_action(&1, &2, row_action),
       verify: &verify_row_action(&1, &2, host),
-      chain: [
+      chain: row_action_chain(host, row_action)
+    }
+  end
+
+  defp row_action_chain(host, row_action) do
+    if function_exported?(host, :row_action_chain, 1) do
+      host.row_action_chain(row_action)
+    else
+      [
         Trace.browser_event(),
         Trace.handle_event(),
         Trace.ash_action(action: row_action.ash_action)
       ]
-    }
+    end
   end
 
   # --- Running -------------------------------------------------------------------
@@ -260,17 +282,27 @@ defmodule AshBrowserTests.Surfaces do
         PhoenixTest.fill_in(acc, field.label, with: Map.fetch!(row[:inputs] || %{}, field.name))
       end)
 
-    case row_action[:confirm_label] do
-      nil -> conn
-      label -> Browser.deep_click(conn, "button, atlas-button", text: label)
+    # A destructive confirmation's control carries the row button's label, so it is
+    # clicked inside the open dialog rather than as the page's first match.
+    case row_action do
+      %{confirm: :destructive, confirm_label: label} ->
+        RowActions.confirm(conn, label)
+
+      %{confirm_label: label} when is_binary(label) ->
+        Browser.deep_click(conn, "button, atlas-button", text: label)
+
+      _no_confirm ->
+        conn
     end
   end
 
   # An audit row carrying the correlation id of the action proves the action
-  # actually wrote, with no domain knowledge in the generator.
-  defp verify_row_action([_browser, event | _rest], context, host) do
+  # actually wrote, with no domain knowledge in the generator. The id is the
+  # server's `handle_event` span's: the browser never supplies one.
+  defp verify_row_action(spans, context, host) do
     if function_exported?(host, :assert_audit, 2) do
-      host.assert_audit(event.attributes["ash.correlation_id"], context)
+      event = Enum.find(spans, &Span.matches?(&1, Trace.handle_event()))
+      host.assert_audit(event && event.attributes["ash.correlation_id"], context)
     end
   end
 
