@@ -32,7 +32,11 @@ defmodule AshEnterprise.Decisions do
   end
 
   resources do
-    resource AshEnterprise.Decisions.Definition
+    resource AshEnterprise.Decisions.Definition do
+      define :measure_definition_impact, action: :measure_impact
+      define :clause_table_impact_changes, action: :impact_changes
+    end
+
     resource AshEnterprise.Decisions.Evaluation
   end
 
@@ -55,7 +59,9 @@ defmodule AshEnterprise.Decisions do
   that exact definition is evaluated whatever the tenant is bound to now.
 
   Options: `:tenant` (required), `:pinned` (a definition id), `:decision` (when the document defines several), `:timeout`,
-  `:correlation_id`, and `:record` to suppress the evidence row for a designer preview.
+  `:correlation_id`, `:record` to suppress the evidence row for a designer preview (or
+  `:required` on a governed path), and `:require_inputs` (`:declared` refuses an `inputData`
+  the document declares and `inputs` lacks).
   """
   @spec evaluate(String.t(), map(), keyword()) :: {:ok, map()} | {:error, term()}
   def evaluate(key, inputs, opts) do
@@ -66,7 +72,7 @@ defmodule AshEnterprise.Decisions do
         definition,
         inputs,
         opts
-        |> Keyword.take([:decision, :timeout, :correlation_id, :record])
+        |> Keyword.take([:decision, :timeout, :correlation_id, :record, :require_inputs])
         |> Keyword.merge(
           evaluation_resource: AshEnterprise.Decisions.Evaluation,
           scope: %AshDecisions.Scope{
