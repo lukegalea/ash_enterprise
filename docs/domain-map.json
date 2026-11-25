@@ -795,6 +795,41 @@
       "edges": []
     },
     {
+      "id": "documents",
+      "name": "Documents",
+      "domain": "AshEnterprise.Documents",
+      "plane": "knowledge",
+      "mission": "Issuing real documents from a tenant's own rows through the paper kernel: bindings, runs, clauses, drafts and the questions a blocked run asks.",
+      "packages": [
+        "ash_paper"
+      ],
+      "adrs": [
+        67,
+        68,
+        76,
+        77
+      ],
+      "terms": [
+        {
+          "term": "paper binding",
+          "definition": "What a document kind is rendered with, one temporal row per organization and kind."
+        },
+        {
+          "term": "paper run",
+          "definition": "One attempt to produce a document: the stored bytes are the record, with render and read-back as its two status axes."
+        },
+        {
+          "term": "paper clause",
+          "definition": "Wording a document may carry, per locale, admitted with maker-checker."
+        },
+        {
+          "term": "paper draft",
+          "definition": "A rendered document waiting for a person: issued exactly as rendered, or marked stale and never issued."
+        }
+      ],
+      "edges": []
+    },
+    {
       "id": "compliance",
       "name": "Compliance",
       "domain": "AshEnterprise.Compliance",
