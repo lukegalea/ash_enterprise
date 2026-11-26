@@ -4,11 +4,20 @@ if Code.ensure_loaded?(AshJourneys.Run) do
     Where one run of one journey in one locale writes its manifest and figures:
     `tmp/journeys/runs/<run-id>/<journey>/<locale>/` (`AshJourneys.Run`).
 
-    ## The run id
+    ## The run id and its attempts
 
     `JOURNEYS_RUN_ID` when it is set, so every journey of one CI run lands in one
-    run, and a re-run of failed tests under the same id is recorded as a retry.
-    Otherwise `local-<date>-<OS pid>`: one run per test VM.
+    run. Otherwise `local-<commit>`, the first 12 characters of the checkout's
+    HEAD (`local-<date>-<OS pid>` outside a git checkout): every test VM at one
+    commit is the same run, so a second `mix test` of a journey at that commit is
+    recorded as a retry of the first. Start a fresh run with `JOURNEYS_RUN_ID`, or
+    by removing its directory.
+
+    `JOURNEYS_RUN_ATTEMPT` (default 1) is the attempt of the run this is: a CI
+    runner re-running a job starts with an empty directory, so the attempt is
+    the only record that an earlier one ran. Set it to the CI's attempt number
+    (GitHub's `run_attempt`) and keep it out of `JOURNEYS_RUN_ID`. Every attempt
+    after the first is a retry.
 
     ## Claims
 
@@ -36,30 +45,54 @@ if Code.ensure_loaded?(AshJourneys.Run) do
     @type t :: %{
             run_id: String.t(),
             dir: Path.t(),
-            prior: Manifest.t() | :unreadable | nil
+            prior: Manifest.t() | :unreadable | nil,
+            earlier_attempts: non_neg_integer()
           }
 
     @doc "This run's id (see the moduledoc)."
     @spec run_id() :: String.t()
     def run_id do
       case System.get_env("JOURNEYS_RUN_ID") do
-        id when id in [nil, ""] ->
-          "local-#{Date.to_iso8601(Date.utc_today(), :basic)}-#{System.pid()}"
+        id when id in [nil, ""] -> local_run_id()
+        id -> id
+      end
+    end
 
-        id ->
-          id
+    @doc "The run id when `JOURNEYS_RUN_ID` is not set (see the moduledoc)."
+    @spec local_run_id() :: String.t()
+    def local_run_id do
+      case System.cmd("git", ["rev-parse", "--short=12", "HEAD"], stderr_to_stdout: true) do
+        {sha, 0} -> "local-" <> String.trim(sha)
+        _not_a_checkout -> "local-#{Date.to_iso8601(Date.utc_today(), :basic)}-#{System.pid()}"
+      end
+    rescue
+      _no_git -> "local-#{Date.to_iso8601(Date.utc_today(), :basic)}-#{System.pid()}"
+    end
+
+    @doc "This run's attempt: `JOURNEYS_RUN_ATTEMPT`, or 1 (see the moduledoc)."
+    @spec attempt() :: pos_integer()
+    def attempt do
+      case Integer.parse(System.get_env("JOURNEYS_RUN_ATTEMPT") || "1") do
+        {n, ""} when n >= 1 -> n
+        _other -> raise ArgumentError, "JOURNEYS_RUN_ATTEMPT must be a positive integer"
       end
     end
 
     @doc """
     Claims the candidate directory of `journey` in `locale` for run `run_id`
-    under the project root `root`. `prior` is the manifest of an earlier attempt
-    of the same run (`:unreadable` when it left none that reads), or `nil`.
+    under the project root `root`, in the run's `attempt`. `prior` is the
+    manifest of an earlier attempt of the same run in this directory
+    (`:unreadable` when it left none that reads), or `nil`; `earlier_attempts`
+    counts the attempts before `attempt`.
     """
-    @spec claim!(Path.t(), String.t(), String.t(), String.t()) :: t()
-    def claim!(root, run_id, journey, locale), do: claim!(root, run_id, journey, locale, 1)
+    @spec claim!(Path.t(), String.t(), String.t(), String.t(), pos_integer()) :: t()
+    def claim!(root, run_id, journey, locale, attempt \\ attempt()) do
+      root
+      |> claim_dir!(run_id, journey, locale, 1)
+      |> Map.put(:earlier_attempts, attempt - 1)
+    end
 
-    defp claim!(root, run_id, journey, locale, n) do
+    defp claim_dir!(root, run_id, journey, locale, n) do
       id = if n == 1, do: run_id, else: "#{run_id}-#{n}"
       dir = Run.candidate_dir(root, id, journey, locale)
       File.mkdir_p!(dir)
@@ -79,7 +112,7 @@ if Code.ensure_loaded?(AshJourneys.Run) do
 
         {:error, :eexist} ->
           case File.read(claim) do
-            {:ok, ^me} -> claim!(root, run_id, journey, locale, n + 1)
+            {:ok, ^me} -> claim_dir!(root, run_id, journey, locale, n + 1)
             _earlier -> take_over(dir, claim, me, id)
           end
       end

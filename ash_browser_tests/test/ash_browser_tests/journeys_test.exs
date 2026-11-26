@@ -83,10 +83,19 @@ defmodule AshBrowserTests.JourneysRunTest do
       assert admin.cursor.from < admin.cursor.to
       assert viewer.span_ids != [] and admin.span_ids != []
 
-      # The step that asked for audit rows asked for them by its correlation id.
+      # The step that asked for its audit row asked for it by its correlation id,
+      # its row action's action and record, and the time the step began.
       assert is_binary(admin.correlation_id)
-      assert_received {:audit_asserted, id}
+      assert_received {:audit_asserted, id, acted}
       assert id == admin.correlation_id
+      assert %{resource: Widget, action: :activate, since: %DateTime{}} = acted
+      assert acted.record.id == widget("Sprocket").id
+      refute_received {:audit_asserted, _, _}
+
+      # What its pages say, as the run resolved it.
+      assert manifest.texts["title"] == "Activate a widget"
+      assert manifest.texts["activate.narration.1"] =~ "Choose "
+      assert is_binary(manifest.texts["activate.ui.action"])
 
       assert [%{name: "widgets"}] = viewer.figures
       assert [figure] = admin.figures
@@ -154,6 +163,39 @@ defmodule AshBrowserTests.JourneysRunTest do
 
       # What the cursor is for: the same expectation over the test's key passes.
       Trace.assert_chain(key, [Trace.handle_event(), Trace.ash_action(action: :activate)])
+    end
+
+    # A browser failure fails the step it was reported in, for every persona's
+    # context, so the manifest never says passed for a test that fails at exit.
+    @tag browser_context_opts: Journeys.framing("en")
+    test "a console error fails the step it happened in", context do
+      error =
+        assert_raise ExUnit.AssertionError, fn ->
+          Journeys.run!(JourneyHost, {MoreJourneys, :meets_a_console_error, "en"}, context)
+        end
+
+      assert error.message =~
+               "step 02-admin_opens_a_broken_page (as admin): persona admin: " <>
+                 "the browser reported failures"
+
+      assert error.message =~ "fixture console error"
+
+      manifest = written(:meets_a_console_error)
+      assert manifest.status == :failed
+      assert Enum.map(manifest.steps, & &1.status) == [:passed, :failed]
+      assert List.last(manifest.steps).error =~ "fixture console error"
+      assert Enum.any?(approval_problems(manifest, [MoreJourneys]), &(&1 =~ "the run failed"))
+    end
+
+    @tag browser_context_opts: Journeys.framing("en")
+    test "an audit expectation with no row action in the step fails it", context do
+      error =
+        assert_raise ExUnit.AssertionError, fn ->
+          Journeys.run!(JourneyHost, {MoreJourneys, :audits_without_a_row_action, "en"}, context)
+        end
+
+      assert error.message =~ "step 01-viewer_looks (as viewer): expect audit:"
+      assert written(:audits_without_a_row_action).status == :failed
     end
 
     test "a page that does not settle is not captured", %{conn: conn} do
@@ -225,5 +267,18 @@ defmodule AshBrowserTests.Journeys.CandidatesTest do
              Candidates.claim!(root, "run", "a_journey", "en")
 
     assert File.ls!(dir) == [".claim"]
+  end
+
+  @tag :tmp_dir
+  test "a later attempt of the run counts the earlier ones, in a fresh directory", %{
+    tmp_dir: root
+  } do
+    assert %{prior: nil, earlier_attempts: 0} = Candidates.claim!(root, "run", "a", "en", 1)
+    assert %{prior: nil, earlier_attempts: 2} = Candidates.claim!(root, "other", "a", "en", 3)
+  end
+
+  test "without JOURNEYS_RUN_ID, every VM at one commit is one run" do
+    {head, 0} = System.cmd("git", ["rev-parse", "--short=12", "HEAD"])
+    assert Candidates.local_run_id() == "local-" <> String.trim(head)
   end
 end

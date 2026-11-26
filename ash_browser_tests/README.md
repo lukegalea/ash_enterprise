@@ -328,15 +328,31 @@ capture per context). Then, step by step, as the step's persona:
   (`Settle.wait!/2`); a page that does not settle fails the step with the state it saw,
   and is never captured;
 - a figure is captured under one fixed framing (`Journeys.framing/1`), masked, with its
-  file and raster hashes and the highlighted row's box.
+  file and raster hashes and the highlighted row's box;
+- `expect audit: true` asks the host's `assert_audit/3` for the row each of the step's
+  row actions wrote: that action, about that record, under the step's correlation id,
+  since the step began;
+- when the step is done, a console error, page error or 5xx that any persona's context
+  reported during it fails the step (unless the test is tagged
+  `allow_browser_failures: true`).
 
 A failing step stops the journey; the steps after it are recorded as skipped. Errors
 name the journey, locale, step and persona. Whether it passed or not, the test writes
 the run manifest and figures to `tmp/journeys/runs/<run>/<journey>/<locale>/`, for
-`mix ash_journeys.approve`. The run is `JOURNEYS_RUN_ID` when set (one id per CI run),
-else one per test VM. A test claims its directory first, so two tests of one journey
-never write the same file; a re-run under the same run id counts as a retry and is
-never approvable. The driver's own end-of-test screenshot is off for these tests.
+`mix ash_journeys.approve`, with the journey's texts as the run resolved them. The run
+is `JOURNEYS_RUN_ID` when set (one id per CI run, without its attempt), else
+`local-<commit>`. `JOURNEYS_RUN_ATTEMPT` is the CI attempt (`github.run_attempt`): a
+re-run job starts in an empty directory, so the attempt is what records that an earlier
+one ran. A test claims its directory first, so two tests of one journey never write the
+same file. A second attempt, or a second `mix test` at the same commit, counts as a
+retry and is never approvable. The driver's own end-of-test screenshot is off for these
+tests.
+
+```yaml
+env:
+  JOURNEYS_RUN_ID: ci-${{ github.run_id }}
+  JOURNEYS_RUN_ATTEMPT: ${{ github.run_attempt }}
+```
 
 The ledger has a second account for them: every surface and action is walked by a
 journey or carries an `{:undocumented, …}` waiver with a reason.

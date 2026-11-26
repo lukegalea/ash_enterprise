@@ -22,11 +22,11 @@ if Code.ensure_loaded?(AshJourneys.Info) do
 
     Before the first step the test checks the journey against its surfaces as
     they render in the locale (`AshJourneys.Preflight.check/3`), seeds its world
-    and pins its timestamps (`AshJourneys.World`), and signs every persona in,
-    each in a browser context of its own (`AshJourneys.Persona`, then
+    and pins its timestamps (`AshJourneys.World`), resolves the journey's texts in
+    the locale (`AshJourneys.L10n.texts/3`), and signs every persona in, each in a
+    browser context of its own (`AshJourneys.Persona`, then
     `c:AshBrowserTests.Journeys.Host.sign_in/3`). The contexts share the test's
-    sandbox and test key, and each has its own `AshBrowserTests.FailureCapture`:
-    a console error, page error or 5xx in any of them fails the test at exit.
+    sandbox and test key, and each has its own `AshBrowserTests.FailureCapture`.
 
     Then each step, as its persona, in order:
 
@@ -44,9 +44,14 @@ if Code.ensure_loaded?(AshJourneys.Info) do
       * `figure` captures the page, the confirmation dialog, a table or a bound
         record's row under `framing/1`, with its masks, and records the file and
         raster hashes and the highlighted row's box;
-      * `expect` asserts the trace chain (and one correlation id), the audit rows
-        (`c:AshBrowserTests.Journeys.Host.assert_audit/2`), a bound record's
-        attributes, or the surface the persona landed on.
+      * `expect` asserts the trace chain (and one correlation id), the audit row
+        each of the step's row actions wrote
+        (`c:AshBrowserTests.Journeys.Host.assert_audit/3`), a bound record's
+        attributes, or the surface the persona landed on;
+      * when the step is done, a console error, page error or 5xx that any
+        persona's browser context reported during it fails the step, unless the
+        test is tagged `allow_browser_failures: true`. So a run whose browser
+        reported a failure is never recorded as passed.
 
     A step that fails stops the journey: the steps after it are recorded as
     skipped and never run. Every error is prefixed with the journey, the locale,
@@ -59,8 +64,14 @@ if Code.ensure_loaded?(AshJourneys.Info) do
     `<step>.<figure>.png`, go to the run's candidate directory
     (`AshBrowserTests.Journeys.Candidates`), whether the journey passed or not.
     The step's cursor window, its correlation id and span ids, each figure's
-    settled state and hashes are recorded as measured, and nothing unmeasured is
-    filled in. The driver's own end-of-test screenshot is off for these tests.
+    settled state and hashes, and the journey's texts are recorded as measured,
+    and nothing unmeasured is filled in. The run's retries count the earlier
+    attempts of the same run (`AshBrowserTests.Journeys.Candidates`). The
+    driver's own end-of-test screenshot is off for these tests.
+
+    A browser failure reported after the last step, before the test ends, still
+    fails the test at exit (`AshBrowserTests.Case`); the runner then rewrites the
+    manifest as failed, so it never says passed.
     """
 
     alias AshBrowserTests.Browser
@@ -73,11 +84,12 @@ if Code.ensure_loaded?(AshJourneys.Info) do
     alias AshJourneys.Dsl
     alias AshJourneys.Info
     alias AshJourneys.Ir
+    alias AshJourneys.L10n
     alias AshJourneys.Manifest
     alias AshJourneys.Preflight
     alias AshJourneys.Raster
 
-    @compile {:no_warn_undefined, [Ash, AshA2ui.Manifest]}
+    @compile {:no_warn_undefined, [Ash, AshA2ui.Manifest, PhoenixTest.Playwright]}
 
     @correlation_id "ash.correlation_id"
     @dialog ~s|:is([role="dialog"], [role="alertdialog"], dialog[open]) >> visible=true|
@@ -166,17 +178,24 @@ if Code.ensure_loaded?(AshJourneys.Info) do
         key: context.test_key,
         dir: claim.dir,
         bindings: %{},
-        conns: %{}
+        conns: %{},
+        captures: %{},
+        texts: nil
       }
 
-      {results, failure} =
+      {run, results, failure} =
         case prepare(run) do
-          {:ok, run} -> run_steps(run)
-          {:error, error, stacktrace} -> {skipped(journey), {nil, error, stacktrace}}
+          {:ok, run} ->
+            {results, failure} = run_steps(run)
+            {run, results, failure}
+
+          {:error, error, stacktrace} ->
+            {run, skipped(journey), {nil, error, stacktrace}}
         end
 
       manifest = manifest(run, claim, results)
       Manifest.write!(manifest, claim.dir)
+      seal_on_exit(run, manifest, claim.dir)
       warn_if_flaky(manifest, claim.dir)
 
       case failure do
@@ -189,9 +208,11 @@ if Code.ensure_loaded?(AshJourneys.Info) do
 
     defp prepare(run) do
       :ok = preflight!(run)
+      run = %{run | texts: texts!(run)}
       bindings = seed!(run)
       run = %{run | bindings: bindings}
-      {:ok, %{run | conns: sign_in_personas(run)}}
+      {conns, captures} = sign_in_personas(run)
+      {:ok, %{run | conns: conns, captures: captures}}
     rescue
       error -> {:error, error, __STACKTRACE__}
     end
@@ -204,6 +225,21 @@ if Code.ensure_loaded?(AshJourneys.Info) do
         {:error, errors} ->
           raise ExUnit.AssertionError,
             message: "the start-of-run check failed:\n" <> Enum.map_join(errors, "\n", &"  #{&1}")
+      end
+    end
+
+    # What the run's pages will say, resolved as the surfaces render in this
+    # locale: the manifest records it, and a projection shows it only while it
+    # still resolves the same.
+    defp texts!(%{module: module, ir: ir, host: host, locale: locale}) do
+      case L10n.texts(%{module: module, ir: ir}, locale, host.manifest_opts(locale)) do
+        {:ok, texts} ->
+          texts
+
+        {:error, errors} ->
+          raise ExUnit.AssertionError,
+            message:
+              "the journey's text does not resolve:\n" <> Enum.map_join(errors, "\n", &"  #{&1}")
       end
     end
 
@@ -242,19 +278,26 @@ if Code.ensure_loaded?(AshJourneys.Info) do
     defp sign_in_personas(%{journey: journey, module: module, host: host} = run) do
       personas = Info.persona_module(module)
 
-      journey.personas
-      |> Enum.with_index()
-      |> Map.new(fn {persona, index} ->
-        conn = if index == 0, do: run.context.conn, else: new_context(run.context, persona.name)
+      signed_in =
+        journey.personas
+        |> Enum.with_index()
+        |> Enum.map(fn {persona, index} ->
+          {conn, capture} =
+            if index == 0,
+              do: {run.context.conn, run.context[:browser_failures]},
+              else: new_context(run.context, persona.name)
 
-        actor =
-          case personas.actor(persona.role, persona.name, run.bindings) do
-            {:ok, actor} -> actor
-            {:error, reason} -> raise "persona #{persona.name} has no actor: #{inspect(reason)}"
-          end
+          actor =
+            case personas.actor(persona.role, persona.name, run.bindings) do
+              {:ok, actor} -> actor
+              {:error, reason} -> raise "persona #{persona.name} has no actor: #{inspect(reason)}"
+            end
 
-        {persona.name, host.sign_in(conn, actor, host_context(run, persona.name))}
-      end)
+          {persona.name, host.sign_in(conn, actor, host_context(run, persona.name)), capture}
+        end)
+
+      {Map.new(signed_in, fn {name, conn, _capture} -> {name, conn} end),
+       for({name, _conn, capture} <- signed_in, capture != nil, into: %{}, do: {name, capture})}
     end
 
     defp new_context(context, persona) do
@@ -271,7 +314,7 @@ if Code.ensure_loaded?(AshJourneys.Info) do
         end
       end)
 
-      conn
+      {conn, capture}
     end
 
     defp host_context(run, persona) do
@@ -309,7 +352,9 @@ if Code.ensure_loaded?(AshJourneys.Info) do
         figures: [],
         correlation_id: nil,
         span_ids: [],
-        unconfirmed: nil
+        unconfirmed: nil,
+        acted: [],
+        started_at: DateTime.utc_now()
       }
 
       {acc, error} =
@@ -319,6 +364,8 @@ if Code.ensure_loaded?(AshJourneys.Info) do
             {:error, error, stacktrace} -> {:halt, {acc, {error, stacktrace}}}
           end
         end)
+
+      error = error || browser_failures(acc.run)
 
       cursor = Cursor.close(acc.cursor)
 
@@ -337,6 +384,70 @@ if Code.ensure_loaded?(AshJourneys.Info) do
       failure = error && {label <> " (as #{step.as})", elem(error, 0), elem(error, 1)}
       {result, acc.run, failure}
     end
+
+    # What any persona's browser reported going wrong since the last step, taken
+    # from its capture so the step, not the test's exit, reports it. A round trip
+    # to each page first delivers the events it has already sent.
+    defp browser_failures(%{context: context} = run) do
+      if Map.get(context, :allow_browser_failures, false) do
+        nil
+      else
+        failures =
+          for {persona, capture} <- Enum.sort(run.captures),
+              failure <- take_failures(run.conns[persona], capture),
+              do: {persona, failure}
+
+        case failures do
+          [] ->
+            nil
+
+          failures ->
+            message =
+              failures
+              |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+              |> Enum.map_join("\n", fn {persona, failures} ->
+                "persona #{persona}: " <> FailureCapture.format(failures)
+              end)
+
+            {%ExUnit.AssertionError{message: message}, []}
+        end
+      end
+    end
+
+    defp take_failures(conn, capture) do
+      _ = conn && PhoenixTest.Playwright.evaluate(conn, "1")
+      FailureCapture.take(capture, ~r//)
+    catch
+      :exit, _closed -> FailureCapture.take(capture, ~r//)
+    end
+
+    # A failure reported after the last step's check fails the test at exit, in
+    # the capture's own callback, registered before this one and so run after it.
+    # Before that, the manifest of a passed run is rewritten as failed.
+    defp seal_on_exit(%{context: context} = run, %Manifest{status: :passed} = manifest, dir) do
+      unless Map.get(context, :allow_browser_failures, false) do
+        captures = Map.values(run.captures)
+
+        ExUnit.Callbacks.on_exit(fn ->
+          late = Enum.flat_map(captures, &FailureCapture.failures/1)
+
+          if late != [] do
+            message = "after the last step: " <> FailureCapture.format(late)
+
+            steps =
+              List.update_at(manifest.steps, -1, fn step ->
+                %{step | status: :failed, error: message}
+              end)
+
+            Manifest.write!(%{manifest | status: :failed, steps: steps}, dir)
+          end
+        end)
+      end
+
+      :ok
+    end
+
+    defp seal_on_exit(_run, _manifest, _dir), do: :ok
 
     defp status(nil), do: :passed
     defp status({%ExUnit.AssertionError{}, _stacktrace}), do: :failed
@@ -368,7 +479,8 @@ if Code.ensure_loaded?(AshJourneys.Info) do
       row = %{id: to_string(record.id), text: "#{row_action.on} (#{record.id})", inputs: %{}}
 
       conn = RowActions.perform(conn(acc), row, action, confirm: not row_action.confirm)
-      acc = put_conn(acc, conn)
+      acted = %{resource: action.resource, action: action.ash_action, record: record}
+      acc = %{put_conn(acc, conn) | acted: acc.acted ++ [acted]}
       if row_action.confirm, do: %{acc | unconfirmed: action}, else: acc
     end
 
@@ -452,15 +564,30 @@ if Code.ensure_loaded?(AshJourneys.Info) do
         message: "expect audit: no correlation id was traced in this step to find audit rows by"
     end
 
+    defp expect_audit(%{acted: []}, %Dsl.Expect{audit: true}) do
+      raise ExUnit.AssertionError,
+        message:
+          "expect audit: the step performed no row action, so there is no action whose audit row to find"
+    end
+
+    # Every row action of the step wrote its own row: by its action, about its
+    # record, under the step's correlation id, since the step began.
     defp expect_audit(acc, %Dsl.Expect{audit: true}) do
       host = acc.run.host
 
-      unless function_exported?(host, :assert_audit, 2) do
+      unless function_exported?(host, :assert_audit, 3) do
         raise ArgumentError,
-              "#{inspect(host)} implements no assert_audit/2, so `expect audit: true` cannot be proven"
+              "#{inspect(host)} implements no assert_audit/3, so `expect audit: true` cannot be proven"
       end
 
-      host.assert_audit(acc.correlation_id, host_context(acc.run, acc.step.as))
+      for acted <- acc.acted do
+        host.assert_audit(
+          acc.correlation_id,
+          Map.put(acted, :since, acc.started_at),
+          host_context(acc.run, acc.step.as)
+        )
+      end
+
       acc
     end
 
@@ -675,7 +802,8 @@ if Code.ensure_loaded?(AshJourneys.Info) do
         environment: :test,
         browser: browser(run.context),
         framing: Map.new(framing(run.locale)),
-        retries: retries(claim.prior),
+        retries: claim.earlier_attempts + retries(claim.prior),
+        texts: run.texts || %{},
         status: run_status(steps),
         steps: steps
       )
