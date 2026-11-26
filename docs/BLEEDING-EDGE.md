@@ -139,6 +139,10 @@ confined so that removing one is a deletion, not a refactor.
 | `ash_journeys` | user journeys declared once (`AshEnterprise.Journeys`): walked by the browser tier (`ash_browser_tests` takes it as an optional dependency for its runner), approved runs locked in `priv/journeys/`, documentation pages exported from them | none (`ash_a2ui` optional) | yes |
 
 
+`ash_browser_tests`, a package of this repository, takes `ash_journeys` as an optional, test-only `github:`
+dependency for its journey runner. It is not in this app's lock: a host that runs journeys declares it beside them,
+and it gets a row in this table when this app does.
+
 **Path to Hex:** a Hex package can only depend on Hex packages, so publish from the leaves up:
 1. The packages with no git dependencies of their own.
 2. `ash_compliance`.
