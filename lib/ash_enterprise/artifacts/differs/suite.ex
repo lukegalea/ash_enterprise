@@ -12,11 +12,11 @@ defmodule AshEnterprise.Artifacts.Differs.Suite do
   nothing a run is scored on.
   """
 
-  @behaviour AshEnterprise.Artifacts.Differ
+  @behaviour AshVersions.Differ
 
   use Gettext, backend: AshEnterpriseWeb.Gettext
 
-  alias AshEnterprise.Artifacts.Change
+  alias AshVersions.Change
 
   @impl true
   def aspects do

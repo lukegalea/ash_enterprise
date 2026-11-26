@@ -53,6 +53,14 @@ its ubiquitous language, which DDD pattern its edges carry.
    16 editorial edges and 24 introspected relationship edges, 0 declared signal flows (no
    registered resource declares an `emit` or a `signals_in` listener yet; the region renders the
    table the day one does).
+7. **Amended: the generator lives in `ash_agent_tools` as `mix ash_agent.domain_map`.** A second
+   host wanted the same capability, and the 0/1/N rule moves a second use up into the
+   shared package: the task and its pure half (`AshAgentTools.DomainMap.validate!/1`,
+   `build_model/2`, `regions/3`) ship with the introspection tooling under the same
+   compile-don't-start boot contract, and its usage rules document the workflow. What stayed here
+   is host policy as JSON data — `first_party_orgs`, `vendor_tokens`, the in-repo substrate
+   `path`, and the editorial document itself — validated by the package with the same
+   unknown-key-means-error stance.
 
 ## Consequences
 
@@ -75,6 +83,10 @@ the workflow step from `.github/workflows/ci.yml`, and the `domain-map:*` region
 `docs/DOMAIN-MAP.md` — keep the prose sections if the narrative is still wanted. The JSON's
 editorial content (missions, terms, edges) can be pasted back into the markdown as plain tables.
 About an hour.
+
+Reversal after the extraction (amendment 7): the host side of that list is what remains to
+delete here — `docs/domain-map.json`, the `domain-map:*` regions, the two gate steps, and the
+`ash_agent_tools` dep pin. The generator itself reverses in the package, not in this repo.
 
 ## Does it consume ActorContext?
 

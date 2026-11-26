@@ -27,7 +27,7 @@ defmodule AshEnterpriseWeb.ArtifactComponents do
   import AshEnterpriseWeb.StatusComponents, only: [run_mode: 1, status_message: 1]
 
   alias AshEnterprise.Artifacts
-  alias AshEnterprise.Artifacts.Change
+  alias AshVersions.Change
 
   # --- header --------------------------------------------------------------------
 

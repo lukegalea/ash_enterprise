@@ -26,7 +26,7 @@ msgstr "Actions"
 msgid "Added"
 msgstr "Ajouté"
 
-#: lib/ash_enterprise/artifacts.ex:53
+#: lib/ash_enterprise/artifacts.ex:57
 #, elixir-autogen, elixir-format
 msgid "Agent version"
 msgstr "Version de l’agent"
@@ -115,7 +115,7 @@ msgstr "Contextes"
 msgid "Copied from"
 msgstr "Copié depuis"
 
-#: lib/ash_enterprise/artifacts.ex:85
+#: lib/ash_enterprise/artifacts.ex:91
 #, elixir-autogen, elixir-format
 msgid "Decision definition"
 msgstr "Définition de décision"
@@ -135,7 +135,7 @@ msgstr "Brouillon"
 msgid "Evaluation"
 msgstr "Évaluation"
 
-#: lib/ash_enterprise/artifacts.ex:116
+#: lib/ash_enterprise/artifacts.ex:123
 #, elixir-autogen, elixir-format
 msgid "Evaluation suite"
 msgstr "Suite d’évaluation"
@@ -321,7 +321,7 @@ msgstr "Préréglages"
 msgid "Primary metric"
 msgstr "Métrique principale"
 
-#: lib/ash_enterprise/artifacts.ex:70
+#: lib/ash_enterprise/artifacts.ex:75
 #, elixir-autogen, elixir-format
 msgid "Process definition"
 msgstr "Définition de processus"
@@ -341,7 +341,7 @@ msgstr "Requêtes"
 msgid "References"
 msgstr "Références"
 
-#: lib/ash_enterprise/artifacts.ex:130
+#: lib/ash_enterprise/artifacts.ex:138
 #, elixir-autogen, elixir-format
 msgid "Release manifest"
 msgstr "Manifeste de version"
@@ -357,7 +357,7 @@ msgstr "Supprimé"
 msgid "Routing"
 msgstr "Routage"
 
-#: lib/ash_enterprise/artifacts.ex:154
+#: lib/ash_enterprise/artifacts.ex:163
 #, elixir-autogen, elixir-format
 msgid "Rule set"
 msgstr "Ensemble de règles"
@@ -369,12 +369,12 @@ msgstr "Ensemble de règles"
 msgid "Rules"
 msgstr "Règles"
 
-#: lib/ash_enterprise/artifacts.ex:178
+#: lib/ash_enterprise/artifacts.ex:187
 #, elixir-autogen, elixir-format
 msgid "Saved surface"
 msgstr "Surface enregistrée"
 
-#: lib/ash_enterprise/artifacts.ex:100
+#: lib/ash_enterprise/artifacts.ex:107
 #, elixir-autogen, elixir-format
 msgid "Schema mapping"
 msgstr "Mappage de schéma"
@@ -495,7 +495,7 @@ msgstr "aucun"
 msgid "none recorded"
 msgstr "aucun enregistré"
 
-#: lib/ash_enterprise/artifacts.ex:458
+#: lib/ash_enterprise/artifacts.ex:238
 #, elixir-autogen, elixir-format
 msgid "the system"
 msgstr "le système"

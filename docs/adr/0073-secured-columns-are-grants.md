@@ -78,6 +78,13 @@ policy passes, and a filter a client supplied (`Ash.Query.filter_input/2`) rewri
    > masked, a surface over a secured resource does not title its rows by a secured column: the credentialing
    > workspace titles a credential by its clinician.
 
+   > **2026-11-21.** `ash_a2ui` now renders a hidden value as masked text, never empty: the cell, card, badge and
+   > detail line show its translated word "Hidden", the record carries the reason at a reserved `_masked/<field>` key,
+   > and nothing of the struct reaches the wire. The edit buffers (`/form`, `_edit_<field>`) and CSV exports keep `null`
+   > or an empty cell, so a submit never writes the masked word back and `KeepHiddenSecuredFields` is unchanged. The
+   > credentials table is tested for it (`SecuredFieldsTest`: a reader without the grant sees the masked number and its
+   > reason, a holder sees the number and no mask).
+
 
 The first secured column is `Credentialing.Credential.number`. The coordinator who records numbers holds it through a
 role of its own; the credentialing committee reviews an activation without it.

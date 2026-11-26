@@ -401,6 +401,7 @@ defmodule AshEnterpriseWeb.Router do
         AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app/showcase/credentialing", ShowcaseLive.Credentialing
+      live "/app/showcase/search", ShowcaseLive.Search
     end
 
     # Recovery (AshEnterpriseWeb.RecoveryLive): settle, simulate, rerun and cancel an

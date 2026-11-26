@@ -6,7 +6,7 @@ defmodule AshEnterprise.SystemOne.FactHistory do
   temporal-swap): a revision splits a fact's period at the admission's
   `effective_at`, and an omission truncates it. So the facts about a
   subject as of T are an as-of read, and a fact's history is its versions
-  (`AshEnterprise.Platform.TemporalHistory`): admitted, revised, withdrawn.
+  (`AshVersions.TemporalHistory`): admitted, revised, withdrawn.
 
   Every read is the caller's. Fact reads are role-gated (`RoleGrant`), so a
   caller without the grant gets no facts, now or then. The actor is not
@@ -19,8 +19,8 @@ defmodule AshEnterprise.SystemOne.FactHistory do
 
   require Ash.Query
 
-  alias AshEnterprise.Platform.TemporalHistory
   alias AshEnterprise.SystemOne.Fact
+  alias AshVersions.TemporalHistory
 
   @typedoc "A subject: which record the facts are about."
   @type subject :: %{type: String.t() | nil, id: String.t()}

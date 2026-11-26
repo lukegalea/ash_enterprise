@@ -22,7 +22,7 @@ defmodule AshEnterprise.Mdm.Resolution do
       staged row names the person it observed), which is how an identity
       that a merge moved here and an unmerge moved back is still found;
 
-  and then each identity's versions (`AshEnterprise.Platform.TemporalHistory`)
+  and then each identity's versions (`AshVersions.TemporalHistory`)
   keep only those that pointed at this person at some instant. Every read is
   the caller's, under the resources' own policies: Person is owner-only,
   SourceIdentity and MatchCandidate are grant-gated.
@@ -46,7 +46,7 @@ defmodule AshEnterprise.Mdm.Resolution do
   alias AshEnterprise.BusinessEvents.Ledger
   alias AshEnterprise.Canonical.Person
   alias AshEnterprise.Mdm.{MatchCandidate, SourceIdentity}
-  alias AshEnterprise.Platform.TemporalHistory
+  alias AshVersions.TemporalHistory
 
   # Identity moves inside this window, with the same kind and the same two
   # people, are one moment: a merge repoints each identity in its own write.

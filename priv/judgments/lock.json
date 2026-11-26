@@ -91,6 +91,10 @@
     "hash": "sha256:078f745d2ac8b7ce62b4a68d7dfb2385d593220e18d1e09cc1d26727aafe5cb7",
     "version": 1
   },
+  "judgment:v0:AshEnterprise.SystemOne.ShowcaseSubject#judgments/licence_scan_legible": {
+    "hash": "sha256:42ec4a2c605b5c6415621c62c45e27db4078965f86dac1f637af5c08b35f2c6f",
+    "version": 1
+  },
   "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_permissive": {
     "hash": "sha256:25f179d306cf6ab975032007d2387638625bed8b53a47a8be251f7172d5c151b",
     "version": 1
