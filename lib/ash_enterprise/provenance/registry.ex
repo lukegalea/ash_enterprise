@@ -11,8 +11,7 @@ defmodule AshEnterprise.Provenance.Registry do
   The dispatch order (ADR 0078, section 4) is `explainers_for/2`: package
   explainers declared for the resource and field first, then the derived-value
   explainer, the audit explainer and the record columns. Package explainers
-  (MDM statements, judged facts, decisions) are a later change; the slot is the
-  empty `@package_explainers` list.
+  (judged facts so far) are the `@package_explainers` list.
   """
 
   @pairs [
@@ -23,7 +22,8 @@ defmodule AshEnterprise.Provenance.Registry do
     {"audit_event", AshEnterprise.Audit.EventLog},
     {"person_erasure", AshEnterprise.Erasure.PersonErasure},
     {"dispatch", AshEnterprise.Bpmn.Dispatch},
-    {"agent_start_grant", AshEnterprise.Security.AgentStartGrant}
+    {"agent_start_grant", AshEnterprise.Security.AgentStartGrant},
+    {"fact", AshEnterprise.SystemOne.Fact}
   ]
 
   # One token for two resources would answer one address two ways; two tokens
@@ -46,9 +46,11 @@ defmodule AshEnterprise.Provenance.Registry do
   @resources Map.new(@pairs, fn {token, resource} -> {resource, token} end)
 
   # Package explainers declared for a resource and field (MDM statements,
-  # judged facts, decisions): none yet. Each entry is
-  # `{resource, field, module}` and runs before the generic explainers.
-  @package_explainers []
+  # decisions still to come). Each entry is `{resource, field, module}` and
+  # runs before the generic explainers.
+  @package_explainers [
+    {AshEnterprise.SystemOne.Fact, :value, AshEnterprise.Provenance.Explainers.JudgedFact}
+  ]
 
   @doc "The resource a type token addresses."
   @spec resource(String.t()) :: {:ok, Ash.Resource.t()} | :error
