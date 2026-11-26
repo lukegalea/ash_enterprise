@@ -442,7 +442,11 @@ jobs:
     # each, took forty minutes in one shard. These steps never decide the
     # result; the last step does.
     needs: test-shards
-    if: always()
+    # Not always(): a run that was cancelled (superseded by a newer push, or the
+    # push run cancelled in favour of the PR run for the same commit) would then
+    # post a red "Test suite (all shards)" on that commit, under a required
+    # check's name, while the run that counts is still going.
+    if: ${{ !cancelled() }}
     permissions:
       contents: read
       actions: read
