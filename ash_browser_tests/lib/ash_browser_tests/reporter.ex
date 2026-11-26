@@ -86,9 +86,15 @@ defmodule AshBrowserTests.Reporter do
       # rounded to milliseconds: the fast generated surface tests would all
       # become "0ms" and the report would stop being able to show an outlier.
       time_us: test.time,
-      failure: failure(test.state)
+      failure: failure(test.state),
+      journey: journey(test.tags[:journey])
     }
   end
+
+  # A journey test (`AshBrowserTests.Journeys`) is tagged with what it runs, so
+  # the report can group the journey's locales together.
+  defp journey({_module, name, locale}), do: %{id: to_string(name), locale: locale}
+  defp journey(_not_a_journey), do: nil
 
   defp status(nil), do: "passed"
   defp status({:failed, _failures}), do: "failed"

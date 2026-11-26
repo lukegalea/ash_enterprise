@@ -21,4 +21,15 @@ defmodule AshBrowserTests.SurfacesTest do
       )
     end
   end
+
+  test "a row with no id fails before anything is clicked" do
+    surface = %AshBrowserTests.Surface{id: "widgets", path: "/widgets"}
+    host = AshBrowserTests.Fixture.TextOnlyRows
+
+    assert_raise ExUnit.AssertionError,
+                 ~r/row_for\/3 returned no :id for widgets \/ activate/,
+                 fn ->
+                   Surfaces.row_setup(%{}, surface, %{id: "activate"}, host)
+                 end
+  end
 end

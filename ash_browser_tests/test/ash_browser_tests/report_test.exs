@@ -189,4 +189,36 @@ defmodule AshBrowserTests.ReportTest do
       assert md =~ "trace"
     end
   end
+
+  describe "journeys" do
+    defp journey_row(key, id, locale, status \\ "passed") do
+      row(key: key, name: key, status: status, journey: %{id: id, locale: locale})
+    end
+
+    test "groups a journey's locales together, journeys before other tests" do
+      rows = [
+        row(key: "plain", name: "plain", status: "failed"),
+        journey_row("b-en", "b", "en"),
+        journey_row("a-en", "a", "en", "failed"),
+        journey_row("b-fr", "b", "fr")
+      ]
+
+      assert [{"b", [%{key: "b-en"}, %{key: "b-fr"}]}, {"a", [_]}, {nil, [%{key: "plain"}]}] =
+               Report.groups(rows)
+
+      html = rows |> Report.html("Run", ".") |> IO.iodata_to_binary()
+      assert html =~ "<h2>Journey b</h2>"
+      assert html =~ "<h2>Other tests</h2>"
+
+      md = rows |> Report.markdown("Run") |> IO.iodata_to_binary()
+      assert md =~ "### Journey `a`"
+      assert md =~ "### Other tests"
+    end
+
+    test "a run with no journeys keeps one plain table" do
+      md = [row(key: "x", name: "x")] |> Report.markdown("Run") |> IO.iodata_to_binary()
+      refute md =~ "###"
+      assert md =~ "| | Test | Time | Media |"
+    end
+  end
 end

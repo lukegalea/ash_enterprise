@@ -65,11 +65,12 @@ defmodule AshBrowserTests.Fixture.Surfaces do
   def row_for(_surface, _row_action, _context) do
     name = "Row #{System.unique_integer([:positive])}"
 
-    Widget
-    |> Ash.Changeset.for_create(:create, %{name: name})
-    |> Ash.create!(authorize?: false)
+    widget =
+      Widget
+      |> Ash.Changeset.for_create(:create, %{name: name})
+      |> Ash.create!(authorize?: false)
 
-    %{text: name}
+    %{id: widget.id, text: name}
   end
 
   # The fixture has no audit table: the row the action changed stands in for one.
@@ -145,4 +146,11 @@ defmodule AshBrowserTests.Fixture.UnwaivedSurfaces do
 
   @impl true
   def sign_in(conn, _actor, _context), do: conn
+end
+
+defmodule AshBrowserTests.Fixture.TextOnlyRows do
+  @moduledoc false
+  # A host whose row_for/3 names the row by its text alone, as the generated row
+  # actions once accepted.
+  def row_for(_surface, _row_action, _context), do: %{text: "Row 1"}
 end
