@@ -917,7 +917,7 @@ jobs:
     # The journeys this application declares (lib/ash_enterprise/journeys/),
     # walked in a real browser in each of their locales by the browser tier
     # (`mix test.browser test/e2e/journeys`). Each run leaves a manifest and its
-    # figures under tmp/journeys/runs/ci-<run id>-<attempt>/, uploaded below
+    # figures under tmp/journeys/runs/ci-<run id>/, uploaded below
     # whether it passed or not: figures are approved only from this artifact
     # (`gh run download`, then `mix ash_journeys.approve`), because the lock pins
     # the browser build they were shot on, and that build is the Chromium the
