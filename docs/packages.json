@@ -43,7 +43,7 @@
       "adr": "0033",
       "declared": "direct",
       "only": null,
-      "ref": "9b1957cddd6f92ec276c5b90014f67359f2b083f",
+      "ref": "f9f8036e2c3a4a3c62767fe16ef2245fc2296f08",
       "version": "0.1.0",
       "stated_status": "Under active development; the first release waits for an npm release of the A2UI renderer that implements the 1.0 specification.",
       "maturity": "used-and-tested-here",
