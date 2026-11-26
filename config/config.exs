@@ -216,6 +216,27 @@ config :ash_enterprise, AshEnterprise.Process.AssignmentResolver,
 
 config :ash_decisions, ash_domains: [AshEnterprise.Decisions]
 
+# The paper clause tables' publish gate: a `paper.clause.*` table publishes
+# only when it is UNIQUE, answers a single boolean `include`, gives every rule
+# a reason, and verifies complete (`AshEnterprise.Documents.Paper.
+# ClauseTableVerifier`). Every other key is untouched.
+config :ash_decisions,
+  publish_verifiers: [AshEnterprise.Documents.Paper.ClauseTableVerifier]
+
+# The paper kernel's lock inputs: `mix paper.lock` hashes these and writes
+# `priv/paper.lock.json`; `mix paper.lock --check` fails when a schema or the
+# layout drifts without a version bump. The modules are the host's own — see
+# `AshEnterprise.Documents.Paper`.
+config :ash_paper,
+  schemas: [AshEnterprise.Credentialing.Paper.CredentialStatusLetter.Schema],
+  layouts: [AshEnterprise.Documents.Paper.Letter]
+
+# The document kinds this host issues (`AshEnterprise.Documents.Paper.Kind`):
+# the paper machinery names no business domain; each kind is a module the
+# host lists here. The host kinds live with the code they read.
+config :ash_enterprise, AshEnterprise.Documents.Paper,
+  kinds: [AshEnterprise.Credentialing.Paper.CredentialStatusLetter]
+
 # --- The compliance plane (ADR 0035) -------------------------------------------
 #
 # `ash_compliance` resolves the repo and table prefix through application env,
@@ -591,6 +612,7 @@ config :ash_enterprise,
     AshEnterprise.Automation,
     AshEnterprise.Quality,
     AshEnterprise.Planning,
+    AshEnterprise.Documents,
     AshEnterprise.Flags,
     AshEnterprise.Exports,
     AshEnterprise.Signatures

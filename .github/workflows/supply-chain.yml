@@ -21,7 +21,10 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # A same-repo PR shares its branch's group, so the push run and the PR run
+  # for one commit cancel down to one. A fork PR keys on its pull ref, so a
+  # fork branch named main can never cancel main's run.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref || github.event_name == 'pull_request' && github.ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
