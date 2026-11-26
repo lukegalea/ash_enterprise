@@ -105,6 +105,8 @@ const gates = describe<string>({
   e2e: 'Every Playwright spec in assets/e2e, in Chromium, against a seeded development server.',
   telemetry: 'The telemetry package’s own suite, in its own mix project.',
   'browser-tests': 'The test-only browser package’s suite, driving Chromium against a small fixture application.',
+  journeys:
+    'Walks each declared journey in every locale it names, on the Chromium the pinned Playwright release bundles, and keeps the runs as an artifact: the only runs figures are approved from. It reports, and does not fail the run, until the figures have held steady across runs.',
   battery:
     'Flows that span two or more first-party packages, in battery/’s own mix project and database, after checking its pins match mix.lock.',
   dialyzer: 'Type analysis. It runs and reports, and does not fail the run (ADR 0007).',
