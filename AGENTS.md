@@ -2837,6 +2837,12 @@ own platform base and keeps its own policies._
 
 [ash_mdm usage rules](deps/ash_mdm/usage-rules.md)
 <!-- ash_mdm-end -->
+<!-- ash_provenance-start -->
+## ash_provenance usage
+_Plain-data contract for explaining where a value came from: addresses, PROV-DM steps, typed gaps and a PROV-O JSON-LD export._
+
+[ash_provenance usage rules](deps/ash_provenance/usage-rules.md)
+<!-- ash_provenance-end -->
 <!-- ash_rules-start -->
 ## ash_rules usage
 _Predicates over sets (ADR 0048): a Spark DSL compiling declared questions to a

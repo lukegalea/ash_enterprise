@@ -11,8 +11,11 @@ defmodule AshEnterpriseWeb.HiddenField do
 
   On the JSON wire the struct is `null`, as AshJsonApi renders a forbidden field
   (`Jason.Encoder`, beside the `Phoenix.HTML.Safe` implementation). An A2UI surface
-  sends it as `null` too (`ash_a2ui` does this itself), so a cell or a form field there
-  shows it empty, not masked. A form filled from the record holds that stand-in, and an
+  shows it as masked text, with the reason at the record's reserved `_masked` key
+  (`ash_a2ui` does this itself, `AshA2ui.Masked`), so a cell, a card or a badge there never
+  reads as known and empty. Its edit buffers (`/form`, `_edit_<field>`) and its CSV exports
+  keep `null` or an empty cell, so a form filled from the record holds a stand-in, never
+  the masked word, and an
   update keeps the stored value when a writer who cannot see the column sends a stand-in back
   (`AshEnterprise.Security.Changes.KeepHiddenSecuredFields`). `String.Chars` is
   deliberately not implemented, so code that builds a key or a request from a hidden

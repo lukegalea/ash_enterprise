@@ -98,7 +98,7 @@ step usage-rules scripts/usage-rules-check.sh
 # The test-shards job: every test file lands in exactly one shard.
 step shards elixir scripts/ci-shard.exs check 10
 
-# The battery job's first step; the battery itself is `mix platform_battery`.
+# The battery check's first step (ci.yml's `quick` job); the battery itself is `mix platform_battery`.
 step battery-pins elixir scripts/battery-pins-check.exs
 
 if [ ${#failed[@]} -gt 0 ]; then

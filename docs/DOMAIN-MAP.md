@@ -734,7 +734,7 @@ Bulk export out: a tenant's data as CSV, under the same policies as every other 
 
 <!-- domain-map:context:system-one:start -->
 
-Plane: **Evidence & judgment** · Domain: `AshEnterprise.SystemOne` · Packages: `ash_judgments`, `ash_evidence` · ADRs: [ADR 38](adr/0038-models-observe-declarations-decide.md), [ADR 39](adr/0039-judgments-are-declared-questions.md), [ADR 40](adr/0040-record-dont-recompute.md), [ADR 41](adr/0041-thresholds-are-dmn-earned-by-calibration.md), [ADR 42](adr/0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md), [ADR 43](adr/0043-automation-authority-is-a-grant.md), [ADR 44](adr/0044-documents-are-addressed-atoms-evidence-is-an-assertion.md), [ADR 45](adr/0045-system-one-in-tooling-is-advisory.md), [ADR 46](adr/0046-the-declaration-is-the-output-contract.md), [ADR 47](adr/0047-learning-produces-proposals.md), [ADR 48](adr/0048-a-judgment-is-a-predicate-over-any-set.md), [ADR 53](adr/0053-subject-state-digest-third-axis.md)
+Plane: **Evidence & judgment** · Domain: `AshEnterprise.SystemOne` · Packages: `ash_judgments`, `ash_evidence`, `ash_provenance` · ADRs: [ADR 38](adr/0038-models-observe-declarations-decide.md), [ADR 39](adr/0039-judgments-are-declared-questions.md), [ADR 40](adr/0040-record-dont-recompute.md), [ADR 41](adr/0041-thresholds-are-dmn-earned-by-calibration.md), [ADR 42](adr/0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md), [ADR 43](adr/0043-automation-authority-is-a-grant.md), [ADR 44](adr/0044-documents-are-addressed-atoms-evidence-is-an-assertion.md), [ADR 45](adr/0045-system-one-in-tooling-is-advisory.md), [ADR 46](adr/0046-the-declaration-is-the-output-contract.md), [ADR 47](adr/0047-learning-produces-proposals.md), [ADR 48](adr/0048-a-judgment-is-a-predicate-over-any-set.md), [ADR 53](adr/0053-subject-state-digest-third-axis.md)
 
 Declared questions, the append-only judgment ledger, banding, admitted facts, human verdicts; evidence adjudication as assertions.
 
@@ -1457,24 +1457,25 @@ The documents surface: issuing real documents from the host's own data through t
 | Package | Kind | Locked as | Context | Role |
 |---|---|---|---|
 | `ash_events` | fork | git @ bd5f4970 | [Audit](#audit) | Audit/event ledger with as-of capture/replay (ADR 0002). |
-| `ash_events_projections` | transitive | git @ 826aff25 | [Compliance](#compliance) | The projector engine behind compliance findings. |
+| `ash_events_projections` | transitive | git @ 931d9fd0 | [Compliance](#compliance) | The projector engine behind compliance findings. |
 | `ash_strangler` | first-party | git @ e9835fec | [Legacy estate](#legacy), [Change ledger](#ledger) | Strangler-fig mappings, ledger, drain. |
 | `ash_operations` | first-party | git @ 84f2b221 | [Integration](#integration) | Declared provider operations + webhook ingress. |
-| `ash_discrete_business_events` | first-party | git @ 23ea5336 | [Business events](#business-events) | SourceRecord landing + chained event ledger. |
+| `ash_discrete_business_events` | first-party | git @ 4badc1c3 | [Business events](#business-events) | SourceRecord landing + chained event ledger. |
 | `ash_mdm` | first-party | git @ f8db5fb3 | [Master data](#mdm) | Mappings-as-data, resolution, survivorship, merge. |
 | `ash_open_lineage` | first-party | git @ c35de0bc | [Lineage](#lineage) | Run events from action notifications. |
-| `ash_judgments` | first-party | git @ c495c022 | [System One](#system-one) | Declared questions, judgment ledger fragments, calibration. |
-| `ash_evidence` | first-party | git @ d67f53bd | [System One](#system-one) | Document versions, addressed atoms, parse runs, assertions. |
+| `ash_judgments` | first-party | git @ 89219338 | [System One](#system-one) | Declared questions, judgment ledger fragments, calibration. |
+| `ash_evidence` | first-party | git @ 329c367c | [System One](#system-one) | Document versions, addressed atoms, parse runs, assertions. |
+| `ash_provenance` | first-party | git @ ac73afc9 | [System One](#system-one) | Plain-data contract that explains a value: steps, typed gaps, PROV-O export. |
 | `ash_rules` | first-party | git @ ab97fdc8 | [Compliance](#compliance) | Serializable rule IR, fact schemas, evaluator seam. |
 | `ash_compliance` | first-party | git @ b1ddecde | [Compliance](#compliance) | Catalogs/profiles/waivers → immutable bundles; findings projection. |
 | `ash_decisions` | first-party | git @ 1a01808e | [Decisions](#decisions) | Decisions as versioned resources; TCK-measured. |
 | `boxic_dmn` | transitive | git @ 6280f2fa | [Decisions](#decisions) | Decision-document validation (ADR 0027). |
 | `boxic_feel` | transitive | hex 0.2.0 | [Decisions](#decisions) | The FEEL expression engine (ADR 0027). |
 | `ash_bpmn` | first-party | git @ 0daf09f9 | [Processes](#bpmn) | Process documents → graph snapshot → token interpreter. |
-| `ash_planning` | first-party | git @ 61ef4da4 | [Planning](#planning) | Planning fragments, IR, validators; solver backend. |
+| `ash_planning` | first-party | git @ 6aab92f2 | [Planning](#planning) | Planning fragments, IR, validators; solver backend. |
 | `ash_agent` | first-party | git @ c3bd9892 | [Agents](#agents) | Governed invocations and durable agent runs (host-instantiated). |
 | `ash_acp` | first-party | git @ 536a404d | [Agent protocol](#acp) | The agent-client wire adapter; no second authorization model. |
-| `ash_a2ui` | first-party | git @ e417c6e7 | [Surfaces](#surfaces) | Agent-renderable payloads generated from resources. |
+| `ash_a2ui` | first-party | git @ fd91e33d | [Surfaces](#surfaces) | Agent-renderable payloads generated from resources. |
 | `ash_agent_tools` | first-party dev | git @ fc7aa130 | [Standards](#standards) | Read-only introspection CLI + the iron laws. |
 | `battery` | in-repo | in-repo (`battery/`) | [Platform](#platform) | Cross-substrate integration battery over its own reference instantiation. |
 | `ash_events_chain` | first-party | git @ cd122991 | [Audit](#audit) | The audit log's hash chain: immutability triggers, the verifier over hot log and archive as one chain, the verified move to the archive. |

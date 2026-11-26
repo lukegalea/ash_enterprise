@@ -243,6 +243,17 @@ defmodule AshEnterprise.Documents.PaperRun do
       """
     end
 
+    attribute :world, :atom do
+      allow_nil? false
+      default :operational
+      constraints one_of: [:operational]
+
+      description """
+      Always `:operational`. A draft copies its run's world when it is proposed
+      (`AshPlanning.Fragment.Candidate`), and a rendered document is never a scenario.
+      """
+    end
+
     attribute :paper_binding_id, :uuid do
       public? true
       description "The binding the render was pinned against; no foreign key, see the moduledoc."
