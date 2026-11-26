@@ -37,6 +37,14 @@ defmodule AshEnterprise.Quality.SuiteRun do
   case and epoch, and a `summary` with quality and safety in separate lanes. Its sweep
   runs every minute; nothing enqueues it sooner.
 
+  ## Grading
+
+  A suite naming the judged scorer gets judged scores when it finishes. Its answers are
+  graded only in the evaluation tenant: there `finish` enqueues
+  `AshEnterprise.Quality.SuiteRun.GradeWorker`, which grades them and runs
+  `record_judged`; anywhere else they read unknown, not graded
+  (`AshEnterprise.Quality.Evaluation`). Judged scores never gate (ADR 0058, D9).
+
   ## Comparing
 
   `compare` lays the most recent suite runs of one suite side by side
@@ -45,7 +53,7 @@ defmodule AshEnterprise.Quality.SuiteRun do
 
   User-owned and audited: the person who started it owns it. Starting is the
   `quality.run` privilege of ADR 0058 (create on this resource), reading it
-  `quality.read`; `finish` is the job runner's alone.
+  `quality.read`; `finish` and `record_judged` are the job runner's alone.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -53,7 +61,7 @@ defmodule AshEnterprise.Quality.SuiteRun do
     ownership: :user_owned,
     lifecycle?: false,
     archival?: false,
-    machinery_only: [:finish],
+    machinery_only: [:finish, :record_judged],
     self_service: [:compare],
     extra_extensions: [AshStateMachine, AshOban]
 
@@ -144,6 +152,24 @@ defmodule AshEnterprise.Quality.SuiteRun do
 
       change transition_state(:finished)
       change Changes.Finish
+    end
+
+    update :record_judged do
+      description """
+      Record a finished suite run's judged scores again from the admitted facts, after its
+      answers were graded in the evaluation tenant (`AshEnterprise.Quality.Evaluation`).
+      """
+
+      accept []
+      require_atomic? false
+
+      argument :grading, :map do
+        allow_nil? false
+        description "Whether and how the answers were graded: the report's `\"grading\"`."
+      end
+
+      validate attribute_equals(:status, :finished)
+      change Changes.RecordJudged
     end
   end
 

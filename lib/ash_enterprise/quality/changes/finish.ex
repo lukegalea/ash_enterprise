@@ -30,29 +30,37 @@ defmodule AshEnterprise.Quality.Changes.Finish do
   ## Judged scores
 
   Each case's answer is the reply subject `"agent_reply:<suite run id>/<case id>/1"`
-  (`AshEnterprise.Quality.AgentReply`'s `:from_run`, read as the job runner), and its
-  judged scores are what the admitted facts say about it now
-  (`AshEnterprise.Quality.Gate.family_report/3`). Nothing here asks a model: an answer
-  no judge has graded reads `unknown` (`no_fact`), and a case with no text answer is
-  an unknown reply too, never a pass. The scores report and never gate
+  (`AshEnterprise.Quality.AgentReply`'s `:from_run`, read as the job runner). Nothing
+  here asks a model. Whether anything ever grades those answers is the tenant's
+  (`AshEnterprise.Quality.Evaluation`):
+
+    * in the evaluation tenant, the scores are what the admitted facts say now
+      (`AshEnterprise.Quality.Gate.family_report/3`), the report's `"grading"` is
+      `"pending"`, and `AshEnterprise.Quality.SuiteRun.GradeWorker` is enqueued in this
+      transaction: it grades the answers and records the scores again
+      (`record_judged`);
+    * anywhere else nothing grades them: every score is unknown with the reason
+      `not_evaluation_tenant` (or `no_evaluation_tenant`), and no fact is read.
+
+  An answer no judge has graded reads `unknown` (`no_fact`), and a case with no text
+  answer is an unknown reply too, never a pass. The scores report and never gate
   (ADR 0058, decision D9).
   """
 
   use Ash.Resource.Change
 
   alias AshEnterprise.Execution
-  alias AshEnterprise.Platform.SystemActor
-  alias AshEnterprise.Quality
 
   alias AshEnterprise.Quality.{
     Assertions,
-    Gate,
+    Evaluation,
     Injection,
-    JudgedScores,
     Provenance,
     Suite,
     SuiteRun
   }
+
+  alias AshEnterprise.Quality.SuiteRun.GradeWorker
 
   alias AshEnterprise.Quality.Changes.RecordResults
 
@@ -94,12 +102,26 @@ defmodule AshEnterprise.Quality.Changes.Finish do
           |> put_judged(judged.report),
         finished_at: finished_at
       })
-      |> Ash.Changeset.set_context(%{quality: %{results: results}})
+      |> Ash.Changeset.set_context(%{quality: %{results: results, grade?: judged.grade?}})
     end
   end
 
-  defp record(changeset, suite_run),
-    do: RecordResults.record(suite_run, changeset.context.quality.results, changeset.tenant)
+  defp record(changeset, suite_run) do
+    %{results: results, grade?: grade?} = changeset.context.quality
+
+    with {:ok, suite_run} <- RecordResults.record(suite_run, results, changeset.tenant) do
+      enqueue_grading(suite_run, grade?)
+    end
+  end
+
+  # In the transaction that finishes the run: a finish that rolls back enqueues nothing.
+  defp enqueue_grading(suite_run, true) do
+    with {:ok, _job} <- suite_run |> GradeWorker.args() |> GradeWorker.new() |> Oban.insert() do
+      {:ok, suite_run}
+    end
+  end
+
+  defp enqueue_grading(suite_run, false), do: {:ok, suite_run}
 
   defp runs(suite_run, suite, tenant) do
     keys = Map.new(suite.cases, &{SuiteRun.run_key(suite_run.id, &1[:id], @epoch), &1[:id]})
@@ -164,28 +186,25 @@ defmodule AshEnterprise.Quality.Changes.Finish do
   defp answer(%{"value" => value}), do: value
   defp answer(_none), do: nil
 
-  # The families a suite names as judged scorers; `agent_reply_style` is the only one.
-  defp judged(%{scorers: scorers} = suite, suite_run, runs, tenant) do
-    if Enum.any?(scorers, &(&1["kind"] == "judged" and &1["family"] == "agent_reply_style")) do
-      opts = [tenant: tenant, actor: SystemActor.oban()]
-      replies = Enum.map(suite.cases, &reply(suite_run, &1[:id], Map.get(runs, &1[:id]), opts))
-      JudgedScores.build(replies, Gate.family_report(replies, :agent_reply_style, opts), opts)
+  # The judged scores, when the suite names the judged scorer: from the facts and to be
+  # graded in the evaluation tenant, unknown and never graded anywhere else.
+  defp judged(suite, suite_run, runs, tenant) do
+    if Evaluation.judged?(suite) do
+      replies = Evaluation.replies(suite_run, suite, runs, tenant)
+
+      case Evaluation.designation(tenant) do
+        :evaluation_tenant ->
+          replies
+          |> Evaluation.scores(%{"status" => "pending"}, tenant)
+          |> Map.put(:grade?, true)
+
+        {:not_graded, reason} ->
+          replies
+          |> Evaluation.scores(Evaluation.not_graded_entry(reason), tenant)
+          |> Map.put(:grade?, false)
+      end
     else
-      %{scores: %{}, report: nil}
-    end
-  end
-
-  # The case's answer as a reply subject, or a stand-in with no text and no facts, so
-  # the report reads it unknown.
-  defp reply(suite_run, case_id, run, opts) do
-    args = %{run_id: suite_run.id, case_id: case_id, epoch: @epoch}
-
-    case run && Quality.reply_from_run(run.id, args, opts) do
-      {:ok, %Quality.AgentReply{} = reply} ->
-        reply
-
-      _no_answer ->
-        %{id: "agent_reply:#{suite_run.id}/#{case_id}/#{@epoch}", text: "", used_tools: false}
+      %{scores: %{}, report: nil, grade?: false}
     end
   end
 

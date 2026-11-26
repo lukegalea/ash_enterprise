@@ -1,7 +1,9 @@
 defmodule AshEnterprise.Quality.CaseResult do
   @moduledoc """
   What one case of a suite run scored, at one epoch (ADR 0058), in table
-  `quality_case_results`: written once by the suite run's `finish`, never changed.
+  `quality_case_results`: written once by the suite run's `finish`. Only `scores` changes
+  after that, when the suite run's answers are graded in the evaluation tenant
+  (`record_scores`, run by the suite run's `record_judged`).
 
     * `status`: `:failed` when any assertion failed; else `:errored` when the case's run
       did not complete; else `:unmeasured` when no assertion could be measured; else
@@ -29,7 +31,7 @@ defmodule AshEnterprise.Quality.CaseResult do
     archival?: false,
     audit?: false,
     lineage?: false,
-    machinery_only: [:record]
+    machinery_only: [:record, :record_scores]
 
   postgres do
     table "quality_case_results"
@@ -59,6 +61,11 @@ defmodule AshEnterprise.Quality.CaseResult do
       ]
 
       change AshEnterprise.Quality.Changes.FromSuiteRun
+    end
+
+    update :record_scores do
+      description "Replace the judged scores, after the suite run's answers were graded."
+      accept [:scores]
     end
   end
 
