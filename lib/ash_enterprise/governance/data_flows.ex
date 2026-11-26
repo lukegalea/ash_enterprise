@@ -134,7 +134,8 @@ defmodule AshEnterprise.Governance.DataFlows do
         AshEnterprise.SystemOne.DecisionWire,
         AshEnterprise.Licences.Rungs,
         AshEnterprise.Standards.Standing,
-        AshEnterprise.Quality.Grader
+        AshEnterprise.Quality.Grader,
+        AshEnterprise.Quality.ToolCalls
       ],
       gate: %{
         name:
@@ -239,17 +240,20 @@ defmodule AshEnterprise.Governance.DataFlows do
     },
     %{
       id: :standards_runtime_probe,
-      name: "Standards check: model runtime version probe",
+      name: "Judge instrument identity: model runtime version probe",
       recipient_class: :in_zone_model_runtime,
       data_classes: [:none],
-      modules: [AshEnterprise.Standards.StandingWorker],
+      modules: [AshEnterprise.SystemOne.Instrument],
       gate: %{
         name:
-          "Off unless the standing job is enabled; the target is the configured in-zone profile's own host",
-        enforced_by: AshEnterprise.Standards.StandingWorker
+          "Asked only by the standards standing job when it is enabled and by the evaluation tenant's " <>
+            "grading job; the target is the configured in-zone profile's own host",
+        enforced_by: AshEnterprise.SystemOne.Instrument
       },
       known_gap: nil,
-      notes: "A GET of the runtime's version. No tenant data."
+      notes:
+        "A GET of the runtime's version, for the instrument identity a judgment records " <>
+          "(AshEnterprise.Standards.StandingWorker, AshEnterprise.Quality.SuiteRun.GradeWorker). No tenant data."
     },
     %{
       id: :observability_exporter,

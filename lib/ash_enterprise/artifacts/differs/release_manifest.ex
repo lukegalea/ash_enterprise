@@ -16,13 +16,13 @@ defmodule AshEnterprise.Artifacts.Differs.ReleaseManifest do
   versions the viewer cannot read is reported as changed with its contents unread.
   """
 
-  @behaviour AshEnterprise.Artifacts.Differ
+  @behaviour AshVersions.Differ
 
   use Gettext, backend: AshEnterpriseWeb.Gettext
 
-  alias AshEnterprise.Artifacts.Change
   alias AshEnterprise.Artifacts.Differs.AgentVersion, as: AgentDiffer
   alias AshEnterprise.Execution
+  alias AshVersions.Change
 
   @aspect %{
     "process" => :routing,

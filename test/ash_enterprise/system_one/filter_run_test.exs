@@ -316,6 +316,35 @@ defmodule AshEnterprise.SystemOne.FilterRunTest do
       assert result.partitions.unknown == []
     end
 
+    test "each unknown says why: never assessed, or its fact expired", ctx do
+      seed("c-1", "licence_current", true, true)
+      seed("c-2", @follow_up, true, true, valid_until: ~U[2026-01-01T00:00:00Z])
+
+      result = run!(ctx, propose_and_approve(ctx, @valid_doc))
+
+      reasons = Map.new(result.partitions.unknown, &{&1["subject_id"], &1["reasons"]})
+
+      assert reasons == %{
+               "c-1" => %{@follow_up => "no_fact"},
+               "c-2" => %{@follow_up => "expired"}
+             }
+    end
+
+    test "subject_type restricts the searched set, and the plan records it", ctx do
+      seed("c-1", @follow_up, true, true)
+      assert {:ok, :materialised} = Materialiser.materialise(other_type_decision())
+
+      approved = propose_and_approve(ctx, @valid_doc)
+
+      everyone = run!(ctx, approved)
+      assert length(everyone.partitions.in ++ everyone.partitions.unknown) == 2
+
+      only = run!(ctx, approved, subject_type: "commit")
+      assert subject_ids(only.partitions.in) == ["c-1"]
+      assert only.partitions.unknown == []
+      assert only.execution.plan["subject_type"] == "commit"
+    end
+
     test "stale facts join unknown via the run path too", ctx do
       seed("c-1", @follow_up, true, true, valid_until: ~U[2026-01-01T00:00:00Z])
 
@@ -448,6 +477,20 @@ defmodule AshEnterprise.SystemOne.FilterRunTest do
       assert first.in_count == 1 and first.out_count == 0 and first.unknown_count == 0
       assert second.in_count == 1
     end
+  end
+
+  defp other_type_decision do
+    %{
+      result: :admitted,
+      subject: %{"type" => "note", "id" => "n-1"},
+      predicate: "city",
+      value: "Toronto",
+      holds: true,
+      grade: :grant,
+      scope: nil,
+      valid_until: nil,
+      id: Ash.UUID.generate()
+    }
   end
 
   defp subject_ids(partition), do: Enum.map(partition, & &1["subject_id"])

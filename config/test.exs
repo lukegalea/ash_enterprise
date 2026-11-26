@@ -258,7 +258,8 @@ config :ash_events_projections, start_projectors?: false, start_probe?: false
 # The test-support subjects are the only ones declaring questions today.
 config :ash_enterprise, :system_one_subject_resources, [
   AshEnterprise.SystemOne.TestSupport.Note,
-  AshEnterprise.SystemOne.TestSupport.Standard
+  AshEnterprise.SystemOne.TestSupport.Standard,
+  AshEnterprise.SystemOne.ShowcaseSubject
 ]
 
 # The boot-time privilege sync (AshEnterprise.Platform.PrivilegeSync) writes

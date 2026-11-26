@@ -531,6 +531,9 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
           >
             Français
           </.link>
+          <.link id="to-search" navigate={~p"/app/showcase/search"} class="underline">
+            {dgettext("showcase", "Three-valued search")}
+          </.link>
         </nav>
       </:toolbar>
 

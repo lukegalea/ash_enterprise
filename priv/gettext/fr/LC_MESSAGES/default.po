@@ -449,7 +449,7 @@ msgstr "Jugements que la table de bandes a envoyés en revue, en attente de votr
 msgid "Legacy"
 msgstr "Ancien système"
 
-#: lib/ash_enterprise/surfaces.ex:1327
+#: lib/ash_enterprise/surfaces.ex:1344
 #, elixir-autogen, elixir-format
 msgid "Legacy users"
 msgstr "Utilisateurs de l’ancien système"
@@ -642,7 +642,7 @@ msgstr "La chaîne de versions de correspondance : intégration sans déploiemen
 msgid "The merged view of the customer, with merge lineage."
 msgstr "La vue fusionnée du client, avec la filiation des fusions."
 
-#: lib/ash_enterprise/surfaces.ex:1329
+#: lib/ash_enterprise/surfaces.ex:1346
 #, elixir-autogen, elixir-format
 msgid "The old system's people, read live through a compatibility view."
 msgstr "Les personnes de l’ancien système, lues en direct par une vue de compatibilité."
@@ -742,7 +742,7 @@ msgstr "Vos comptes liés et l’état de leurs synchronisations."
 msgid "Your morning brief, today's agenda and the day's pulse."
 msgstr "Votre synthèse du matin, l’ordre du jour d’aujourd’hui et le pouls de la journée."
 
-#: lib/ash_enterprise/surfaces.ex:1353
+#: lib/ash_enterprise/surfaces.ex:1370
 #, elixir-autogen, elixir-format
 msgid "Builders"
 msgstr "Constructeurs"
@@ -762,7 +762,7 @@ msgstr "Appuyer sur Entrée sur un numéro de licence ou un identifiant d’exé
 msgid "Everyone"
 msgstr "Tout le monde"
 
-#: lib/ash_enterprise/surfaces.ex:1351
+#: lib/ash_enterprise/surfaces.ex:1368
 #, elixir-autogen, elixir-format
 msgid "Members"
 msgstr "Membres"
@@ -772,7 +772,7 @@ msgstr "Membres"
 msgid "No app or record matches “%{query}”."
 msgstr "Aucune application ou enregistrement ne correspond à « %{query} »."
 
-#: lib/ash_enterprise/surfaces.ex:1354
+#: lib/ash_enterprise/surfaces.ex:1371
 #, elixir-autogen, elixir-format
 msgid "Operators"
 msgstr "Opérateurs"
@@ -782,7 +782,7 @@ msgstr "Opérateurs"
 msgid "Records"
 msgstr "Enregistrements"
 
-#: lib/ash_enterprise/surfaces.ex:1352
+#: lib/ash_enterprise/surfaces.ex:1369
 #, elixir-autogen, elixir-format
 msgid "Reviewers"
 msgstr "Réviseurs"
@@ -1628,7 +1628,7 @@ msgstr "Ce compte du fournisseur d’identité n’est lié à aucun compte conf
 msgid "Your session has expired. Sign in again."
 msgstr "Votre session a expiré. Reconnectez-vous."
 
-#: lib/ash_enterprise_web/hidden_field.ex:26
+#: lib/ash_enterprise_web/hidden_field.ex:29
 #, elixir-autogen, elixir-format
 msgid "hidden"
 msgstr "masqué"
@@ -1732,3 +1732,13 @@ msgstr "Propositions de questions"
 #, elixir-autogen, elixir-format
 msgid "Questions drafted from policy text, awaiting a person's confirmation."
 msgstr "Questions rédigées à partir du texte d’une politique, en attente de la confirmation d’une personne."
+
+#: lib/ash_enterprise/surfaces.ex:1327
+#, elixir-autogen, elixir-format
+msgid "Search invented clinicians and see what is in, what is out, and what is unknown, with the reason for each unknown."
+msgstr "Cherchez parmi des cliniciens inventés et voyez ce qui est dedans, ce qui est dehors et ce qui est inconnu, avec la raison de chaque inconnu."
+
+#: lib/ash_enterprise/surfaces.ex:1325
+#, elixir-autogen, elixir-format
+msgid "Three-valued search"
+msgstr "Recherche à trois valeurs"

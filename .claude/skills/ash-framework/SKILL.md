@@ -177,6 +177,10 @@ metadata:
 - [migrations](references/ash_postgres/migrations.md)
 - [multitenancy](references/ash_postgres/multitenancy.md)
 
+### ash_provenance
+
+- [ash_provenance](references/ash_provenance/ash_provenance.md)
+
 ### ash_rules
 
 - [ash_rules](references/ash_rules/ash_rules.md)
@@ -189,10 +193,14 @@ metadata:
 
 - [ash_strangler](references/ash_strangler/ash_strangler.md)
 
+### ash_versions
+
+- [ash_versions](references/ash_versions/ash_versions.md)
+
 ## Searching Documentation
 
 ```sh
-mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_admin -p ash_agent -p ash_agent_tools -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_bpmn -p ash_cloak -p ash_compliance -p ash_credo -p ash_decisions -p ash_diagram -p ash_discrete_business_events -p ash_enterprise_telemetry -p ash_events -p ash_events_chain -p ash_evidence -p ash_graphql -p ash_greenmask -p ash_json_api -p ash_judgments -p ash_mdm -p ash_money -p ash_oban -p ash_open_lineage -p ash_operations -p ash_paper -p ash_phoenix -p ash_planning -p ash_postgres -p ash_rules -p ash_signatures -p ash_state_machine -p ash_strangler
+mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_admin -p ash_agent -p ash_agent_tools -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_bpmn -p ash_cloak -p ash_compliance -p ash_credo -p ash_decisions -p ash_diagram -p ash_discrete_business_events -p ash_enterprise_telemetry -p ash_events -p ash_events_chain -p ash_evidence -p ash_graphql -p ash_greenmask -p ash_json_api -p ash_judgments -p ash_mdm -p ash_money -p ash_oban -p ash_open_lineage -p ash_operations -p ash_paper -p ash_phoenix -p ash_planning -p ash_postgres -p ash_provenance -p ash_rules -p ash_signatures -p ash_state_machine -p ash_strangler -p ash_versions
 ```
 
 ## Available Mix Tasks
@@ -237,9 +245,11 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_a
 - `mix ash_agent.decisions` - Lists DMN decision definitions per key as JSON
 - `mix ash_agent.describe` - Describes Ash resources and actions as JSON
 - `mix ash_agent.diff` - Diffs two semantic-manifest JSON files as JSON
+- `mix ash_agent.domain_map` - Render the domain map regions in a markdown file from an editorial JSON + Ash introspection
 - `mix ash_agent.edit` - Semantic DSL-entity edits (dry-run by default) as JSON
 - `mix ash_agent.evaluate` - Dry-evaluates a DMN decision against JSON inputs
 - `mix ash_agent.gaps` - Digests the kaizen tool-gap telemetry aggregate as JSON
+- `mix ash_agent.gate` - Explains a pre-flight gate decision, or verifies the gate's tables, as JSON
 - `mix ash_agent.graph` - Prints one BPMN definition's compiled graph as JSON
 - `mix ash_agent.instance` - Shows in-flight BPMN instances, tokens, and open tasks as JSON
 - `mix ash_agent.laws` - Judges code against the codified iron laws as JSON

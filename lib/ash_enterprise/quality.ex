@@ -15,12 +15,22 @@ defmodule AshEnterprise.Quality do
       them are asked of a given reply.
     * `AshEnterprise.Quality.Grader`: judges, bands and admits evaluation
       replies against those questions (S1-93).
+    * `AshEnterprise.Quality.Evaluation`: the one evaluation tenant, the only
+      tenant whose suite runs' answers are graded.
     * `AshEnterprise.Quality.Gate`: what the admitted facts say about a set
       of replies, as a three-state report and a verdict (S1-94).
     * `AshEnterprise.Quality.Changes.AdmitReplyVerdict`: a person's verdict
       on a review-banded reply, recorded on the verdicts surface
       (`/app/judgments`), admitted as the reply's fact at person grade, so
       the gate reads it `in` or `out` (S1-96).
+
+  And the pre-flight gate's System One rung (AST-79):
+
+    * `AshEnterprise.Quality.ToolCall`: a tool call a coding agent is about
+      to make, never stored, with the two `agent_gate_*` questions.
+    * `AshEnterprise.Quality.ToolCalls`: asks them about a call the gate's
+      rules deferred and bands the answers; `ToolCalls.Rung` is the gate's
+      rung (`config :ash_agent_tools, :gate, system_one: ...`).
 
   And the suites an agent is evaluated on (AGT-43):
 
@@ -54,6 +64,8 @@ defmodule AshEnterprise.Quality do
       define :reply_from_run, action: :from_run, args: [:agent_run_id], get?: true
     end
 
+    resource AshEnterprise.Quality.ToolCall
+
     resource AshEnterprise.Quality.Suite do
       define :create_suite_draft, action: :create_draft, args: [:key]
       define :add_suite_case, action: :add_case, args: [:case]
@@ -71,6 +83,7 @@ defmodule AshEnterprise.Quality do
       define :start_suite_run, action: :start, args: [:suite_id, :agent_key]
       define :import_eval_log, action: :import_eval_log, args: [:suite_id, :agent_key, :log]
       define :finish_suite_run, action: :finish
+      define :record_suite_run_judged, action: :record_judged, args: [:grading]
       define :get_suite_run, action: :read, get_by: [:id]
       define :list_suite_runs, action: :read
       define :compare_suite_runs, action: :compare, args: [:suite_id]
@@ -78,6 +91,7 @@ defmodule AshEnterprise.Quality do
 
     resource AshEnterprise.Quality.CaseResult do
       define :list_case_results, action: :read
+      define :record_case_result_scores, action: :record_scores, args: [:scores]
     end
   end
 
