@@ -10,7 +10,10 @@ on:
 
 # A failed run tells you nothing if a later push is already superseding it.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # A same-repo PR shares its branch's group, so the push run and the PR run
+  # for one commit cancel down to one. A fork PR keys on its pull ref, so a
+  # fork branch named main can never cancel main's run.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref || github.event_name == 'pull_request' && github.ref || github.ref_name }}
   cancel-in-progress: true
 
 env:
@@ -239,7 +242,7 @@ jobs:
       # relationships, the declared signal graph), so drift here can mean the
       # map disagrees with the code, not only with the JSON.
       - name: Check the domain map is rendered
-        run: mix ash_enterprise.domain_map --check
+        run: mix ash_agent.domain_map --check
 
       # `--skip` honours the `@sobelow_skip` attributes in the source. There is
       # exactly one, on `AshEnterprise.Audit.Export`, and it says why next to

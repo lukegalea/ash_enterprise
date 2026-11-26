@@ -282,8 +282,14 @@ defmodule AshEnterprise.MixProject do
       # the engineering standards are judged over (`AshEnterprise.Standards`,
       # compiled only when this dependency is loaded, so in dev and test).
       # First-party, public on GitHub and not yet on hex; mix.lock pins the SHA.
+      # Pinned to PR #34 (domain-map-task, fc7aa130): the domain map generator
+      # lives there now — `mix ash_agent.domain_map` replaced the host-local
+      # task (ADR 0085 amendment 7). Unpin at the merge.
       {:ash_agent_tools,
-       github: "lukegalea/ash_agent_tools", only: [:dev, :test], runtime: false},
+       github: "lukegalea/ash_agent_tools",
+       ref: "fc7aa130a8d443f05609fc133b60ef9d315346a2",
+       only: [:dev, :test],
+       runtime: false},
 
       # Docs as a validator, not a publication: see the EXTRA_DOCS note above
       # `docs/0`.

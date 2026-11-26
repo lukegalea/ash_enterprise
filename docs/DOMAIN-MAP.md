@@ -99,6 +99,7 @@ flowchart LR
     ctx_l10n["Localization"]
     ctx_telemetry["Telemetry"]
     ctx_artifacts["Artifacts"]
+    ctx_documents["Documents<br/>6 resources"]
   end
 
   ctx_agents -->|"conformist"| ctx_platform
@@ -125,6 +126,7 @@ flowchart LR
   ctx_bpmn -->|"1 rel"| ctx_accounts
   ctx_canonical -->|"5 rels"| ctx_erasure
   ctx_credentialing -->|"1 rel"| ctx_erasure
+  ctx_documents -->|"2 rels"| ctx_erasure
   ctx_erasure -->|"3 rels"| ctx_canonical
   ctx_erasure -->|"1 rel"| ctx_integration
   ctx_execution -->|"5 rels"| ctx_bpmn
@@ -193,6 +195,7 @@ flowchart LR
 | [Localization](#l10n) | Surfaces | — | Gettext catalogs and library-shipped translations. |
 | [Telemetry](#telemetry) | Surfaces | — | Tracer → OpenTelemetry → OTLP wiring. |
 | [Artifacts](#artifacts) | Surfaces | — | The artifact registry: every versioned thing a person authors, reviews or releases, declared once. |
+| [Documents](#documents) | Surfaces | `AshEnterprise.Documents` | The documents surface: issuing real documents from the host's own data through the paper kernel (`github.com/lukegalea/ash_paper`). |
 
 <!-- domain-map:contexts:end -->
 
@@ -917,7 +920,7 @@ DMN decisions as versioned resources over a native expression engine; band table
 
 | Resource | Description | Aggregates | Calculations |
 |---|---|---|---|
-| `AshEnterprise.Decisions.Definition` | — | 0 | 0 |
+| `AshEnterprise.Decisions.Definition` | — | 0 | 1 |
 | `AshEnterprise.Decisions.Evaluation` | — | 0 | 0 |
 
 
@@ -1412,6 +1415,41 @@ The artifact registry: every versioned thing a person authors, reviews or releas
 
 <!-- domain-map:context:artifacts:end -->
 
+### Documents
+
+<a name="documents"></a>
+
+<!-- domain-map:context:documents:start -->
+
+Plane: **Surfaces** · Domain: `AshEnterprise.Documents`
+
+The documents surface: issuing real documents from the host's own data through the paper kernel (`github.com/lukegalea/ash_paper`).
+
+**Ubiquitous language**
+
+| Term | Meaning |
+|---|---|
+| **Paper binding** | What a document kind is rendered with (ADR 0062's binding, on the paper kernel's vocabulary): `AshPlanning.Fragment.Binding` on the platform base, in table `paper_bindings`, one temporal row per (organization, kind). |
+| **Paper run** | One attempt to produce a document: `AshPaper.Fragment.Run` on the platform base, in table `paper_runs`, tenant-scoped in the `AshEnterprise.Documents` domain. |
+| **Paper draft** | A rendered document waiting for a person (R10): `AshPlanning.Fragment.Candidate` on the platform base, in table `paper_drafts`. |
+| **Paper clause** | One wording clause a document may carry, per locale: tenant data, drafted and admitted by people, in the table `paper_clauses`. |
+| **Paper question** | The questions a requirement is still asking the signed-in person, one row per fact one of their blocked runs is missing (R1). |
+| **Paper answer** | A person's answer to a question a requirement asked (R1, R8): the record of who answered what, on which blocked run, and the fact it admitted. |
+
+**Resources** — 6 introspected
+
+| Resource | Description | Aggregates | Calculations |
+|---|---|---|---|
+| `AshEnterprise.Documents.PaperAnswer` | — | 0 | 0 |
+| `AshEnterprise.Documents.PaperBinding` | — | 0 | 0 |
+| `AshEnterprise.Documents.PaperClause` | — | 0 | 1 |
+| `AshEnterprise.Documents.PaperDraft` | — | 0 | 1 |
+| `AshEnterprise.Documents.PaperQuestion` | — | 0 | 0 |
+| `AshEnterprise.Documents.PaperRun` | — | 0 | 4 |
+
+
+<!-- domain-map:context:documents:end -->
+
 ## Substrate packages
 
 <!-- domain-map:substrates:start -->
@@ -1426,22 +1464,24 @@ The artifact registry: every versioned thing a person authors, reviews or releas
 | `ash_mdm` | first-party | git @ f8db5fb3 | [Master data](#mdm) | Mappings-as-data, resolution, survivorship, merge. |
 | `ash_open_lineage` | first-party | git @ c35de0bc | [Lineage](#lineage) | Run events from action notifications. |
 | `ash_judgments` | first-party | git @ c495c022 | [System One](#system-one) | Declared questions, judgment ledger fragments, calibration. |
-| `ash_evidence` | first-party | git @ 3e2ce790 | [System One](#system-one) | Document versions, addressed atoms, parse runs, assertions. |
+| `ash_evidence` | first-party | git @ d67f53bd | [System One](#system-one) | Document versions, addressed atoms, parse runs, assertions. |
 | `ash_rules` | first-party | git @ ab97fdc8 | [Compliance](#compliance) | Serializable rule IR, fact schemas, evaluator seam. |
 | `ash_compliance` | first-party | git @ b1ddecde | [Compliance](#compliance) | Catalogs/profiles/waivers → immutable bundles; findings projection. |
 | `ash_decisions` | first-party | git @ 1a01808e | [Decisions](#decisions) | Decisions as versioned resources; TCK-measured. |
 | `boxic_dmn` | transitive | git @ 6280f2fa | [Decisions](#decisions) | Decision-document validation (ADR 0027). |
 | `boxic_feel` | transitive | hex 0.2.0 | [Decisions](#decisions) | The FEEL expression engine (ADR 0027). |
 | `ash_bpmn` | first-party | git @ 0daf09f9 | [Processes](#bpmn) | Process documents → graph snapshot → token interpreter. |
-| `ash_planning` | first-party | git @ 4d7b3c12 | [Planning](#planning) | Planning fragments, IR, validators; solver backend. |
+| `ash_planning` | first-party | git @ 61ef4da4 | [Planning](#planning) | Planning fragments, IR, validators; solver backend. |
 | `ash_agent` | first-party | git @ c3bd9892 | [Agents](#agents) | Governed invocations and durable agent runs (host-instantiated). |
 | `ash_acp` | first-party | git @ 536a404d | [Agent protocol](#acp) | The agent-client wire adapter; no second authorization model. |
 | `ash_a2ui` | first-party | git @ e417c6e7 | [Surfaces](#surfaces) | Agent-renderable payloads generated from resources. |
-| `ash_agent_tools` | first-party dev | git @ 0171a910 | [Standards](#standards) | Read-only introspection CLI + the iron laws. |
+| `ash_agent_tools` | first-party dev | git @ fc7aa130 | [Standards](#standards) | Read-only introspection CLI + the iron laws. |
 | `battery` | in-repo | in-repo (`battery/`) | [Platform](#platform) | Cross-substrate integration battery over its own reference instantiation. |
 | `ash_events_chain` | first-party | git @ cd122991 | [Audit](#audit) | The audit log's hash chain: immutability triggers, the verifier over hot log and archive as one chain, the verified move to the archive. |
 | `ash_greenmask` | first-party | git @ 24b0c882 | [Erasure](#erasure) | Masking blocks for sensitive attributes; the generated config's drift gate. |
 | `ash_signatures` | first-party | git @ cb192d44 | [Signatures](#signatures) | The signature and acknowledgement fragments the host instantiates (ADR 0074). |
+| `ash_paper` | first-party | git @ e14889c9 | [Documents](#documents) | Deterministic PDF documents from Ash data (early; the API may change). |
+| `ash_journeys` | first-party | git @ 2e7d8f9b | [Surfaces](#surfaces) | User journeys declared once: walked by the browser tier, published from approved runs (early; the API may change). |
 
 <!-- domain-map:substrates:end -->
 
