@@ -165,6 +165,26 @@
       "carry": "Nothing in a release. Dropping it removes the agent tooling and the standards' code subjects, which compile only when it is loaded."
     },
     {
+      "name": "ash_provenance",
+      "module": "AshProvenance",
+      "repo": "https://github.com/lukegalea/ash_provenance",
+      "purpose": "A plain-data contract for explaining a value: addresses, PROV-DM steps, typed gaps and a PROV-O JSON-LD export. No runtime dependencies, no data layer, no processes.",
+      "used_for": "The shape judgments and evidence explain a value in; the host reads it and applies the reader's policies.",
+      "adr": "0078",
+      "declared": "direct",
+      "only": null,
+      "ref": "ac73afc99f467f248d2ad980fec77e4d54acbdb4",
+      "version": "0.1.0",
+      "stated_status": null,
+      "maturity": "declared-not-used-here",
+      "battery": false,
+      "distribution": "git only",
+      "builds_on": [],
+      "hex_name": "free",
+      "hex_path": "No git dependencies of its own.",
+      "carry": "Declared without a branch; mix.lock pins the commit."
+    },
+    {
       "name": "ash_bpmn",
       "module": "AshBpmn",
       "repo": "https://github.com/lukegalea/ash_bpmn",

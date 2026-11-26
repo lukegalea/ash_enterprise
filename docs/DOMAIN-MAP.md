@@ -734,7 +734,7 @@ Bulk export out: a tenant's data as CSV, under the same policies as every other 
 
 <!-- domain-map:context:system-one:start -->
 
-Plane: **Evidence & judgment** · Domain: `AshEnterprise.SystemOne` · Packages: `ash_judgments`, `ash_evidence` · ADRs: [ADR 38](adr/0038-models-observe-declarations-decide.md), [ADR 39](adr/0039-judgments-are-declared-questions.md), [ADR 40](adr/0040-record-dont-recompute.md), [ADR 41](adr/0041-thresholds-are-dmn-earned-by-calibration.md), [ADR 42](adr/0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md), [ADR 43](adr/0043-automation-authority-is-a-grant.md), [ADR 44](adr/0044-documents-are-addressed-atoms-evidence-is-an-assertion.md), [ADR 45](adr/0045-system-one-in-tooling-is-advisory.md), [ADR 46](adr/0046-the-declaration-is-the-output-contract.md), [ADR 47](adr/0047-learning-produces-proposals.md), [ADR 48](adr/0048-a-judgment-is-a-predicate-over-any-set.md), [ADR 53](adr/0053-subject-state-digest-third-axis.md)
+Plane: **Evidence & judgment** · Domain: `AshEnterprise.SystemOne` · Packages: `ash_judgments`, `ash_evidence`, `ash_provenance` · ADRs: [ADR 38](adr/0038-models-observe-declarations-decide.md), [ADR 39](adr/0039-judgments-are-declared-questions.md), [ADR 40](adr/0040-record-dont-recompute.md), [ADR 41](adr/0041-thresholds-are-dmn-earned-by-calibration.md), [ADR 42](adr/0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md), [ADR 43](adr/0043-automation-authority-is-a-grant.md), [ADR 44](adr/0044-documents-are-addressed-atoms-evidence-is-an-assertion.md), [ADR 45](adr/0045-system-one-in-tooling-is-advisory.md), [ADR 46](adr/0046-the-declaration-is-the-output-contract.md), [ADR 47](adr/0047-learning-produces-proposals.md), [ADR 48](adr/0048-a-judgment-is-a-predicate-over-any-set.md), [ADR 53](adr/0053-subject-state-digest-third-axis.md)
 
 Declared questions, the append-only judgment ledger, banding, admitted facts, human verdicts; evidence adjudication as assertions.
 
@@ -1465,6 +1465,7 @@ The documents surface: issuing real documents from the host's own data through t
 | `ash_open_lineage` | first-party | git @ c35de0bc | [Lineage](#lineage) | Run events from action notifications. |
 | `ash_judgments` | first-party | git @ c495c022 | [System One](#system-one) | Declared questions, judgment ledger fragments, calibration. |
 | `ash_evidence` | first-party | git @ d67f53bd | [System One](#system-one) | Document versions, addressed atoms, parse runs, assertions. |
+| `ash_provenance` | first-party | git @ ac73afc9 | [System One](#system-one) | Plain-data contract that explains a value: steps, typed gaps, PROV-O export. |
 | `ash_rules` | first-party | git @ ab97fdc8 | [Compliance](#compliance) | Serializable rule IR, fact schemas, evaluator seam. |
 | `ash_compliance` | first-party | git @ b1ddecde | [Compliance](#compliance) | Catalogs/profiles/waivers → immutable bundles; findings projection. |
 | `ash_decisions` | first-party | git @ 1a01808e | [Decisions](#decisions) | Decisions as versioned resources; TCK-measured. |

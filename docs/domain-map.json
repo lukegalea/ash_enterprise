@@ -654,7 +654,8 @@
       "mission": "Declared questions, the append-only judgment ledger, banding, admitted facts, human verdicts; evidence adjudication as assertions.",
       "packages": [
         "ash_judgments",
-        "ash_evidence"
+        "ash_evidence",
+        "ash_provenance"
       ],
       "adrs": [
         38,
@@ -1556,6 +1557,15 @@
         "system-one"
       ],
       "role": "Document versions, addressed atoms, parse runs, assertions."
+    },
+    {
+      "package": "ash_provenance",
+      "repo": "lukegalea/ash_provenance",
+      "kind": "first-party",
+      "context": [
+        "system-one"
+      ],
+      "role": "Plain-data contract that explains a value: steps, typed gaps, PROV-O export."
     },
     {
       "package": "ash_rules",

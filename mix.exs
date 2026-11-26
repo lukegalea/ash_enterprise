@@ -178,6 +178,7 @@ defmodule AshEnterprise.MixProject do
         {:ash_evidence, link: :markdown},
         {:ash_judgments, link: :markdown},
         {:ash_mdm, link: :markdown},
+        {:ash_provenance, link: :markdown},
         {:ash_rules, link: :markdown},
         :phoenix,
         {:igniter, link: :markdown},
@@ -410,6 +411,9 @@ defmodule AshEnterprise.MixProject do
       # the package's. The package never calls an instrument; this host
       # supplies the judge actions and the embeddings.
       {:ash_evidence, github: "lukegalea/ash_evidence", branch: "main"},
+      # The value-explanation contract (ADR 0078): addresses, PROV-DM steps, typed gaps.
+      # ash_judgments and ash_evidence depend on it; declared here so the host pins one source.
+      {:ash_provenance, github: "lukegalea/ash_provenance"},
 
       # --- The paper kernel ----------------------------------------------------
       # Deterministic PDF documents from Ash data: schemas naming read paths,
