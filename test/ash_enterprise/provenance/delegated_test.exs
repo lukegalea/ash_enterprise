@@ -20,9 +20,9 @@ defmodule AshEnterprise.Provenance.DelegatedTest do
   alias AshEnterprise.Bpmn.{Definition, Dispatch, Subscription}
   alias AshEnterprise.Bpmn.Subscription.Authority
   alias AshEnterprise.Canonical.Task
-  alias AshEnterprise.Platform.AutomationPrincipal
+  alias AshEnterprise.Execution.Identity
   alias AshEnterprise.Provenance
-  alias AshEnterprise.Security.{ActorContext, AgentStartGrant}
+  alias AshEnterprise.Security.AgentStartGrant
   alias AshEnterprise.Security.Impersonation
 
   @check_expiry """
@@ -288,24 +288,13 @@ defmodule AshEnterprise.Provenance.DelegatedTest do
   # principal acting for the accountable person, its provenance fields naming
   # the dispatch, the event and the grant.
   defp recipe_actor(publisher, subscription, dispatch, grant, tenant) do
-    context =
-      ActorContext.intersect(
-        ActorContext.build(publisher.user, tenant: tenant),
-        ActorContext.build_automation(:recipe_runner, tenant)
-      )
+    {:ok, actor} =
+      Identity.recipe_actor(publisher.user.id, Authority.grant_key(subscription), tenant, %{
+        dispatch_id: dispatch.id,
+        event_id: dispatch.event_id,
+        grant_id: grant.id
+      })
 
-    AutomationPrincipal.acting(
-      AutomationPrincipal.recipe_runner(),
-      publisher.user.id,
-      Authority.grant_key(subscription),
-      context
-    )
-    |> then(fn actor ->
-      %{
-        actor
-        | recipe: %{dispatch_id: dispatch.id, event_id: dispatch.event_id, grant_id: grant.id}
-      }
-    end)
-    |> ActorContext.attach(context)
+    actor
   end
 end

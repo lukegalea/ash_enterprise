@@ -79,6 +79,20 @@ It also checks that MiniZinc and `prlimit` are on `PATH`; `TOUR_MINIZINC=report`
 their absence and carries on for a host that has none yet. The header of the script lists
 its environment (`TOUR_PORT`, `TOUR_DB`, `TOUR_KEEP`).
 
+## The provenance demo
+
+```bash
+CLINIC_DEMO_DIR=/path/to/clinic-demo devenv shell -- scripts/provenance-demo.sh
+```
+
+Seeds the demo tenant (`mix ash_enterprise.demo`, which includes `AshEnterprise.Provenance.DemoData`)
+on a loopback instance of its own, fills it a second time to show the seed changes nothing, and
+asks "where did this value come from" through `AshEnterprise.Provenance.explain/2` as the person
+each step names: a task's title and its derived lane, a judged fact and one whose document was
+erased, a viewer who may not read the source, and a task a recipe's steps wrote. The assistant
+step waits for the Why surface and prints PENDING until then. The clinic's scenario-apply guard
+and per-run rows close the run. Its environment is `PROV_PORT`, `PROV_DB` and `PROV_KEEP`.
+
 ## The agent console needs a key
 
 `/agent` interprets natural language with an LLM. Without `ANTHROPIC_API_KEY` (or

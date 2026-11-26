@@ -241,6 +241,21 @@ defmodule AshEnterprise.Execution.Identity do
     end
   end
 
+  @doc """
+  The actor a recipe step's write is made as (ADR 0069): the `recipe_runner` acting for
+  `person_id`, the version's accountable person, on the intersection of the two, marked
+  with what it ran under (`provenance`: `%{dispatch_id:, event_id:, grant_id:}`) so the
+  audit entry names it. Refused as a claim is, for a person who no longer exists, is
+  inactive, belongs to another tenant or does not hold `grant_key`.
+  """
+  @spec recipe_actor(Ash.UUID.t(), String.t(), Ash.UUID.t(), map()) ::
+          {:ok, AutomationPrincipal.t()} | {:error, term()}
+  def recipe_actor(person_id, grant_key, tenant, provenance) do
+    with {:ok, actor} <- automation_actor(:recipe_runner, person_id, grant_key, tenant) do
+      {:ok, %{actor | recipe: provenance}}
+    end
+  end
+
   # --- request --------------------------------------------------------------
 
   defp automation(_user, _name, _agent, nil), do: {:error, :no_tenant}

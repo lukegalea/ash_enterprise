@@ -36,6 +36,7 @@ defmodule AshEnterprise.Platform.DemoTenant do
   alias AshEnterprise.Credentialing.DemoData, as: ClinicData
   alias AshEnterprise.Mdm.DemoData, as: MdmData
   alias AshEnterprise.Platform.{DemoData, Seeder}
+  alias AshEnterprise.Provenance.DemoData, as: ProvenanceData
   alias AshEnterprise.Showcase.Search
 
   # Sobelow reads `@sobelow_skip` from the source AST; persisting it keeps
@@ -103,8 +104,8 @@ defmodule AshEnterprise.Platform.DemoTenant do
 
   @doc """
   Fills the demo tenant `organization`; raises `ArgumentError` for any other. `opts` as for `run!/1`.
-  Returns `%{counts:, clinic:, comparison:, search:, mdm:}`, `mdm` being `nil` when the demo administrator is
-  missing.
+  Returns `%{counts:, clinic:, comparison:, search:, mdm:, provenance:}`, `mdm` and `provenance` being `nil`
+  when the demo administrator is missing.
   """
   @spec populate!(Organization.t(), keyword()) :: map()
   def populate!(organization, opts \\ []) do
@@ -124,7 +125,8 @@ defmodule AshEnterprise.Platform.DemoTenant do
       clinic: clinic,
       comparison: ComparisonDemoData.populate(tenant, clinic.director),
       search: Search.seed!(organization, clinic.coordinator),
-      mdm: admin && MdmData.populate(tenant, admin)
+      mdm: admin && MdmData.populate(tenant, admin),
+      provenance: admin && ProvenanceData.populate(tenant, admin, opts)
     }
   end
 
@@ -148,7 +150,7 @@ defmodule AshEnterprise.Platform.DemoTenant do
   # finds by email into the tenant it is filling. Someone who lives in another tenant would be
   # taken out of it.
   defp refuse_foreign_people!(tenant) do
-    emails = DemoData.emails() ++ ClinicData.emails()
+    emails = DemoData.emails() ++ ClinicData.emails() ++ ProvenanceData.emails()
 
     for user <- User |> Ash.Query.filter(email in ^emails) |> Ash.read!(authorize?: false),
         not lives_in?(user, tenant) do
@@ -182,7 +184,8 @@ defmodule AshEnterprise.Platform.DemoTenant do
           clinic: map(),
           comparison: map(),
           search: map(),
-          mdm: map() | nil
+          mdm: map() | nil,
+          provenance: map() | nil
         }
   def run!(opts \\ []) do
     opts = Keyword.put_new_lazy(opts, :password, &Seeder.default_password!/0)
