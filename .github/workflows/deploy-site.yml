@@ -14,8 +14,8 @@ name: Deploy site
 # This workflow publishes on its own, without waiting for CI, so it carries its
 # own scan: `scripts/moat-gate.mjs` runs over the built output before the Pages
 # artifact is uploaded, and a hit fails the build job, so nothing is deployed.
-# The private terms come from the MOAT_TERMS Actions secret (see ci.yml's
-# `site` job); the gate's public terms are checked whether or not it is set.
+# The private terms come from the MOAT_TERMS Actions secret (see the site
+# steps of ci.yml's `quick` job); the gate's public terms are checked whether or not it is set.
 
 on:
   push:

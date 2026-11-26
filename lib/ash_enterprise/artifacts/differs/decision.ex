@@ -7,14 +7,14 @@ defmodule AshEnterprise.Artifacts.Differs.Decision do
 
   The package owns the comparison, so it changes with the snapshot format it reads. This
   module gives the aspects their labels in this application's catalogue and turns the
-  package's plain change maps into `AshEnterprise.Artifacts.Change`s.
+  package's plain change maps into `AshVersions.Change`s.
   """
 
-  @behaviour AshEnterprise.Artifacts.Differ
+  @behaviour AshVersions.Differ
 
   use Gettext, backend: AshEnterpriseWeb.Gettext
 
-  alias AshEnterprise.Artifacts.Change
+  alias AshVersions.Change
 
   @impl true
   def aspects do

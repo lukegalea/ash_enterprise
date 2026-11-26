@@ -410,6 +410,34 @@ defmodule AshEnterprise.Security.SecuredFieldsTest do
       end
     end
 
+    test "the credential table shows a hidden number as masked text, never empty", ctx do
+      reader = DailyFixtures.member!(ctx.admin, "Reviewer", [{Credential, :read, :global}])
+
+      row = table_row(ctx.credential.id, as(reader))
+
+      # Masked, with the reason beside it: not `null`, which would read as a known-empty number.
+      assert row["number"] == "Hidden"
+      assert %{"number" => reason} = row["_masked"]
+      assert is_binary(reason) and reason != ""
+
+      # What the reader may see is untouched, and nothing of the stored number is on the wire.
+      assert row["expires_on"]
+      refute inspect(row) =~ ctx.credential.number
+    end
+
+    test "the credential table shows a holder the number and no mask", ctx do
+      holder =
+        DailyFixtures.member!(ctx.admin, "Holder", [
+          {Credential, :read, :global},
+          {@number_key, :read, :global}
+        ])
+
+      row = table_row(ctx.credential.id, as(holder))
+
+      assert row["number"] == ctx.credential.number
+      refute Map.has_key?(row, "_masked")
+    end
+
     test "a holder at :global sorts, pages, filters and loads through derived reads", ctx do
       import Ash.Expr, only: [expr: 1]
 
@@ -718,6 +746,26 @@ defmodule AshEnterprise.Security.SecuredFieldsTest do
   end
 
   defp as(member), do: [actor: member.actor, tenant: member.tenant]
+
+  # The row the credentials table sends for `credential_id`, as `reader` is shown it.
+  defp table_row(credential_id, opts) do
+    {:ok, messages} =
+      AshEnterpriseWeb.A2ui.Host.act(
+        AshEnterpriseWeb.A2ui.CredentialUI,
+        AshEnterprise.A2uiMessage.ash_action(AshEnterpriseWeb.A2ui.CredentialUI, "query", %{
+          "component" => "table"
+        }),
+        opts
+      )
+
+    Enum.find_value(messages, fn
+      %{"updateDataModel" => %{"path" => "/records", "value" => records}} ->
+        Enum.find(records, &(&1["id"] == credential_id))
+
+      _other ->
+        nil
+    end)
+  end
 
   defp credential!(admin, clinician, number, business_unit_id \\ nil) do
     Credential

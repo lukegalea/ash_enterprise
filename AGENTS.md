@@ -2837,6 +2837,12 @@ own platform base and keeps its own policies._
 
 [ash_mdm usage rules](deps/ash_mdm/usage-rules.md)
 <!-- ash_mdm-end -->
+<!-- ash_provenance-start -->
+## ash_provenance usage
+_Plain-data contract for explaining where a value came from: addresses, PROV-DM steps, typed gaps and a PROV-O JSON-LD export._
+
+[ash_provenance usage rules](deps/ash_provenance/usage-rules.md)
+<!-- ash_provenance-end -->
 <!-- ash_rules-start -->
 ## ash_rules usage
 _Predicates over sets (ADR 0048): a Spark DSL compiling declared questions to a
@@ -2848,6 +2854,12 @@ missing data is never a pass._
 
 [ash_rules usage rules](deps/ash_rules/usage-rules.md)
 <!-- ash_rules-end -->
+<!-- ash_versions-start -->
+## ash_versions usage
+_Versions of Ash records: a registry of versioned artifacts with semantic diffs, and every version of a temporal record through as-of reads._
+
+[ash_versions usage rules](deps/ash_versions/usage-rules.md)
+<!-- ash_versions-end -->
 <!-- phoenix:ecto-start -->
 ## phoenix:ecto usage
 ## Ecto Guidelines

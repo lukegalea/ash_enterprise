@@ -12,7 +12,7 @@ defmodule AshEnterprise.Canonical.Changes.KeepUnchangedVersion do
   and every replay and full resync re-writes all of them. Without this,
   each would add an identical version, the history would fill with
   versions that record nothing, and walking it
-  (`AshEnterprise.Platform.TemporalHistory`) would cost a read for each.
+  (`AshVersions.TemporalHistory`) would cost a read for each.
 
   The comparison is on the values the projection writes: the sealed
   `title` and `location` in the clear (they arrive as arguments, which

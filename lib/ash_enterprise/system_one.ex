@@ -44,6 +44,7 @@ defmodule AshEnterprise.SystemOne do
     resource AshEnterprise.SystemOne.FilterProposal
     resource AshEnterprise.SystemOne.FilterExecution
     resource AshEnterprise.SystemOne.StandingHead
+    resource AshEnterprise.SystemOne.ShowcaseSubject
   end
 
   @doc """

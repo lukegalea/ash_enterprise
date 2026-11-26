@@ -32,7 +32,7 @@ true:
   `--warnings-as-errors`, `mix ash.codegen --check`, `mix credo --strict`,
   `mix ash_enterprise.roadmap --check`, the iron-laws judge
   (`docs/IRON-LAWS.md`) and the EXTRA_DOCS reference check. CI runs
-  the same gate, plus a `cold-clone` job that fetches every dependency with no
+  the same gate, plus a cold-clone check (in the `quick` job) that fetches every dependency with no
   credentials.
 - **48 ADRs**, 0001 to 0048. The status split is in
   [`adr/README.md`](adr/README.md) rather than here.
