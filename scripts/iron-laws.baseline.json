@@ -173,12 +173,12 @@
   "text": "def handle_event(\"known\", _params, socket), do: {:noreply, socket}",
   "reason": "Test-support LiveView fixture used to provoke LiveView crash reports. The handler reads no data, touches no resource and returns the socket unchanged, so there is nothing to authorize; it is compiled only in the telemetry package test environment."
  },
-  {
-    "law": "10",
-    "file": "telemetry/lib/ash_enterprise/telemetry/metrics/reporter.ex",
-    "text": "metric.name |> Enum.map_join(\".\", &Atom.to_string/1) |> String.to_atom()",
-    "reason": "Not user input: the names come from the host's own Telemetry.Metrics definitions, a fixed set read once at boot (one atom per metric). OpenTelemetry instrument names must be atoms, so the dotted name has to become one."
-  },
+ {
+  "law": "10",
+  "file": "telemetry/lib/ash_enterprise/telemetry/metrics/reporter.ex",
+  "text": "metric.name |> Enum.map_join(\".\", &Atom.to_string/1) |> String.to_atom()",
+  "reason": "Not user input: the names come from the host's own Telemetry.Metrics definitions, a fixed set read once at boot (one atom per metric). OpenTelemetry instrument names must be atoms, so the dotted name has to become one."
+ },
  {
   "law": "11",
   "file": "lib/ash_enterprise_web/live/import_live.ex",

@@ -254,6 +254,14 @@ missing dep is a structured error, never a crash:
   recorded judgment and its banding. It never writes: the host creates the artifact
   through its own domain.
 
+## Explaining a fact
+
+- `AshJudgments.Explain.fact(fact, links, base: ...)` reads nothing. Read the banding, the decision evaluation and the
+  observations as the reader, and pass each as the record, `:unreadable` (the reader may not see it) or `nil` (not
+  there). Never read them with `authorize?: false` to fill `links`.
+- Pass `atoms: &AshEvidence.Explanation.provenance(&1, &2, opts)` to resolve the cited atoms and list the erased ones.
+- A fact with no `admission_id` reads `:not_recorded`. Do not invent a decision for it.
+
 ## Mix tasks
 
 - `mix ash_judgments.judgments.lock` regenerates `priv/judgments/lock.json`. Run it after
