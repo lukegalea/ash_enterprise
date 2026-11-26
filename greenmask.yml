@@ -40,6 +40,11 @@
 #   - AshEnterprise.Planning.Run: :encrypted_result_payload — ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there
 #   - AshEnterprise.Planning.Candidate: :encrypted_assignments — ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there
 #   - AshEnterprise.Planning.CheckResult: :encrypted_violation_details — ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there
+#   - AshEnterprise.Documents.PaperRun: :encrypted_facts — ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there
+#   - AshEnterprise.Documents.PaperRun: :encrypted_payload — ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there
+#   - AshEnterprise.Documents.PaperRun: :encrypted_payload_hash_key — ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there
+#   - AshEnterprise.Documents.PaperDraft: :encrypted_assignments — ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there
+#   - AshEnterprise.Documents.PaperClause: :impact_report — counts, run ids and outcomes in the clear; every document's text and failure detail is ciphertext sealed under that run's erasure-scope key, which a copy replaces (Erasure.Key.wrapped_key), so it cannot be opened there
 #   - AshEnterprise.Signatures.Signer: :encrypted_email — ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there
 #   - AshEnterprise.Signatures.Signer: :encrypted_name — ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there
 #   - AshEnterprise.Signatures.SignerEvent: :encrypted_ip_address — ciphertext sealed under an erasure-scope key; a copy's scope keys are replaced (Erasure.Key.wrapped_key), so it cannot be opened there
@@ -297,6 +302,15 @@ dump:
       schema: "public"
       transformers: []
     - name: "planning_check_results"
+      schema: "public"
+      transformers: []
+    - name: "paper_runs"
+      schema: "public"
+      transformers: []
+    - name: "paper_drafts"
+      schema: "public"
+      transformers: []
+    - name: "paper_clauses"
       schema: "public"
       transformers: []
     - name: "signature_signers"

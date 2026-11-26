@@ -142,6 +142,10 @@ msgstr "Administrateur"
 msgid "Admission"
 msgstr "Admission"
 
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+msgid "Admit"
+msgstr "Admettre"
+
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 msgctxt "one_of:band"
 msgid "Admit"
@@ -152,6 +156,7 @@ msgid "Admitted"
 msgstr "Admis"
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
 msgctxt "one_of:status"
 msgid "Admitted"
 msgstr "Admis"
@@ -163,6 +168,11 @@ msgstr "Admis en tant que"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Advance"
 msgstr "Faire avancer"
+
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
+msgid "After"
+msgstr "Après"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 msgid "Agenda"
@@ -440,6 +450,11 @@ msgstr "Détail du lot"
 msgid "Batches"
 msgstr "Lots"
 
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
+msgid "Before"
+msgstr "Avant"
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Bind"
 msgstr "Lier"
@@ -447,6 +462,10 @@ msgstr "Lier"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Binding"
 msgstr "Liaison"
+
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+msgid "Block"
+msgstr "Bloc"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
@@ -657,6 +676,14 @@ msgstr "Pris en charge"
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Claimed by"
 msgstr "Pris en charge par"
+
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+msgid "Clause"
+msgstr "Clause"
+
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
+msgid "Clause tables"
+msgstr "Tables de clauses"
 
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 msgid "Clinician"
@@ -921,6 +948,7 @@ msgstr "Abandonnée"
 msgid "Dead letters in a row"
 msgstr "Abandons consécutifs"
 
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Decision"
 msgstr "Décision"
@@ -1086,6 +1114,23 @@ msgstr "Répartir"
 msgid "Division name"
 msgstr "Nom de la division"
 
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_questions_ui.ex:1
+msgid "Document"
+msgstr "Document"
+
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
+msgid "Document (run)"
+msgstr "Document (émission)"
+
+#: lib/ash_enterprise_web/a2ui/paper_questions_ui.ex:1
+msgid "Document questions"
+msgstr "Questions sur les documents"
+
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+msgid "Document wording"
+msgstr "Libellé des documents"
+
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 msgid "Done"
 msgstr "Terminé"
@@ -1095,7 +1140,14 @@ msgctxt "one_of:lane"
 msgid "Done"
 msgstr "Terminé"
 
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
+msgid "Draft"
+msgstr "Brouillon"
+
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
 msgctxt "one_of:status"
 msgid "Draft"
@@ -1163,6 +1215,11 @@ msgstr "Courriel (en transit)"
 #: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
 msgid "Email kept on confirm"
 msgstr "Courriel conservé à la confirmation"
+
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+msgctxt "one_of:locale"
+msgid "En"
+msgstr "En"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
@@ -1399,6 +1456,10 @@ msgctxt "one_of:state"
 msgid "Followed up"
 msgstr "Suivie"
 
+#: lib/ash_enterprise_web/a2ui/paper_questions_ui.ex:1
+msgid "For"
+msgstr "Pour"
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "For chain"
 msgstr "Par chaîne"
@@ -1426,6 +1487,11 @@ msgstr "Forcer l’achèvement"
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 msgid "Found in its documents"
 msgstr "Trouvé dans ses documents"
+
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+msgctxt "one_of:locale"
+msgid "Fr"
+msgstr "Fr"
 
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Freshness"
@@ -1528,6 +1594,17 @@ msgstr "Identités"
 msgctxt "one_of:state"
 msgid "Ignored"
 msgstr "Ignorée"
+
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
+msgid "Impact"
+msgstr "Impact"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
+msgid "Impact changes"
+msgstr "Changements d'impact"
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 msgid "Import batches"
@@ -1644,6 +1721,11 @@ msgstr "Hérité"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Issue"
 msgstr "Émettre"
+
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
+msgid "Issued"
+msgstr "Émis"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 msgid "Item"
@@ -1831,6 +1913,10 @@ msgstr "Liste"
 msgid "Live for"
 msgstr "En cours pour"
 
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+msgid "Locale"
+msgstr "Langue"
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Log out everywhere"
 msgstr "Se déconnecter partout"
@@ -1908,6 +1994,12 @@ msgstr "Apparié"
 msgctxt "one_of:status"
 msgid "Matching"
 msgstr "Appariement en cours"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
+msgid "Measure impact"
+msgstr "Mesurer l'impact"
 
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
 msgctxt "one_of:severity"
@@ -2023,6 +2115,10 @@ msgstr "Prochaine tentative"
 msgid "Next event"
 msgstr "Prochain événement"
 
+#: lib/ash_enterprise_web/a2ui/paper_questions_ui.ex:1
+msgid "No"
+msgstr "Non"
+
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 msgctxt "one_of:answer"
 msgid "No"
@@ -2065,6 +2161,11 @@ msgstr "Sans objet"
 msgctxt "one_of:outcome"
 msgid "Not completed"
 msgstr "Non terminé"
+
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
+msgid "Note"
+msgstr "Note"
 
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 msgid "Nothing awaits a verdict"
@@ -2227,6 +2328,8 @@ msgstr "Livraisons de webhooks sortants"
 
 #: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Outcome"
@@ -2253,6 +2356,10 @@ msgstr "Dossier d’audit"
 #: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
 msgid "Pairs that would change band"
 msgstr "Paires qui changeraient de bande"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Paper clause tables"
+msgstr "Tables de clauses des documents"
 
 #: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
 msgid "Parent"
@@ -2475,12 +2582,18 @@ msgstr "Publier"
 msgid "Publish granted"
 msgstr "Publier sous délégation permanente"
 
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
+msgctxt "one_of:status"
+msgid "Published"
+msgstr "Publié"
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 msgid "Pulse"
 msgstr "Pouls"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_questions_ui.ex:1
 msgid "Question"
 msgstr "Question"
 
@@ -2755,6 +2868,8 @@ msgid "Retire"
 msgstr "Retirer"
 
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
 msgctxt "one_of:status"
@@ -3265,6 +3380,9 @@ msgstr "État"
 #: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_questions_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
@@ -3641,6 +3759,8 @@ msgstr "Verdicts"
 
 #: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
 msgid "Version"
 msgstr "Version"
 
@@ -3696,6 +3816,10 @@ msgstr "Ce qui s’est passé et comment vous le savez : réussi (c’est arriv�
 msgid "What the model judged"
 msgstr "Ce que le modèle a jugé"
 
+#: lib/ash_enterprise_web/a2ui/paper_questions_ui.ex:1
+msgid "What would satisfy it"
+msgstr "Ce qui y répondrait"
+
 #: lib/ash_enterprise_web/a2ui/acknowledgement_ui.ex:1
 msgid "What you agree to"
 msgstr "Ce que vous acceptez"
@@ -3737,6 +3861,10 @@ msgstr "Pourquoi elle n’a pas été importée"
 msgid "Why it failed"
 msgstr "Pourquoi cela a échoué"
 
+#: lib/ash_enterprise_web/a2ui/paper_questions_ui.ex:1
+msgid "Why it is asked"
+msgstr "Pourquoi c'est demandé"
+
 #: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
 msgid "Why it matched"
 msgstr "Pourquoi cela correspond"
@@ -3770,6 +3898,10 @@ msgstr "Annulerait un gardien"
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
 msgid "Writes"
 msgstr "Écritures"
+
+#: lib/ash_enterprise_web/a2ui/paper_questions_ui.ex:1
+msgid "Yes"
+msgstr "Oui"
 
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 msgctxt "one_of:answer"
@@ -3811,6 +3943,14 @@ msgstr "exécution d’étalonnage"
 #: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
 msgid "certification"
 msgstr "certification"
+
+#: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
+msgid "clause"
+msgstr "clause"
+
+#: lib/ash_enterprise_web/a2ui/paper_table_review_ui.ex:1
+msgid "clause table"
+msgstr "table de clauses"
 
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 msgid "credential"
@@ -3877,6 +4017,10 @@ msgstr "exécution de processus"
 #: lib/ash_enterprise_web/a2ui/judgments/band_tables_ui.ex:1
 msgid "proposed band table"
 msgstr "table de bandes proposée"
+
+#: lib/ash_enterprise_web/a2ui/paper_questions_ui.ex:1
+msgid "question"
+msgstr "question"
 
 #: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
 msgid "question proposal"

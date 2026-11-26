@@ -2,14 +2,14 @@
   "format": "ash_enterprise.data_inventory/1",
   "note": "Generated from the resource declarations by `mix ash_enterprise.data_inventory`; do not edit. It describes the code, names no data steward, and attests nothing about a running deployment.",
   "summary": {
-    "resources": 189,
+    "resources": 195,
     "global_tables": 45,
     "egress_paths": 17,
-    "tenant_scoped": 110,
+    "tenant_scoped": 115,
     "unclassified_personal_attributes": 0,
-    "with_sealed_attributes": 17,
+    "with_sealed_attributes": 19,
     "with_secured_attributes": 1,
-    "with_sensitive_attributes": 36
+    "with_sensitive_attributes": 39
   },
   "resources": [
     {
@@ -1978,6 +1978,146 @@
       "api_type": null,
       "sensitive_attributes": [],
       "sealed_attributes": [],
+      "personal_looking_attributes": [],
+      "secured_attributes": []
+    },
+    {
+      "resource": "AshEnterprise.Documents.PaperAnswer",
+      "domain": "AshEnterprise.Documents",
+      "data_layer": "AshPostgres.DataLayer",
+      "table": "paper_answers",
+      "platform_resource": true,
+      "ownership": "user_owned",
+      "tenancy": "attribute",
+      "tenant_option": true,
+      "audit": true,
+      "archival": false,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [],
+      "sealed_attributes": [],
+      "personal_looking_attributes": [],
+      "secured_attributes": []
+    },
+    {
+      "resource": "AshEnterprise.Documents.PaperBinding",
+      "domain": "AshEnterprise.Documents",
+      "data_layer": "AshPostgres.DataLayer",
+      "table": "paper_bindings",
+      "platform_resource": true,
+      "ownership": "organization_owned",
+      "tenancy": "attribute",
+      "tenant_option": true,
+      "audit": true,
+      "archival": false,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [],
+      "sealed_attributes": [],
+      "personal_looking_attributes": [],
+      "secured_attributes": []
+    },
+    {
+      "resource": "AshEnterprise.Documents.PaperClause",
+      "domain": "AshEnterprise.Documents",
+      "data_layer": "AshPostgres.DataLayer",
+      "table": "paper_clauses",
+      "platform_resource": true,
+      "ownership": "organization_owned",
+      "tenancy": "attribute",
+      "tenant_option": true,
+      "audit": true,
+      "archival": false,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [
+        "impact_report"
+      ],
+      "sealed_attributes": [],
+      "personal_looking_attributes": [],
+      "secured_attributes": []
+    },
+    {
+      "resource": "AshEnterprise.Documents.PaperDraft",
+      "domain": "AshEnterprise.Documents",
+      "data_layer": "AshPostgres.DataLayer",
+      "table": "paper_drafts",
+      "platform_resource": true,
+      "ownership": "user_owned",
+      "tenancy": "attribute",
+      "tenant_option": true,
+      "audit": true,
+      "archival": false,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [
+        "encrypted_assignments"
+      ],
+      "sealed_attributes": [
+        {
+          "attribute": "encrypted_assignments",
+          "sealing": "erasure_scope"
+        }
+      ],
+      "personal_looking_attributes": [],
+      "secured_attributes": []
+    },
+    {
+      "resource": "AshEnterprise.Documents.PaperQuestion",
+      "domain": "AshEnterprise.Documents",
+      "data_layer": "Ash.DataLayer.Simple",
+      "table": null,
+      "platform_resource": true,
+      "ownership": "none",
+      "tenancy": "global",
+      "tenant_option": false,
+      "audit": false,
+      "archival": false,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [],
+      "sealed_attributes": [],
+      "personal_looking_attributes": [],
+      "secured_attributes": []
+    },
+    {
+      "resource": "AshEnterprise.Documents.PaperRun",
+      "domain": "AshEnterprise.Documents",
+      "data_layer": "AshPostgres.DataLayer",
+      "table": "paper_runs",
+      "platform_resource": true,
+      "ownership": "user_owned",
+      "tenancy": "attribute",
+      "tenant_option": true,
+      "audit": true,
+      "archival": false,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [
+        "encrypted_facts",
+        "encrypted_payload",
+        "encrypted_payload_hash_key"
+      ],
+      "sealed_attributes": [
+        {
+          "attribute": "encrypted_facts",
+          "sealing": "erasure_scope"
+        },
+        {
+          "attribute": "encrypted_payload",
+          "sealing": "erasure_scope"
+        },
+        {
+          "attribute": "encrypted_payload_hash_key",
+          "sealing": "erasure_scope"
+        }
+      ],
       "personal_looking_attributes": [],
       "secured_attributes": []
     },
