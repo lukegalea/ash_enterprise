@@ -14,6 +14,8 @@
 - Numbers are `Decimal`, never `Float`. Violations carry structural values only.
 - Validators (`AshPlanning.Validator`) must be written independently of the model; do not
   share lowering code between model and validator. Intervals are half-open `[start, end)`.
+- Look a binding up by `AshPlanning.Fragment.Binding.selector(model_key, purpose)`: it is
+  the exact string `:bind` stores. Never spell the selector JSON in host code.
 - Snapshots carry references and hashes only. Verify with `AshPlanning.Snapshot.verify/1`;
   the cross-host golden digest is asserted in this package's tests.
 - Solverl is optional. Guard calls with `Code.ensure_loaded?(AshPlanning.Backend.Solverl)`.

@@ -299,6 +299,9 @@ defmodule AshEnterprise.Erasure.Scope do
       # After the key is gone, in the same transaction: a tombstone in each
       # affected owner's business-event stream (ADR 0051).
       change AshEnterprise.BusinessEvents.Changes.RecordShred
+      # The documents issued under the scope: their unsealed bytes go with the
+      # key, unless a living scope still references the same bytes.
+      change AshEnterprise.Documents.Paper.Changes.ShredDocuments
     end
   end
 

@@ -186,6 +186,17 @@ with `?ctx[<context>]=<id>`), its `:detail` cards and its related tables:
   ("Not stated") instead of a blank; a row that only makes sense when set
   ("Cancelled by") is listed in the card's `hide_empty` and left out while
   empty. Both are admin catalog only.
+- **Hidden fields.** A field the actor's field policies forbid arrives as
+  the masked text ("Hidden", translated) and the record's reason at the
+  reserved `_masked/<field>` key (`AshA2ui.Masked`) — never as `null`,
+  which would read as known-and-empty, and never with the hidden value
+  anywhere in the payload. Tables, `:detail` cards and the view panel all
+  draw it; a `source` field is masked when any step of its walk is
+  forbidden. The `/form` edit buffer keeps `null` for a forbidden field
+  (submitting the form unchanged must not write the masked word into the
+  column) and CSV exports keep an empty cell. The admin catalog's
+  `fieldDisplay` and dataGrid columns carry a `masked` binding to the
+  reason when — and only when — a field policy covers the field.
 - Values from related records are calculations on the context's resource:
   a detail field cannot take a `source` path.
 
