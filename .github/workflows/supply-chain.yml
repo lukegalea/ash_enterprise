@@ -25,7 +25,11 @@ concurrency:
   # for one commit cancel down to one. A fork PR keys on its pull ref, so a
   # fork branch named main can never cancel main's run.
   group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref || github.event_name == 'pull_request' && github.ref || github.ref_name }}
-  cancel-in-progress: true
+  # Main's runs are never cancelled: main takes a push every half hour or so,
+  # longer than a run, so cancelling left main with no finished run at all.
+  # GitHub still keeps only the newest pending run, so main never queues more
+  # than one behind the one in progress.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
