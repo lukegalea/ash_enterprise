@@ -2,7 +2,7 @@
   "format": "ash_enterprise.data_inventory/1",
   "note": "Generated from the resource declarations by `mix ash_enterprise.data_inventory`; do not edit. It describes the code, names no data steward, and attests nothing about a running deployment.",
   "summary": {
-    "resources": 196,
+    "resources": 197,
     "global_tables": 45,
     "egress_paths": 17,
     "tenant_scoped": 115,
