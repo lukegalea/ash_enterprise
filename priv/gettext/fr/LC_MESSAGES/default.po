@@ -1753,7 +1753,7 @@ msgstr "Révoquer l'accès d'une personne qui s'en va"
 msgid "The person who is leaving can no longer use the app."
 msgstr "La personne qui s'en va ne peut plus utiliser l'application."
 
-#: lib/ash_enterprise/guides.ex:253
+#: lib/ash_enterprise/guides.ex:242
 #, elixir-autogen, elixir-format
 msgid "This guide cannot be shown until a run of it is approved."
 msgstr "Ce guide ne peut pas être affiché tant qu'aucune exécution n'en est approuvée."
