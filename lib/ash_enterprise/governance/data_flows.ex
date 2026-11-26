@@ -134,7 +134,8 @@ defmodule AshEnterprise.Governance.DataFlows do
         AshEnterprise.SystemOne.DecisionWire,
         AshEnterprise.Licences.Rungs,
         AshEnterprise.Standards.Standing,
-        AshEnterprise.Quality.Grader
+        AshEnterprise.Quality.Grader,
+        AshEnterprise.Quality.ToolCalls
       ],
       gate: %{
         name:

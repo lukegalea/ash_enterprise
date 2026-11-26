@@ -4237,6 +4237,7 @@
       "modules": [
         "AshEnterprise.Licences.Rungs",
         "AshEnterprise.Quality.Grader",
+        "AshEnterprise.Quality.ToolCalls",
         "AshEnterprise.Standards.Standing",
         "AshEnterprise.SystemOne",
         "AshEnterprise.SystemOne.DecisionWire"
