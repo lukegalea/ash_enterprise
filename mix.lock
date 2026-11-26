@@ -22,7 +22,7 @@
   "ash_discrete_business_events": {:git, "https://github.com/lukegalea/ash_discrete_business_events.git", "4badc1c335797d4d02a8fc2a275fc27ea914e774", []},
   "ash_events": {:git, "https://github.com/lukegalea/ash_events.git", "bd5f4970a4602b872ffe4ee8b5700f6412d3fc65", [branch: "main-no-rollback"]},
   "ash_events_chain": {:git, "https://github.com/lukegalea/ash_events_chain.git", "cd12299100f5efc9bbb142ad3a37602d181f0279", []},
-  "ash_events_projections": {:git, "https://github.com/lukegalea/ash_events_projections.git", "826aff25220e6eca958c8d9d5f40a3cde8468900", []},
+  "ash_events_projections": {:git, "https://github.com/lukegalea/ash_events_projections.git", "931d9fd0f802d8a77938a659ce2759b33c375bb5", []},
   "ash_evidence": {:git, "https://github.com/lukegalea/ash_evidence.git", "329c367c878c2cad7edab0c82e733ebaa5b2f5d7", [branch: "main"]},
   "ash_graphql": {:hex, :ash_graphql, "1.12.0", "67a2ee49071e3e7261e99b3bf0ee88d56307fe226f6637bd2b450f2a315b02ed", [:mix], [{:absinthe, "~> 1.7", [hex: :absinthe, repo: "hexpm", optional: false]}, {:absinthe_phoenix, "~> 2.0", [hex: :absinthe_phoenix, repo: "hexpm", optional: true]}, {:absinthe_plug, "~> 1.4", [hex: :absinthe_plug, repo: "hexpm", optional: false]}, {:ash, ">= 3.5.13 and < 4.0.0-0", [hex: :ash, repo: "hexpm", optional: false]}, {:igniter, ">= 0.5.28 and < 1.0.0-0", [hex: :igniter, repo: "hexpm", optional: true]}, {:jason, "~> 1.2", [hex: :jason, repo: "hexpm", optional: false]}, {:spark, ">= 2.2.10", [hex: :spark, repo: "hexpm", optional: false]}], "hexpm", "998eaf078279859a6fb9f3eed40788136263a965a86d343ce7c9cc97b5eb7fcd"},
   "ash_greenmask": {:git, "https://github.com/lukegalea/ash_greenmask.git", "24b0c882cbb109a10e40215bcde3b1f0add0fd5b", []},
