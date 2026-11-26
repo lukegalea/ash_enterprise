@@ -14,7 +14,7 @@ Things change in one of three ways:
    one when the bug is fixed upstream.
 
 `mix.lock` pins every git dependency to an exact commit, so builds are reproducible either way. "Bleeding edge" is
-about what you are signing up to maintain, not about builds drifting. CI's `cold-clone` job proves every git
+about what you are signing up to maintain, not about builds drifting. CI's cold-clone check (the `quick` job) proves every git
 dependency can be fetched anonymously.
 
 `test/ash_enterprise/bleeding_edge_doc_test.exs` fails if a git dependency or an `override: true` exists in `mix.exs` or

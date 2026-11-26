@@ -16,6 +16,23 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref || github.event_name == 'pull_request' && github.ref || github.ref_name }}
   cancel-in-progress: true
 
+# Self-hosted routing, off by default. Every job's runs-on names
+# `ubuntu-latest` unless all three hold: the event is a push (never a pull
+# request: this repository is public, and a fork's pull request must never reach
+# a self-hosted runner), the repository is this one (a fork's own pushes stay on
+# GitHub's runners), and the job's id is in the SELF_HOSTED_JOBS repository
+# variable, a JSON array such as ["test-shards","integration"]. Then it runs on
+# a runner labelled `self-hosted` and `homelab`. Unset, the variable is `[]` and
+# nothing moves. The ids that can be listed are the jobs' keys below: test,
+# test-shards, tests, integration, e2e, quick, dialyzer. A runner that takes
+# them needs Docker (the jobs' Postgres runs as a service container on host
+# port 5432, so one job at a time per Docker host), passwordless sudo for apt on
+# Ubuntu, and for e2e and quick, Chromium's system libraries.
+# .claude/skills/ship-a-change/SKILL.md says how to switch it.
+#
+#   gh variable set SELF_HOSTED_JOBS --body '["test-shards"]'   # move the shards
+#   gh variable delete SELF_HOSTED_JOBS                         # everything back
+
 env:
   MIX_ENV: test
 
@@ -60,7 +77,7 @@ env:
 jobs:
   test:
     name: Compile, test, and check generated code
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'test') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
 
     # Single leg: Elixir 1.20.4 / OTP 27.3.4, flipped from canary to gate in
     # one commit together with devenv.nix, the Dockerfile and the mix.exs
@@ -242,7 +259,8 @@ jobs:
         run: mix hex.audit
 
       # The suite itself runs in the `test-shards` jobs below, the durability
-      # tier in the `durability` job and the scale budget in the `scale` job, all
+      # tier, the scale budget and the restore drills in the `integration` job,
+      # and the packages, battery, site and cold clone in the `quick` job, all
       # alongside this one.
 
       # The suite migrates into `public`. The private workspace hosts this app
@@ -325,18 +343,20 @@ jobs:
 
   test-shards:
     name: Test shard ${{ matrix.partition }} of 10
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'test-shards') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
     # The suite, split by file across ten runners. It is almost entirely
     # synchronous (2026-10-30: 1,427 tests, 6,108s of 6,152s sync), so one
     # runner took over 100 minutes. `mix test --partitions` splits by file
     # hash, which left the slowest shard at 25 minutes and the fastest at 13,
     # so scripts/ci-shard.exs packs files longest-first by the seconds
-    # recorded in test/support/ci_timings.json instead (about 610s a shard;
-    # setup and compile add roughly two minutes). MIX_TEST_PARTITION still
-    # gives each shard a database of its own. `--slowest-modules` implies
-    # `--trace`, whose per-module headers are what the timings are rebuilt
-    # from: see the header of scripts/ci-shard.exs. The `tests` job below is
-    # the one result to require.
+    # recorded in test/support/ci_timings.json instead (2026-11-26: about
+    # 2,100s a shard; setup and compile add roughly three minutes).
+    # MIX_TEST_PARTITION still gives each shard a database of its own.
+    # `--slowest-modules` implies `--trace`, whose per-module headers are what
+    # the timings are rebuilt from: see the header of scripts/ci-shard.exs. A
+    # file with no recorded timing weighs the median, so timings that fall
+    # behind the suite unbalance the shards; the `tests` job below rebuilds
+    # them on every green run and is the one result to require.
 
     strategy:
       fail-fast: false
@@ -402,29 +422,114 @@ jobs:
 
   tests:
     name: Test suite (all shards)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'tests') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
     # One result for the whole suite, so a required check need not name the
     # shards. It fails when any shard failed or was cancelled.
+    #
+    # When the shards ran, it also blends their logs into
+    # test/support/ci_timings.json (each file moves halfway to this run's time)
+    # and uploads the result as the `ci-timings` artifact, with a summary of
+    # how far the committed file has fallen behind. A red run counts too: a
+    # failing test takes about as long as a passing one, and a shard that
+    # stopped early leaves its unmeasured files as they were. The balancer
+    # weighs a file it has no timing for at the median, and on 2026-11-26 half
+    # the suite's files had none: twenty of them, weighed at about ten seconds
+    # each, took forty minutes in one shard. These steps never decide the
+    # result; the last step does.
     needs: test-shards
     if: always()
+    permissions:
+      contents: read
+      actions: read
     steps:
+      - uses: actions/checkout@v4
+        if: contains(fromJSON('["success","failure"]'), needs.test-shards.result)
+        continue-on-error: true
+
+      - id: beam
+        if: contains(fromJSON('["success","failure"]'), needs.test-shards.result)
+        continue-on-error: true
+        uses: ./.github/actions/setup-beam
+
+      - name: Blend this run into the shard timings
+        if: contains(fromJSON('["success","failure"]'), needs.test-shards.result) && steps.beam.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          logs="$RUNNER_TEMP/shard-logs"
+          mkdir -p "$logs"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" \
+            --jq '.jobs[] | select(.name | startswith("Test shard ")) | .id' |
+            while read -r id; do
+              gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$id/logs" > "$logs/$id.log"
+            done
+          {
+            echo "### Shard timings"
+            echo
+            echo "Committed \`test/support/ci_timings.json\`:"
+            echo
+            echo '```'
+            elixir scripts/ci-shard.exs check 10
+            elixir scripts/ci-shard.exs plan 10
+            echo '```'
+            elixir scripts/ci-shard.exs timings --blend "$logs"/*.log
+            echo
+            echo "Blended with this run (the \`ci-timings\` artifact):"
+            echo
+            echo '```'
+            elixir scripts/ci-shard.exs check 10
+            elixir scripts/ci-shard.exs plan 10
+            echo '```'
+            echo
+            echo "To commit it: \`gh run download $GITHUB_RUN_ID -n ci-timings -D test/support\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the rebuilt shard timings
+        if: contains(fromJSON('["success","failure"]'), needs.test-shards.result) && steps.beam.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-timings
+          path: test/support/ci_timings.json
+          retention-days: 30
+
       - name: Every shard passed
+        if: always()
         run: test "${{ needs.test-shards.result }}" = success
 
-  durability:
-    name: Durability tier
-    runs-on: ubuntu-latest
-    # The durability tier (docs/DURABILITY-TESTS.md): races between connections,
-    # jobs killed between two commits, leases taken over. The suite excludes it,
-    # because the SQL sandbox cannot show any of that, so without this job the
-    # tests for the invocation invariants (one row per key, the ready-row
-    # handoff, lease fencing) would gate nothing. A job of its own, with a
-    # database server of its own, because it was the longest step of the main
-    # job and nothing else in that job waits on it. Blocking.
+  integration:
+    name: Durability tier, scale budget and restore drills
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'integration') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
+    # Three blocking checks that each need the root project compiled for test and
+    # a database server, and nothing else in this workflow waits on: one job, so
+    # they pay for one runner, one cache restore and one dependency compile
+    # between them. They were three jobs until 2026-11-26. Each check runs once
+    # the setup has succeeded, whether or not the check before it passed, so one
+    # red check never hides another; the step that failed names the check.
+    #
+    # - The durability tier (docs/DURABILITY-TESTS.md): races between
+    #   connections, jobs killed between two commits, leases taken over. The
+    #   suite excludes it, because the SQL sandbox cannot show any of that, so
+    #   without it the tests for the invocation invariants (one row per key, the
+    #   ready-row handoff, lease fencing) would gate nothing. It creates its own
+    #   `ash_enterprise_test_durability` database and drops it when it ends.
+    # - The page budget (test/ash_enterprise/scale/): one tenant seeded with
+    #   1,000 and then 50,000 audited teams, and a page read through JSON:API,
+    #   GraphQL and a business-unit-depth role must issue the same queries at
+    #   both sizes and stay under its wall-clock ceiling. The suite excludes the
+    #   `:scale` tag, because the seed takes minutes. Database
+    #   `ash_enterprise_test`.
+    # - q48, the backup and restore drill: back up a seeded database with
+    #   pg_dump -Fc from one snapshot, restore it into a fresh database, and
+    #   prove the copy (every table's row count against the snapshot, every
+    #   audit chain verified on the copy). scripts/backup-restore-drill;
+    #   docs/runbooks/backup-and-restore.md. Then q55, the pseudonymised copy.
+    #   A restore that has stopped working is found here, not during an outage.
+    #   MIX_TEST_PARTITION=_drill gives it `ash_enterprise_test_drill`.
 
-    # pgvector on pg18, for the reasons given on the main job's service. The
-    # tier creates its own `ash_enterprise_test_durability` database and drops
-    # it when it ends, so no POSTGRES_DB here.
+    # pgvector on pg18, for the reasons given on the main job's service. No
+    # POSTGRES_DB: each check creates the database it uses.
     services:
       postgres:
         image: pgvector/pgvector:pg18
@@ -454,114 +559,9 @@ jobs:
           key: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('mix.lock') }}
           restore-keys: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-
 
-      # boxic_dmn shells out to `xmllint`; see the main job's step.
-      - name: Install xmllint
-        run: sudo apt-get update -y && sudo apt-get install -y libxml2-utils
-
-      - run: mix deps.get
-
-      # Dependencies first, so their warnings stay in their own step; the
-      # main job holds the --warnings-as-errors gate.
-      - run: mix deps.compile
-
-      - name: Durability tier
-        run: mix test.durability
-
-  scale:
-    name: Scale budget (50k rows)
-    runs-on: ubuntu-latest
-    # The page budget (test/ash_enterprise/scale/): one tenant seeded with 1,000
-    # and then 50,000 audited teams, and a page read through JSON:API, GraphQL and
-    # a business-unit-depth role must issue the same queries at both sizes and stay
-    # under its wall-clock ceiling. The suite excludes the `:scale` tag, because
-    # the seed takes minutes; a job of its own so nothing else waits on it.
-    # Blocking.
-
-    # pgvector on pg18, for the reasons given on the main job's service.
-    services:
-      postgres:
-        image: pgvector/pgvector:pg18
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - id: beam
-        uses: ./.github/actions/setup-beam
-
-      # Restore only: the main job saves this cache.
-      - name: Restore dependency and build cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            deps
-            _build
-          key: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-
-
-      # boxic_dmn shells out to `xmllint`; see the main job's step.
-      - name: Install xmllint
-        run: sudo apt-get update -y && sudo apt-get install -y libxml2-utils
-
-      - run: mix deps.get
-
-      # Dependencies first, so their warnings stay in their own step; the
-      # main job holds the --warnings-as-errors gate.
-      - run: mix deps.compile
-
-      - name: Scale budget
-        run: mix test --only scale test/ash_enterprise/scale
-
-  backup-restore-drill:
-    name: Backup and restore drill
-    runs-on: ubuntu-latest
-    # q48: back up a seeded database with pg_dump -Fc from one snapshot, restore it into a
-    # fresh database, and prove the copy (every table's row count against the snapshot, every
-    # audit chain verified on the copy). scripts/backup-restore-drill;
-    # docs/runbooks/backup-and-restore.md. Blocking: a restore that has stopped working is
-    # found here, not during an outage.
-    services:
-      postgres:
-        image: pgvector/pgvector:pg18
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      MIX_TEST_PARTITION: _drill
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - id: beam
-        uses: ./.github/actions/setup-beam
-
-      # Restore only: the main job saves this cache.
-      - name: Restore dependency and build cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            deps
-            _build
-          key: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-
-
-      # boxic_dmn shells out to `xmllint`; see the main job's step. pg_dump must be no older
-      # than the server (18), which the runner's own client is not.
+      # boxic_dmn shells out to `xmllint`; see the main job's step. The drill's
+      # pg_dump must be no older than the server (18), which the runner's own
+      # client is not.
       - name: Install xmllint and the PostgreSQL 18 client
         run: |
           sudo apt-get update -y
@@ -571,11 +571,27 @@ jobs:
           echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
 
       - run: mix deps.get
-      - run: mix deps.compile
+
+      # Dependencies first, so their warnings stay in their own step; the
+      # main job holds the --warnings-as-errors gate.
+      - id: deps-compile
+        run: mix deps.compile
+
+      - name: Durability tier
+        if: ${{ !cancelled() && steps.deps-compile.outcome == 'success' }}
+        run: mix test.durability
+
+      - name: Scale budget
+        if: ${{ !cancelled() && steps.deps-compile.outcome == 'success' }}
+        run: mix test --only scale test/ash_enterprise/scale
 
       # The seeded estate the e2e job also starts from: the example tenant, the legacy
       # estate and their audit chains.
-      - name: Create and seed the database
+      - id: drill-seed
+        name: "Drill: create and seed the database"
+        if: ${{ !cancelled() && steps.deps-compile.outcome == 'success' }}
+        env:
+          MIX_TEST_PARTITION: _drill
         run: |
           mix ecto.create --quiet
           mix ash_enterprise.legacy.setup
@@ -585,9 +601,15 @@ jobs:
       # --rollback-to latest: on the restored copy, roll the newest migration back and apply
       # it again, and compare row counts (docs/runbooks/deploy-and-rollback.md).
       - name: Backup and restore drill
+        if: ${{ !cancelled() && steps.drill-seed.outcome == 'success' }}
+        env:
+          MIX_TEST_PARTITION: _drill
         run: scripts/backup-restore-drill --rollback-to latest --json "${{ runner.temp }}/drill.json"
 
       - name: Drill rollback test
+        if: ${{ !cancelled() && steps.drill-seed.outcome == 'success' }}
+        env:
+          MIX_TEST_PARTITION: _drill
         run: mix test --only backup_drill test/mix/tasks/ash_enterprise_backup_drill_test.exs
 
       - name: Drill report
@@ -596,7 +618,9 @@ jobs:
 
       # q55 (ADR 0032): the pseudonymised copy. greenmask is a 0.x binary from a small
       # team, so it is pinned by version and sha256 rather than installed by name.
-      - name: Install greenmask v0.2.23
+      - id: greenmask
+        name: Install greenmask v0.2.23
+        if: ${{ !cancelled() && steps.drill-seed.outcome == 'success' }}
         run: |
           curl -sSfL -o "${{ runner.temp }}/greenmask.tar.gz" \
             https://github.com/GreenmaskIO/greenmask/releases/download/v0.2.23/greenmask-linux-amd64.tar.gz
@@ -610,6 +634,9 @@ jobs:
       # sentinel survives anywhere but the control table, or an excluded table has rows.
       # The salt is a fresh random one per run and is never printed.
       - name: Pseudonymised copy drill
+        if: ${{ !cancelled() && steps.greenmask.outcome == 'success' }}
+        env:
+          MIX_TEST_PARTITION: _drill
         run: |
           scripts/greenmask-drill --json "${{ runner.temp }}/greenmask-drill.json" \
             --require public.users.email --require public.users.hashed_password \
@@ -621,7 +648,7 @@ jobs:
 
   e2e:
     name: Browser end-to-end
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'e2e') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
     # Every Playwright spec in assets/e2e, in chromium, against the dev server
     # the specs drive locally. It gates like the others: it was advisory until
     # three runs in a row were green (42295888081, 42299104023, 42307413088).
@@ -736,13 +763,52 @@ jobs:
           path: assets/test-results
           retention-days: 7
 
-  telemetry:
-    name: Telemetry package
-    runs-on: ubuntu-latest
-    # telemetry/ is a package with its own mix project and lock, consumed by the
-    # application by path and published through a sparse git dep. Its suite needs
-    # no platform and the main job never runs it.
+  quick:
+    name: Packages, battery, site and cold clone
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'quick') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
+    # Five blocking checks that each ran in about a minute, and each paid for a
+    # runner of its own, its own setup and its own place in the queue. They were
+    # five jobs until 2026-11-26. They are independent of one another, so each
+    # runs once its own setup has succeeded, whether or not an earlier check in
+    # this job passed: one red check never hides another, and every step name
+    # starts with the check it belongs to.
+    #
+    # - Cold clone: the bar the README sets, that anyone can clone this
+    #   repository and build it. No root dependency cache (a restored deps/
+    #   would skip the fetch being tested), no secrets, and the checkout drops
+    #   its token, so every git dependency -- the first-party packages, the
+    #   dev-only ash_agent_tools, the boxic_dmn fork -- must come over anonymous
+    #   https. A dependency that goes private again, or a `path:` dependency
+    #   pointing at someone's machine, fails here by name. First, before
+    #   anything else in the job writes to deps/.
+    # - Telemetry: telemetry/ is a package with its own mix project and lock,
+    #   consumed by the application by path and published through a sparse git
+    #   dep. Its suite needs no platform and the main job never runs it.
+    # - Browser tests: ash_browser_tests/ is a test-only package with its own
+    #   mix project and lock, consumed through a sparse git dep or by path. Its
+    #   suite drives a real Chromium against a tiny fixture application, so
+    #   nothing else in this workflow exercises it. The browser comes from the
+    #   runner image (locally it comes from devenv), never from Playwright's own
+    #   download.
+    # - Battery: battery/ is a mix project of its own (README there): the flows
+    #   that span two or more substrates, run against its own reference
+    #   instantiation and its own database. The suite never compiles it, so
+    #   without this a substrate bump could break a seam and nothing here would
+    #   go red. Catching exactly that break is the battery's whole job.
+    # - Site: the public site deploys from main without a human reading it. This
+    #   builds it the way the deploy does (docs sync, link check, Astro build)
+    #   and scans what it would publish for private-domain terms. The terms are
+    #   never in this repository: set the MOAT_TERMS Actions secret (one
+    #   case-insensitive regular expression per line). Without it (forks, pull
+    #   requests) the scan says so and passes; the build still runs.
+    #
+    # The packages and the battery share one database server; each uses a
+    # database of its own (ash_enterprise_telemetry_test, ash_browser_tests_test,
+    # platform_battery_test).
 
+    # pgvector on pg18, for the reasons given on the main job's service: the
+    # battery's migrations install btree_gist, vector and ash-functions, and the
+    # temporal substrates need PostgreSQL 18.
     services:
       postgres:
         image: pgvector/pgvector:pg18
@@ -756,6 +822,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+    # The packages' and the battery's test configs read the standard PG*
+    # variables.
     env:
       PGHOST: localhost
       PGPORT: "5432"
@@ -763,17 +831,35 @@ jobs:
       PGPASSWORD: postgres
       MIX_ENV: test
 
-    defaults:
-      run:
-        working-directory: telemetry
-
     steps:
+      # No token for the whole job, which the cold clone needs and nothing else
+      # here misses.
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - id: beam
         uses: ./.github/actions/setup-beam
 
-      - name: Restore telemetry dependency and build cache
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            site/package-lock.json
+            ash_browser_tests/test/playwright/package-lock.json
+
+      # ---- Cold clone ------------------------------------------------------
+
+      - name: "Cold clone: fetch dependencies with no credentials"
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: mix deps.get
+
+      # ---- Telemetry package -------------------------------------------------
+
+      - name: "Telemetry: restore dependency and build cache"
+        if: ${{ !cancelled() }}
         uses: actions/cache@v4
         with:
           path: |
@@ -782,68 +868,43 @@ jobs:
           key: ${{ runner.os }}-telemetry-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('telemetry/mix.lock') }}
           restore-keys: ${{ runner.os }}-telemetry-${{ steps.beam.outputs.elixir-version }}-
 
-      - run: mix deps.get
+      - id: telemetry-deps
+        name: "Telemetry: fetch dependencies"
+        if: ${{ !cancelled() }}
+        working-directory: telemetry
+        run: mix deps.get
 
       # Dependencies first, so a dependency's warning never fails the gate below.
-      - run: mix deps.compile
+      - id: telemetry-setup
+        name: "Telemetry: compile dependencies"
+        if: ${{ !cancelled() && steps.telemetry-deps.outcome == 'success' }}
+        working-directory: telemetry
+        run: mix deps.compile
 
-      - name: Check formatting
+      - name: "Telemetry: check formatting"
+        if: ${{ !cancelled() && steps.telemetry-setup.outcome == 'success' }}
+        working-directory: telemetry
         run: mix format --check-formatted
 
-      - name: Compile with warnings as errors
+      - name: "Telemetry: compile with warnings as errors"
+        if: ${{ !cancelled() && steps.telemetry-setup.outcome == 'success' }}
+        working-directory: telemetry
         run: mix compile --warnings-as-errors
 
-      - name: Test
+      - name: "Telemetry: test"
+        if: ${{ !cancelled() && steps.telemetry-setup.outcome == 'success' }}
+        working-directory: telemetry
         run: mix test
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Browser tracing tests
+      - name: "Telemetry: browser tracing tests"
+        if: ${{ !cancelled() }}
+        working-directory: telemetry
         run: node --test test/js/*.mjs
 
-  browser-tests:
-    name: Browser tests package
-    runs-on: ubuntu-latest
-    # ash_browser_tests/ is a test-only package with its own mix project and lock,
-    # consumed through a sparse git dep or by path. Its suite drives a real Chromium
-    # against a tiny fixture application, so nothing else in this workflow exercises
-    # it. The browser comes from the runner image (locally it comes from devenv),
-    # never from Playwright's own download.
+      # ---- Browser tests package ---------------------------------------------
 
-    services:
-      postgres:
-        image: pgvector/pgvector:pg18
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      PGHOST: localhost
-      PGPORT: "5432"
-      PGUSER: postgres
-      PGPASSWORD: postgres
-      MIX_ENV: test
-      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-
-    defaults:
-      run:
-        working-directory: ash_browser_tests
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - id: beam
-        uses: ./.github/actions/setup-beam
-
-      - name: Restore browser tests dependency and build cache
+      - name: "Browser tests: restore dependency and build cache"
+        if: ${{ !cancelled() }}
         uses: actions/cache@v4
         with:
           path: |
@@ -853,31 +914,47 @@ jobs:
           key: ${{ runner.os }}-browser-tests-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('ash_browser_tests/mix.lock', 'ash_browser_tests/test/playwright/package-lock.json') }}
           restore-keys: ${{ runner.os }}-browser-tests-${{ steps.beam.outputs.elixir-version }}-
 
-      - run: mix deps.get
+      - id: browser-tests-deps
+        name: "Browser tests: fetch dependencies"
+        if: ${{ !cancelled() }}
+        working-directory: ash_browser_tests
+        run: mix deps.get
 
       # Dependencies first, so a dependency's warning never fails the gate below.
-      - run: mix deps.compile
+      - id: browser-tests-setup
+        name: "Browser tests: compile dependencies"
+        if: ${{ !cancelled() && steps.browser-tests-deps.outcome == 'success' }}
+        working-directory: ash_browser_tests
+        run: mix deps.compile
 
-      - name: Check formatting
+      - name: "Browser tests: check formatting"
+        if: ${{ !cancelled() && steps.browser-tests-setup.outcome == 'success' }}
+        working-directory: ash_browser_tests
         run: mix format --check-formatted
 
-      - name: Compile with warnings as errors
+      - name: "Browser tests: compile with warnings as errors"
+        if: ${{ !cancelled() && steps.browser-tests-setup.outcome == 'success' }}
+        working-directory: ash_browser_tests
         run: mix compile --warnings-as-errors
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Install the Playwright driver
+      - id: browser-tests-driver
+        name: "Browser tests: install the Playwright driver"
+        if: ${{ !cancelled() && steps.browser-tests-setup.outcome == 'success' }}
+        working-directory: ash_browser_tests
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
         run: npm ci --prefix test/playwright
 
-      - name: Locate Chromium
+      - id: browser-tests-chromium
+        name: "Browser tests: locate Chromium"
+        if: ${{ !cancelled() && steps.browser-tests-driver.outcome == 'success' }}
         run: echo "E2E_CHROMIUM=$(command -v chromium || command -v chromium-browser || command -v google-chrome)" >> "$GITHUB_ENV"
 
       # A cold runner sometimes takes over 30 s to start Chromium for the first time,
       # which failed the suite before any spec ran (ECL-66). Pay that cost here, with
       # its own bound, so the launch inside the suite is a warm one.
-      - name: Warm Chromium
+      - name: "Browser tests: warm Chromium"
+        if: ${{ !cancelled() && steps.browser-tests-chromium.outcome == 'success' }}
         run: |
           start=$(date +%s)
           for attempt in 1 2 3; do
@@ -888,73 +965,38 @@ jobs:
           done
           echo "Chromium warm-up took $(( $(date +%s) - start )) s"
 
-      - name: Test
+      - id: browser-tests-test
+        name: "Browser tests: test"
+        if: ${{ !cancelled() && steps.browser-tests-chromium.outcome == 'success' }}
+        working-directory: ash_browser_tests
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
         run: mix test
 
-      - name: Upload screenshots from a failure
-        if: failure()
+      - name: "Browser tests: upload screenshots from a failure"
+        if: ${{ !cancelled() && steps.browser-tests-test.outcome == 'failure' }}
         uses: actions/upload-artifact@v4
         with:
           name: browser-tests-screenshots
           path: ash_browser_tests/screenshots/
           retention-days: 7
 
-  battery:
-    name: Cross-substrate integration battery
-    runs-on: ubuntu-latest
-    # battery/ is a mix project of its own (README there): the flows that span
-    # two or more substrates, run against its own reference instantiation and
-    # its own database. The suite above never compiles it, so until this job a
-    # substrate bump could break a seam and nothing here would go red. A job of
-    # its own so it runs alongside the main one and its log stays readable.
-    # Blocking: catching exactly that break is the battery's whole job.
-
-    services:
-      # Same image as the main job, for the same reasons: the battery's
-      # migrations install btree_gist, vector and ash-functions, and the
-      # temporal substrates need PostgreSQL 18. The battery creates its own
-      # `platform_battery_test` database, so no POSTGRES_DB here.
-      postgres:
-        image: pgvector/pgvector:pg18
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    # battery/config/test.exs reads the standard PG* variables.
-    env:
-      PGHOST: localhost
-      PGPORT: "5432"
-      PGUSER: postgres
-      PGPASSWORD: postgres
-
-    defaults:
-      run:
-        working-directory: battery
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - id: beam
-        uses: ./.github/actions/setup-beam
+      # ---- Cross-substrate integration battery -------------------------------
 
       # The battery's README says it resolves the same code the platform
       # ships, and by 2026-10-29 sixteen shared lock entries said otherwise.
       # First, because it needs no compile and a drifted pin makes everything
       # after it test the wrong versions. The script prints the one-command fix.
-      - name: Battery pins match mix.lock
-        working-directory: .
+      - id: battery-pins
+        name: "Battery: pins match mix.lock"
+        if: ${{ !cancelled() }}
         run: elixir scripts/battery-pins-check.exs
 
       # Its own key and its own lock hash: battery/deps and battery/_build are
       # a different dependency set from the root's, and the Elixir version
       # rides the key for the reason given on the main job's cache.
-      - name: Restore battery dependency and build cache
+      - name: "Battery: restore dependency and build cache"
+        if: ${{ !cancelled() && steps.battery-pins.outcome == 'success' }}
         uses: actions/cache@v4
         with:
           path: |
@@ -965,35 +1007,81 @@ jobs:
 
       # The battery runs ash_decisions, so boxic_dmn shells out to `xmllint`
       # here too. Declared, not assumed -- see the main job's step.
-      - name: Install xmllint
+      - id: battery-xmllint
+        name: "Battery: install xmllint"
+        if: ${{ !cancelled() && steps.battery-pins.outcome == 'success' }}
         run: sudo apt-get update -y && sudo apt-get install -y libxml2-utils
 
-      - run: mix deps.get
+      - id: battery-deps
+        name: "Battery: fetch dependencies"
+        if: ${{ !cancelled() && steps.battery-xmllint.outcome == 'success' }}
+        working-directory: battery
+        run: mix deps.get
 
       # Dependencies first, so a dependency's warning never fails the gate
       # below -- the same split as the main job.
-      - run: mix deps.compile
+      - id: battery-setup
+        name: "Battery: compile dependencies"
+        if: ${{ !cancelled() && steps.battery-deps.outcome == 'success' }}
+        working-directory: battery
+        run: mix deps.compile
 
-      - name: Check formatting
+      - name: "Battery: check formatting"
+        if: ${{ !cancelled() && steps.battery-setup.outcome == 'success' }}
+        working-directory: battery
         run: mix format --check-formatted
 
-      - name: Compile with warnings as errors
+      - name: "Battery: compile with warnings as errors"
+        if: ${{ !cancelled() && steps.battery-setup.outcome == 'success' }}
+        working-directory: battery
         run: mix compile --warnings-as-errors
 
       # Creates and migrates platform_battery_test, runs the scenarios in
       # test/base_integration, exits non-zero on any failure.
-      - name: Platform battery
+      - name: "Battery: platform battery"
+        if: ${{ !cancelled() && steps.battery-setup.outcome == 'success' }}
+        working-directory: battery
         run: mix platform_battery
+
+      # ---- Site ---------------------------------------------------------------
+
+      - id: site-deps
+        name: "Site: install"
+        if: ${{ !cancelled() }}
+        working-directory: site
+        run: npm ci
+
+      - name: "Site: script tests (moat gate, site data, snippets, links)"
+        if: ${{ !cancelled() && steps.site-deps.outcome == 'success' }}
+        working-directory: site
+        run: node --test scripts/*.test.mjs
+
+      - id: site-build
+        name: "Site: build (docs sync, link check, Astro)"
+        if: ${{ !cancelled() && steps.site-deps.outcome == 'success' }}
+        working-directory: site
+        run: npm run build
+
+      - name: "Site: scan the published output for private terms"
+        if: ${{ !cancelled() && steps.site-build.outcome == 'success' }}
+        working-directory: site
+        env:
+          MOAT_TERMS: ${{ secrets.MOAT_TERMS }}
+        run: node scripts/moat-gate.mjs
 
   dialyzer:
     name: Dialyzer (advisory)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'dialyzer') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
     # DELIBERATELY non-blocking. There is no official guidance for running
     # Dialyzer against Ash or Spark, no canonical ignore file, and Spark's macro
     # expansion produces spurious warnings. Running it as a hard gate would mean
     # either a permanently red build or an ignore file so broad it hides real
     # findings. See docs/manifesto/07-what-we-do-not-have.md#4-dialyzer-certainty.
     continue-on-error: true
+    # On main only. Nothing reads it before a change lands (it gates nothing),
+    # and on every ci/** push and pull request it took a runner for 25 minutes.
+    # A warning a change adds shows up on main's run of that change.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - uses: actions/checkout@v4
@@ -1013,62 +1101,3 @@ jobs:
       - run: mix deps.get
       - run: mkdir -p priv/plts
       - run: mix dialyzer --format github
-
-  site:
-    name: Site builds and carries no private terms
-    runs-on: ubuntu-latest
-    # The public site deploys from main without a human reading it. This job
-    # builds it the way the deploy does (docs sync, link check, Astro build)
-    # and scans what it would publish for private-domain terms. It needs only
-    # Node, not the Elixir toolchain.
-    #
-    # The terms are never in this repository: set the MOAT_TERMS Actions secret
-    # (one case-insensitive regular expression per line). Without it (forks,
-    # pull requests) the scan says so and passes; the build still runs.
-    defaults:
-      run:
-        working-directory: site
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: site/package-lock.json
-
-      - run: npm ci
-
-      - name: Site script tests (moat gate, site data, snippets, links)
-        run: node --test scripts/*.test.mjs
-
-      - name: Build (docs sync, link check, Astro)
-        run: npm run build
-
-      - name: Scan the published output for private terms
-        env:
-          MOAT_TERMS: ${{ secrets.MOAT_TERMS }}
-        run: node scripts/moat-gate.mjs
-
-  cold-clone:
-    name: Cold clone fetches every dependency
-    runs-on: ubuntu-latest
-    # The bar the README sets: anyone can clone this repository and build it.
-    # This job holds CI to it. No dependency cache (a restored deps/ would
-    # skip the fetch being tested), no secrets, and the checkout drops its
-    # token, so every git dependency -- the first-party packages, the dev-only
-    # ash_agent_tools, the boxic_dmn fork -- must come over anonymous https.
-    # A dependency that goes private again, or a `path:` dependency pointing
-    # at someone's machine, fails here by name.
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - id: beam
-        uses: ./.github/actions/setup-beam
-
-      - name: Fetch dependencies with no credentials
-        env:
-          GIT_TERMINAL_PROMPT: "0"
-        run: mix deps.get
