@@ -178,6 +178,7 @@ defmodule AshEnterprise.MixProject do
         {:ash_evidence, link: :markdown},
         {:ash_judgments, link: :markdown},
         {:ash_mdm, link: :markdown},
+        {:ash_provenance, link: :markdown},
         {:ash_rules, link: :markdown},
         {:ash_versions, link: :markdown},
         :phoenix,
@@ -282,8 +283,14 @@ defmodule AshEnterprise.MixProject do
       # the engineering standards are judged over (`AshEnterprise.Standards`,
       # compiled only when this dependency is loaded, so in dev and test).
       # First-party, public on GitHub and not yet on hex; mix.lock pins the SHA.
+      # Pinned to PR #34 (domain-map-task, fc7aa130): the domain map generator
+      # lives there now — `mix ash_agent.domain_map` replaced the host-local
+      # task (ADR 0085 amendment 7). Unpin at the merge.
       {:ash_agent_tools,
-       github: "lukegalea/ash_agent_tools", only: [:dev, :test], runtime: false},
+       github: "lukegalea/ash_agent_tools",
+       ref: "fc7aa130a8d443f05609fc133b60ef9d315346a2",
+       only: [:dev, :test],
+       runtime: false},
 
       # Docs as a validator, not a publication: see the EXTRA_DOCS note above
       # `docs/0`.
@@ -408,6 +415,19 @@ defmodule AshEnterprise.MixProject do
       # the package's. The package never calls an instrument; this host
       # supplies the judge actions and the embeddings.
       {:ash_evidence, github: "lukegalea/ash_evidence", branch: "main"},
+      # The value-explanation contract (ADR 0078): addresses, PROV-DM steps, typed gaps.
+      # ash_judgments and ash_evidence depend on it; declared here so the host pins one source.
+      {:ash_provenance, github: "lukegalea/ash_provenance"},
+
+      # --- The paper kernel ----------------------------------------------------
+      # Deterministic PDF documents from Ash data: schemas naming read paths,
+      # host-owned Typst layouts, typed themes, a run fragment with the two
+      # status axes (render / read-back), and `mix paper.lock` for the host's
+      # declared schemas and layouts. Pinned by ref while the API settles
+      # (docs/BLEEDING-EDGE.md has the row). The wiring lives in
+      # AshEnterprise.Documents.
+      {:ash_paper,
+       github: "lukegalea/ash_paper", ref: "e14889c94d64da0198ea21fc854201b0368f7f42"},
 
       # --- Business processes and the decisions they route on ------------------
       # The other half of ADR 0009. `ash_bpmn` compiles a BPMN document into an
