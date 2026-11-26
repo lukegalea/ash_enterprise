@@ -693,6 +693,13 @@ config :ash_enterprise, :planning,
 #     `requires_expansion: true` and the thinness is reported, never hidden.
 #     Retrieval economics, not admission policy — the disposition that comes
 #     out is whatever the evidence says.
+# The declared subject resources whose registry questions are queryable
+# predicates of the facts surface (S1-65): the filter vocabulary derives from
+# THESE declarations. The showcase's search beat declares its own.
+config :ash_enterprise, :system_one_subject_resources, [
+  AshEnterprise.SystemOne.ShowcaseSubject
+]
+
 config :ash_enterprise, :system_one_evidence,
   max_questions_per_call: 5,
   max_expansion_steps: 1

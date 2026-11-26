@@ -66,7 +66,7 @@ flowchart LR
     ctx_exports["Exports<br/>1 resources"]
   end
   subgraph knowledge["Evidence & judgment"]
-    ctx_system-one["System One<br/>12 resources"]
+    ctx_system-one["System One<br/>13 resources"]
     ctx_credentialing["Credentialing<br/>6 resources"]
     ctx_licences["Licences<br/>1 resources"]
     ctx_signatures["Signatures<br/>5 resources"]
@@ -750,7 +750,7 @@ Declared questions, the append-only judgment ledger, banding, admitted facts, hu
 | **fact** | The materialised-facts table: what the set evaluator, the filters and the standing queries read. |
 | **evidence assertion** | The aggregate evidence verdict one packet's adjudication produced — the admission's provenance. |
 
-**Resources** — 12 introspected
+**Resources** — 13 introspected
 
 | Resource | Description | Aggregates | Calculations |
 |---|---|---|---|
@@ -765,6 +765,7 @@ Declared questions, the append-only judgment ledger, banding, admitted facts, hu
 | `AshEnterprise.SystemOne.HumanVerdict` | — | 0 | 0 |
 | `AshEnterprise.SystemOne.Judgment` | — | 0 | 0 |
 | `AshEnterprise.SystemOne.QuestionProposal` | — | 0 | 2 |
+| `AshEnterprise.SystemOne.ShowcaseSubject` | — | 0 | 0 |
 | `AshEnterprise.SystemOne.StandingHead` | — | 0 | 0 |
 
 

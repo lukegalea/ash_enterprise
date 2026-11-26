@@ -483,6 +483,13 @@
     {
       "action": null,
       "kind": "live",
+      "module": "AshEnterpriseWeb.ShowcaseLive.Search",
+      "path": "/app/showcase/search",
+      "verb": "GET"
+    },
+    {
+      "action": null,
+      "kind": "live",
       "module": "AshEnterpriseWeb.DailyLive.Slack",
       "path": "/app/slack",
       "verb": "GET"

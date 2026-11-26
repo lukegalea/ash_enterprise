@@ -449,7 +449,7 @@ msgstr ""
 msgid "Legacy"
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1349
+#: lib/ash_enterprise/surfaces.ex:1366
 #, elixir-autogen, elixir-format
 msgid "Legacy users"
 msgstr ""
@@ -642,7 +642,7 @@ msgstr ""
 msgid "The merged view of the customer, with merge lineage."
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1351
+#: lib/ash_enterprise/surfaces.ex:1368
 #, elixir-autogen, elixir-format
 msgid "The old system's people, read live through a compatibility view."
 msgstr ""
@@ -742,7 +742,7 @@ msgstr ""
 msgid "Your morning brief, today's agenda and the day's pulse."
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1375
+#: lib/ash_enterprise/surfaces.ex:1392
 #, elixir-autogen, elixir-format
 msgid "Builders"
 msgstr ""
@@ -762,7 +762,7 @@ msgstr ""
 msgid "Everyone"
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1373
+#: lib/ash_enterprise/surfaces.ex:1390
 #, elixir-autogen, elixir-format
 msgid "Members"
 msgstr ""
@@ -772,7 +772,7 @@ msgstr ""
 msgid "No app or record matches “%{query}”."
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1376
+#: lib/ash_enterprise/surfaces.ex:1393
 #, elixir-autogen, elixir-format
 msgid "Operators"
 msgstr ""
@@ -782,7 +782,7 @@ msgstr ""
 msgid "Records"
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:1374
+#: lib/ash_enterprise/surfaces.ex:1391
 #, elixir-autogen, elixir-format
 msgid "Reviewers"
 msgstr ""
@@ -1731,6 +1731,16 @@ msgstr ""
 #: lib/ash_enterprise/surfaces.ex:1158
 #, elixir-autogen, elixir-format
 msgid "Questions drafted from policy text, awaiting a person's confirmation."
+msgstr ""
+
+#: lib/ash_enterprise/surfaces.ex:1349
+#, elixir-autogen, elixir-format
+msgid "Search invented clinicians and see what is in, what is out, and what is unknown, with the reason for each unknown."
+msgstr ""
+
+#: lib/ash_enterprise/surfaces.ex:1347
+#, elixir-autogen, elixir-format
+msgid "Three-valued search"
 msgstr ""
 
 #: lib/ash_enterprise/surfaces.ex:1265
