@@ -11,7 +11,7 @@
           "name": "chromium",
           "version": "158.0.8127.18"
         },
-        "commit": "b2ec361936a5f3e7aa63823efea1a7b2c5dc97df",
+        "commit": "9bd2f0b1523fe9fcd85629806d01283d68f8efcb",
         "environment": "test",
         "figures": {
           "deactivate.confirm": {
@@ -44,8 +44,8 @@
           }
         },
         "hash": "c779dc4d3696347b659685c6678a60aa30062636325456583844c87b38e0240d",
-        "manifest_sha256": "e76b13e0e27ce8d15510d8f67c4039c3873375e23d46f11b465f41efeebbf37b",
-        "run": "ci-45745817836-1",
+        "manifest_sha256": "7860092c0d6c748801508263f3cb72b9008be32cec2d682ac4aa71c6ef9322be",
+        "run": "ci-45796414469",
         "version": 1
       },
       "fr": {
@@ -53,7 +53,7 @@
           "name": "chromium",
           "version": "158.0.8127.18"
         },
-        "commit": "b2ec361936a5f3e7aa63823efea1a7b2c5dc97df",
+        "commit": "9bd2f0b1523fe9fcd85629806d01283d68f8efcb",
         "environment": "test",
         "figures": {
           "deactivate.confirm": {
@@ -86,8 +86,8 @@
           }
         },
         "hash": "c779dc4d3696347b659685c6678a60aa30062636325456583844c87b38e0240d",
-        "manifest_sha256": "f43a4c56ca0613e6fa58b94411163ff2fe5bf51a1dc97b58556917cbc132daeb",
-        "run": "ci-45745817836-1",
+        "manifest_sha256": "ec604c248a7c02de656f80f6c0e0b25ea74ac75cdb384b3c47ee5be5bf177235",
+        "run": "ci-45796414469",
         "version": 1
       }
     }

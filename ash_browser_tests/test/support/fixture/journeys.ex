@@ -5,6 +5,7 @@ defmodule AshBrowserTests.Fixture.JourneySurfaces do
   @impl true
   def surface(:widgets), do: %{ui: AshBrowserTests.Fixture.Widget}
   def surface(:whoami), do: %{ui: nil}
+  def surface(:console_error), do: %{ui: nil}
   def surface(_id), do: nil
 end
 
@@ -50,6 +51,7 @@ defmodule AshBrowserTests.Fixture.JourneyHost do
   @impl true
   def path(:widgets, _bindings), do: "/journey/widgets"
   def path(:whoami, _bindings), do: "/whoami"
+  def path(:console_error, _bindings), do: "/console-error"
 
   @impl true
   def sign_in(conn, actor, _context) do
@@ -62,11 +64,11 @@ defmodule AshBrowserTests.Fixture.JourneyHost do
   @impl true
   def mask(:as_of), do: "#as-of"
 
-  # The fixture has no audit table: the test is told which correlation id the
-  # runner asked about, and checks it is the one the step traced.
+  # The fixture has no audit table: the test is told what the runner asked
+  # about, and checks it is what the step traced and did.
   @impl true
-  def assert_audit(correlation_id, _context) do
-    send(self(), {:audit_asserted, correlation_id})
+  def assert_audit(correlation_id, acted, _context) do
+    send(self(), {:audit_asserted, correlation_id, acted})
     :ok
   end
 end
@@ -203,6 +205,45 @@ defmodule AshBrowserTests.Fixture.MoreJourneys do
     step :viewer_looks, as: :viewer do
       open(:whoami)
       say("The viewer looks.")
+    end
+  end
+
+  journey :meets_a_console_error do
+    version(1)
+    kind(:how_to)
+    title("Meets a console error")
+    goal("A browser failure fails the step it happened in.")
+    outcome("The step is failed, and the run is not passed.")
+    locales([:en])
+
+    persona(:viewer, :viewer)
+    persona(:admin, :admin)
+
+    step :viewer_looks, as: :viewer do
+      open(:whoami)
+      say("The viewer looks.")
+    end
+
+    step :admin_opens_a_broken_page, as: :admin do
+      open(:console_error)
+      say("The administrator opens a page that logs an error.")
+    end
+  end
+
+  journey :audits_without_a_row_action do
+    version(1)
+    kind(:how_to)
+    title("Audits without a row action")
+    goal("An audit expectation needs an action whose row to find.")
+    outcome("The step fails.")
+    locales([:en])
+
+    persona(:viewer, :viewer)
+
+    step :viewer_looks, as: :viewer do
+      open(:widgets)
+      say("The viewer looks.")
+      expect(trace: [:live_mount], audit: true)
     end
   end
 

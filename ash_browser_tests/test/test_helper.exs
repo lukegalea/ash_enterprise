@@ -1,3 +1,9 @@
+# Each invocation of this suite is a run of its own: the suite runs its fixture
+# journeys more than once on purpose, and a run id shared with an earlier
+# invocation would count those as retries.
+if System.get_env("JOURNEYS_RUN_ID") in [nil, ""],
+  do: System.put_env("JOURNEYS_RUN_ID", "package-#{System.pid()}")
+
 alias AshBrowserTests.Fixture.Endpoint
 alias AshBrowserTests.Fixture.Migration
 alias AshBrowserTests.Fixture.Repo

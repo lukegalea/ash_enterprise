@@ -37,10 +37,27 @@ defmodule AshBrowserTests.Journeys.Host do
   @callback mask(region :: atom()) :: String.t()
 
   @doc """
-  Asserts the audit rows correlation id `correlation_id` wrote, for
-  `expect audit: true`. Raises `ExUnit.AssertionError` when there are none.
-  """
-  @callback assert_audit(correlation_id :: String.t(), context :: map()) :: any()
+  Asserts, for `expect audit: true`, the audit row one of the step's row actions
+  wrote: by `acted.action` of `acted.resource`, about `acted.record` (the bound
+  record the row action was performed on), under the step's correlation id
+  `correlation_id`, and written no earlier than `acted.since`, when the step
+  began. Called once per row action of the step. Raises
+  `ExUnit.AssertionError` when there is no such row.
 
-  @optional_callbacks mask: 1, assert_audit: 2
+  A correlation id can outlive a step (a LiveView may keep one for its whole
+  life), so a row is the proof only when its action, its record and its time
+  are the step's.
+  """
+  @callback assert_audit(
+              correlation_id :: String.t(),
+              acted :: %{
+                resource: module(),
+                action: atom(),
+                record: struct(),
+                since: DateTime.t()
+              },
+              context :: map()
+            ) :: any()
+
+  @optional_callbacks mask: 1, assert_audit: 3
 end

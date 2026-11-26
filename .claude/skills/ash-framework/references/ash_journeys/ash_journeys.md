@@ -15,6 +15,7 @@
 - Approve figures only with `mix ash_journeys.approve <run-id>`, after reviewing `mix ash_journeys.impact <run-id>`. Never copy files into `priv/journeys/` or edit `journeys.lock.json` by hand, except to move the pinned browser build or the tolerance on purpose.
 - A runner records every step it declares, in order, with its real status and attempts, and leaves unmeasured values `nil`. It never fills in a value it did not measure: `approve` refuses unmeasured steps and figures.
 - Record `raster_sha256` with `AshJourneys.Raster.hash/1` over the decoded figure, so the runner and `approve` agree on what a raster hash is.
-- Put `mix ash_journeys.lock --check` in the static checks. It fails only when a declaration is newer than its approved run.
+- Put `mix ash_journeys.lock --check` in the static checks. It fails when a journey is newer than its approved run: the declaration, the pinned build, an approved file, or a text or label it resolves to.
+- A runner records the journey's texts with `AshJourneys.L10n.texts/3`, in the run's locale and with the `AshA2ui.Manifest` options the surfaces rendered with. A projection checks an approved run with `AshJourneys.Lock.verify/6` before showing anything from it.
 - Pass `gettext: MyApp.Gettext` to `use AshJourneys.Journeys`. Put `mix ash_journeys.gettext.extract --check-up-to-date` in the static checks, and translate `journeys.pot` with `mix gettext.merge`.
 - Publish pages with `mix ash_journeys.export`, which reads only approved runs. A runner paints masked regions `AshJourneys.Export.capture_mask_color/0` (magenta, Playwright's default), so published pages can show them neutral.
