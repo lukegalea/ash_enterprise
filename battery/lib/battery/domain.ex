@@ -46,6 +46,7 @@ defmodule Battery.Domain do
     resource Battery.BusinessEvents.Ledger.SimulationEvent
     resource Battery.BusinessEvents.MappingVersion
     resource Battery.BusinessEvents.VendorState
+    resource Battery.BusinessEvents.SimulatedVendorState
 
     # Scheduled activation (ash_bpmn timer → ash_compliance dated revision →
     # ash_decisions re-evaluation): the applicants a rule set answers for,
