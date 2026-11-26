@@ -78,8 +78,8 @@ flowchart LR
     ctx_planning["Planning<br/>5 resources"]
   end
   subgraph process["Orchestration"]
-    ctx_bpmn["Processes<br/>10 resources"]
-    ctx_process["Process instances<br/>1 resources"]
+    ctx_bpmn["Processes<br/>11 resources"]
+    ctx_process["Process instances<br/>2 resources"]
     ctx_automation["Automation<br/>2 resources"]
     ctx_execution["Execution<br/>10 resources"]
     ctx_execution-sources["Execution sources"]
@@ -1010,19 +1010,20 @@ BPMN documents compiled to immutable graphs, executed by a token interpreter.
 | **subscription** | A declaration that something happening in the audit log should start a process. |
 | **cursor** | How far the trigger sweep has read into one tenant's audit chain. |
 
-**Resources** — 10 introspected
+**Resources** — 11 introspected
 
 | Resource | Description | Aggregates | Calculations |
 |---|---|---|---|
 | `AshEnterprise.Bpmn.Cursor` | — | 0 | 1 |
 | `AshEnterprise.Bpmn.Definition` | — | 0 | 0 |
 | `AshEnterprise.Bpmn.Dispatch` | — | 0 | 0 |
-| `AshEnterprise.Bpmn.HumanTask` | — | 0 | 21 |
+| `AshEnterprise.Bpmn.HumanTask` | — | 0 | 22 |
 | `AshEnterprise.Bpmn.Instance` | — | 0 | 4 |
 | `AshEnterprise.Bpmn.ProcessEvent` | — | 0 | 0 |
 | `AshEnterprise.Bpmn.Redrive` | — | 0 | 0 |
 | `AshEnterprise.Bpmn.Subscription` | — | 0 | 0 |
 | `AshEnterprise.Bpmn.TaskCandidate` | — | 0 | 0 |
+| `AshEnterprise.Bpmn.TimerJob` | — | 0 | 0 |
 | `AshEnterprise.Bpmn.Token` | — | 0 | 0 |
 
 
@@ -1046,11 +1047,12 @@ Host process instances and the dispatched-cursor event triggers.
 | **dispatched cursor** | Events trigger processes through a dispatched cursor, not a handler. |
 | **approval** | Approvals and process modelling stay inside Ash. |
 
-**Resources** — 1 introspected
+**Resources** — 2 introspected
 
 | Resource | Description | Aggregates | Calculations |
 |---|---|---|---|
 | `AshEnterprise.Process.Binding` | — | 0 | 0 |
+| `AshEnterprise.Process.TaskNotice` | — | 0 | 0 |
 
 
 <!-- domain-map:context:process:end -->
@@ -1504,7 +1506,7 @@ The documents surface: issuing real documents from the host's own data through t
 | `ash_decisions` | first-party | git @ 1a01808e | [Decisions](#decisions) | Decisions as versioned resources; TCK-measured. |
 | `boxic_dmn` | transitive | git @ 6280f2fa | [Decisions](#decisions) | Decision-document validation (ADR 0027). |
 | `boxic_feel` | transitive | hex 0.2.0 | [Decisions](#decisions) | The FEEL expression engine (ADR 0027). |
-| `ash_bpmn` | first-party | git @ 0daf09f9 | [Processes](#bpmn) | Process documents → graph snapshot → token interpreter. |
+| `ash_bpmn` | first-party | git @ 61f0b917 | [Processes](#bpmn) | Process documents → graph snapshot → token interpreter. |
 | `ash_planning` | first-party | git @ 6aab92f2 | [Planning](#planning) | Planning fragments, IR, validators; solver backend. |
 | `ash_agent` | first-party | git @ c3bd9892 | [Agents](#agents) | Governed invocations and durable agent runs (host-instantiated). |
 | `ash_acp` | first-party | git @ 536a404d | [Agent protocol](#acp) | The agent-client wire adapter; no second authorization model. |

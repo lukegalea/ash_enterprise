@@ -199,7 +199,9 @@ defmodule AshEnterprise.Security.Privilege do
     "AshEnterprise.Canonical.ConversationParticipant",
     "AshEnterprise.Canonical.EventAttendee",
     "AshEnterprise.Canonical.Message",
-    "AshEnterprise.Canonical.Person"
+    "AshEnterprise.Canonical.Person",
+    # Who was nudged about which process task.
+    "AshEnterprise.Process.TaskNotice"
   ]
 
   @doc """

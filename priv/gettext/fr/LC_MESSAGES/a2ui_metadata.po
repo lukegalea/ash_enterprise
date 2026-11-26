@@ -373,6 +373,10 @@ msgid "Assign to business unit"
 msgstr "Affecter à une unité d’affaires"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Attach job"
+msgstr "Associer la tâche planifiée"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Attach timers"
 msgstr "Joindre des minuteries"
 
@@ -1445,6 +1449,10 @@ msgctxt "one_of:outcome"
 msgid "Follow up"
 msgstr "À suivre"
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Follow up due"
+msgstr "Suivi à échéance"
+
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Follow-up"
 msgstr "Suivi"
@@ -1983,6 +1991,10 @@ msgstr "Marquer en erreur"
 msgid "Mark failed"
 msgstr "Marquer comme échoué"
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Mark mailed"
+msgstr "Marquer comme envoyé"
+
 #: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
 msgid "Mark unsure"
 msgstr "Marquer comme incertain"
@@ -2350,6 +2362,10 @@ msgstr "Résultat"
 msgid "Outline"
 msgstr "Plan"
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Overdue"
+msgstr "En retard"
+
 #: lib/ash_enterprise_web/a2ui/team_ui.ex:1
 msgid "Owner"
 msgstr "Propriétaire"
@@ -2676,8 +2692,16 @@ msgid "Record"
 msgstr "Enregistrement"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Record cancelled"
+msgstr "Enregistrer l’annulation"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Record failure"
 msgstr "Enregistrer un échec"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Record fired"
+msgstr "Enregistrer le déclenchement"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Record risk"
@@ -3524,6 +3548,10 @@ msgid "Task detail"
 msgstr "Détail de la tâche"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Task notice"
+msgstr "Avis de tâche"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/team_ui.ex:1
 msgid "Team"
 msgstr "Équipe"
@@ -3612,6 +3640,10 @@ msgstr "Limite de temps"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Time zone definition"
 msgstr "Définition du fuseau horaire"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Timer job"
+msgstr "Tâche de minuterie"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 msgid "Title"

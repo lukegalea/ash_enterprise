@@ -2,10 +2,10 @@
   "format": "ash_enterprise.data_inventory/1",
   "note": "Generated from the resource declarations by `mix ash_enterprise.data_inventory`; do not edit. It describes the code, names no data steward, and attests nothing about a running deployment.",
   "summary": {
-    "resources": 198,
+    "resources": 200,
     "global_tables": 45,
     "egress_paths": 17,
-    "tenant_scoped": 115,
+    "tenant_scoped": 117,
     "unclassified_personal_attributes": 0,
     "with_sealed_attributes": 19,
     "with_secured_attributes": 1,
@@ -1426,6 +1426,25 @@
       "domain": "AshEnterprise.Bpmn",
       "data_layer": "AshPostgres.DataLayer",
       "table": "bpmn_task_candidates",
+      "platform_resource": true,
+      "ownership": "organization_owned",
+      "tenancy": "attribute",
+      "tenant_option": true,
+      "audit": false,
+      "archival": false,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [],
+      "sealed_attributes": [],
+      "personal_looking_attributes": [],
+      "secured_attributes": []
+    },
+    {
+      "resource": "AshEnterprise.Bpmn.TimerJob",
+      "domain": "AshEnterprise.Bpmn",
+      "data_layer": "AshPostgres.DataLayer",
+      "table": "bpmn_timer_jobs",
       "platform_resource": true,
       "ownership": "organization_owned",
       "tenancy": "attribute",
@@ -3347,6 +3366,25 @@
       "secured_attributes": []
     },
     {
+      "resource": "AshEnterprise.Process.TaskNotice",
+      "domain": "AshEnterprise.Process",
+      "data_layer": "AshPostgres.DataLayer",
+      "table": "process_task_notices",
+      "platform_resource": true,
+      "ownership": "user_owned",
+      "tenancy": "attribute",
+      "tenant_option": true,
+      "audit": false,
+      "archival": false,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [],
+      "sealed_attributes": [],
+      "personal_looking_attributes": [],
+      "secured_attributes": []
+    },
+    {
       "resource": "AshEnterprise.Provenance.Explanation",
       "domain": "AshEnterprise.Provenance",
       "data_layer": "Ash.DataLayer.Simple",
@@ -4339,18 +4377,19 @@
     },
     {
       "id": "outbound_mail",
-      "name": "Account mail (confirmation, password reset and signature reminders)",
+      "name": "Account mail (confirmation, password reset, signature reminders and process task notices)",
       "recipient_class": "mail_provider",
       "data_classes": [
         "account_identity",
         "credentials_reference"
       ],
       "gate": "none",
-      "known_gap": "No tenant-level gate. A message goes to the address of the user the action is for, and carries a single-use token link, or, for a signature reminder, a link to the page where the person acts, naming no document. Which mail provider receives it is a deployment choice (default: local mailbox).",
+      "known_gap": "No tenant-level gate. A message goes to the address of the user the action is for, and carries a single-use token link, or, for a signature reminder or a process task's notice, a link to the page where the person acts, naming no document or task. Which mail provider receives it is a deployment choice (default: local mailbox).",
       "modules": [
         "AshEnterprise.Accounts.User.Senders.SendNewUserConfirmationEmail",
         "AshEnterprise.Accounts.User.Senders.SendPasswordResetEmail",
         "AshEnterprise.Mailer",
+        "AshEnterprise.Process.Senders.SendTaskNotice",
         "AshEnterprise.Signatures.Senders.SendReminder"
       ],
       "notes": null
