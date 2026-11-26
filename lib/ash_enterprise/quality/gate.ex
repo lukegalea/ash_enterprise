@@ -40,7 +40,9 @@ defmodule AshEnterprise.Quality.Gate do
   ## The verdict
 
   The rule (ADR 0058, 2026-10-31 amendment; defaults from the design
-  decisions of the same day), in order:
+  decisions of the same day), in order, after one that comes first: a report
+  given `:not_graded` is `:unmeasured` with that reason, as nobody grades its
+  replies:
 
     1. `:unmeasured` when the family has no published band table, or the
        table has no certification (`certified_at` nil: uncertified judgment
@@ -81,6 +83,10 @@ defmodule AshEnterprise.Quality.Gate do
       `:min_pass_rate`: the thresholds above
     * `:now`: the instant the band table's age is measured at
     * `:facts_resource`: default `AshEnterprise.SystemOne.Fact`
+    * `:not_graded`: a reason (an atom) why nobody grades these replies, such as
+      `:not_evaluation_tenant` (`AshEnterprise.Quality.Evaluation`). Every pair then
+      reads `{:unknown, reason}` without reading a fact, and the report is
+      `:unmeasured` with that reason first
   """
 
   alias AshAgent.Effects.Info, as: Effects
@@ -266,6 +272,13 @@ defmodule AshEnterprise.Quality.Gate do
   ## Reading
 
   defp status(reply, name, digests, min_grade, opts) do
+    case Keyword.get(opts, :not_graded) do
+      nil -> fact_status(reply, name, digests, min_grade, opts)
+      reason -> {:unknown, reason}
+    end
+  end
+
+  defp fact_status(reply, name, digests, min_grade, opts) do
     Query.status(facts(opts), Quality.subject_term(reply), Grader.predicate(name),
       current_digests: digests,
       min_grade: min_grade
@@ -423,6 +436,7 @@ defmodule AshEnterprise.Quality.Gate do
   # nothing does.
   defp unmeasured(report, family, opts) do
     cond do
+      reason = Keyword.get(opts, :not_graded) -> {:unmeasured, [reason]}
       report.band_table == nil -> {:unmeasured, [:no_published_band_table]}
       report.certified_at == nil -> {:unmeasured, [:not_certified]}
       table_too_old?(report.band_table, family, opts) -> {:unmeasured, [:band_table_too_old]}

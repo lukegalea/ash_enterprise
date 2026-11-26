@@ -481,6 +481,16 @@ if config_env() != :test do
       |> Enum.map(&String.trim/1)
 end
 
+# The evaluation tenant (`AshEnterprise.Quality.Evaluation`, ADR 0058):
+#
+#   * QUALITY_EVALUATION_TENANT   the `unique_name` of the one synthetic organization whose
+#                                 suite runs' answers the in-zone judge grades. Unset, none is.
+#                                 Never a tenant whose answers a real person wrote or reads.
+if config_env() != :test do
+  config :ash_enterprise, AshEnterprise.Quality.Evaluation,
+    tenant: System.get_env("QUALITY_EVALUATION_TENANT")
+end
+
 # The inbound alert webhook (`POST /webhooks/alerts-signoz`, `/webhooks/alerts-glitchtip`,
 # `AshEnterprise.Automation.AlertWebhook`): an alert from SigNoz or GlitchTip recorded as an
 # occurrence a recipe can match.
