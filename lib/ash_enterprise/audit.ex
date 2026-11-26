@@ -23,11 +23,21 @@ defmodule AshEnterprise.Audit do
   end
 
   resources do
-    resource AshEnterprise.Audit.EventLog
+    resource AshEnterprise.Audit.EventLog do
+      define :latest_event_for_record,
+        action: :for_record,
+        args: [:resource, :record_id, :attribute],
+        not_found_error?: false
+    end
 
     # The archive store and its run record (ADR 0024's age half, `AshEnterprise.Audit.Retention`).
     resource AshEnterprise.Audit.ArchivedEvent do
       define :archived_chain, action: :chain, args: [:organization_id]
+
+      define :latest_archived_event_for_record,
+        action: :for_record,
+        args: [:resource, :record_id, :attribute],
+        not_found_error?: false
     end
 
     # Read through `AshCompliance.Ownership.Evidence.for_control/3`, with the hot table.

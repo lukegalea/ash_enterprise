@@ -79,6 +79,29 @@ defmodule AshEnterprise.Audit.ArchivedEvent do
 
       filter expr(occurred_at >= ^arg(:from) and occurred_at < ^arg(:to))
     end
+
+    read :for_record do
+      description """
+      The archived half of `AshEnterprise.Audit.EventLog.for_record`: the newest
+      archived event that changed one attribute of one record, under the same
+      grants as the hot log (ADR 0078).
+      """
+
+      get? true
+
+      argument :resource, :string, allow_nil?: false
+      argument :record_id, :uuid, allow_nil?: false
+      argument :attribute, :string, allow_nil?: false
+
+      prepare build(sort: [sequence: :desc], limit: 1)
+
+      filter expr(
+               resource == ^arg(:resource) and
+                 record_id == ^arg(:record_id) and
+                 (fragment("jsonb_exists(?, ?)", changed_attributes, ^arg(:attribute)) or
+                    fragment("jsonb_exists(?, ?)", data, ^arg(:attribute)))
+             )
+    end
   end
 
   # Reading the archive is reading the audit log, so the grant that reaches it is the one on

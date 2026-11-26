@@ -126,6 +126,22 @@ defmodule AshEnterprise.Erasure.PersonErasure do
       validate AshEnterprise.Erasure.Validations.ConfirmErasure
       change AshEnterprise.Erasure.Changes.ErasePerson
     end
+
+    read :by_shredded_scope do
+      description """
+      The receipt of the erase that shredded one erasure scope: what an
+      explanation (ADR 0078, section 3) names to a reader who may read one,
+      as that reader. Anyone else is refused, and the explanation shows the
+      erasure alone.
+      """
+
+      get? true
+
+      argument :scope_id, :uuid, allow_nil?: false
+
+      prepare build(sort: [inserted_at: :desc], limit: 1)
+      filter expr(^arg(:scope_id) in shredded_scope_ids)
+    end
   end
 
   # Declared in full (`policies?: false`) for the reason the scope's are: the inherited
