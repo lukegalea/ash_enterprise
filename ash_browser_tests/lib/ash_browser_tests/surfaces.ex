@@ -285,8 +285,8 @@ defmodule AshBrowserTests.Surfaces do
     # A destructive confirmation's control carries the row button's label, so it is
     # clicked inside the open dialog rather than as the page's first match.
     case row_action do
-      %{confirm: :destructive, confirm_label: label} ->
-        RowActions.confirm(conn, label)
+      %{confirm: :destructive} ->
+        RowActions.confirm(conn, row_action)
 
       %{confirm_label: label} when is_binary(label) ->
         Browser.deep_click(conn, "button, atlas-button", text: label)

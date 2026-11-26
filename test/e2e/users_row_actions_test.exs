@@ -34,17 +34,16 @@ defmodule AshEnterpriseWeb.E2E.UsersRowActionsTest do
       |> Login.as(row.admin)
       |> PhoenixTest.visit("/app/users")
       |> Browser.assert_connected()
-      |> RowActions.perform(%{id: row.id, text: row.text, inputs: %{}}, %{
-        deactivate
-        | confirm_label: nil
-      })
+      |> RowActions.perform(%{id: row.id, text: row.text, inputs: %{}}, deactivate,
+        confirm: false
+      )
       |> Browser.assert_deep("[role=dialog]", text: "Deactivate this record?")
       |> Browser.refute_deep("[role=dialog]", text: "cannot be undone")
 
     assert Ash.get!(User, row.id, authorize?: false).lifecycle_status == :active
 
     conn
-    |> RowActions.confirm("Deactivate")
+    |> RowActions.confirm(deactivate)
     |> Browser.assert_deep(~s([data-a2ui-row-id="#{row.id}"]), text: "Inactive", timeout: 15_000)
 
     assert Ash.get!(User, row.id, authorize?: false).lifecycle_status == :inactive

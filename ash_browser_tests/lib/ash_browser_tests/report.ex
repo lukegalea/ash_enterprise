@@ -32,7 +32,8 @@ defmodule AshBrowserTests.Report do
           optional(:module) => String.t() | nil,
           optional(:name) => String.t() | nil,
           optional(:time_us) => integer() | nil,
-          optional(:failure) => String.t() | nil
+          optional(:failure) => String.t() | nil,
+          optional(:journey) => %{id: String.t(), locale: String.t()} | nil
         }
 
   @doc """
@@ -86,15 +87,54 @@ defmodule AshBrowserTests.Report do
       .meta { color: #666; font-size: .85rem }
       .failed { color: #c0392b } .passed { color: #1e8449 } .unknown, .skipped, .excluded { color: #888 }
       .invalid { color: #b9770e }
+      h2 { font-size: 1.1rem; margin: 2rem 0 .25rem }
       pre { background: #8881; border-radius: 4px; font-size: .8rem; overflow-x: auto; padding: .75rem }
       a { color: inherit }
       </style></head><body>
       <h1>#{escape(title)}</h1>
       <p class="counts">#{escape(counts(rows))}</p>
       """,
-      Enum.map(rows, &row_html(&1, out)),
+      Enum.map(groups(rows), fn
+        {nil, [_ | _] = group} when length(group) < length(rows) ->
+          [~s(<h2>Other tests</h2>), Enum.map(group, &row_html(&1, out))]
+
+        {nil, group} ->
+          Enum.map(group, &row_html(&1, out))
+
+        {journey, group} ->
+          [
+            ~s(<h2>Journey #{escape(journey)}</h2>),
+            ~s(<p class="counts">#{escape(counts(group))}</p>),
+            Enum.map(group, &row_html(&1, out))
+          ]
+      end),
       "</body></html>\n"
     ]
+  end
+
+  @doc """
+  `rows` grouped by the journey each one runs, in order of each group's first
+  row, every journey before the tests that run none (`nil`). A journey's rows
+  are its locales; within a group the rows keep their order.
+  """
+  @spec groups([row()]) :: [{String.t() | nil, [row()]}]
+  def groups(rows) do
+    groups = Enum.group_by(rows, &journey_id/1)
+
+    order =
+      rows
+      |> Enum.map(&journey_id/1)
+      |> Enum.uniq()
+      |> Enum.sort_by(&is_nil/1)
+
+    Enum.map(order, &{&1, Map.fetch!(groups, &1)})
+  end
+
+  defp journey_id(row) do
+    case row[:journey] do
+      %{id: id} -> id
+      _none -> nil
+    end
   end
 
   @doc "The `GITHUB_STEP_SUMMARY` table."
@@ -105,8 +145,16 @@ defmodule AshBrowserTests.Report do
     [
       "## #{title}\n\n",
       counts(rows),
-      "\n\n| | Test | Time | Media |\n|---|---|---|---|\n",
-      Enum.map(shown, &markdown_row/1),
+      Enum.map(groups(shown), fn
+        {nil, group} ->
+          [
+            if(length(group) < length(shown), do: "\n\n### Other tests", else: []),
+            markdown_table(group)
+          ]
+
+        {journey, group} ->
+          ["\n\n### Journey `", escape_pipe(journey), "`", markdown_table(group)]
+      end),
       # Never silently truncate: a summary that stops at 150 rows without saying
       # so reads as "that was everything".
       if(hidden == [],
@@ -141,6 +189,10 @@ defmodule AshBrowserTests.Report do
       if(row[:failure], do: [~s(<pre>), escape(row.failure), ~s(</pre>)], else: []),
       ~s(</div></div>)
     ]
+  end
+
+  defp markdown_table(rows) do
+    ["\n\n| | Test | Time | Media |\n|---|---|---|---|\n", Enum.map(rows, &markdown_row/1)]
   end
 
   defp markdown_row(row) do
