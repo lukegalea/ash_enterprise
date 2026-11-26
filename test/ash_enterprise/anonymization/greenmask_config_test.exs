@@ -184,6 +184,7 @@ defmodule AshEnterprise.Anonymization.GreenmaskConfigTest do
     AshEnterprise.Mdm.Mapping.observed_schema
     AshEnterprise.Mdm.MatchCandidate.explanation
     AshEnterprise.Mdm.MatchCandidate.human_verdict_ref
+    AshEnterprise.Mdm.MatchCandidate.second_opinion
     AshEnterprise.Mdm.MatchRuleSet.rules
     AshEnterprise.Mdm.MatchRuleSet.survivorship
     AshEnterprise.Mdm.SourceRecord.cursor

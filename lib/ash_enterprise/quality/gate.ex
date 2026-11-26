@@ -235,6 +235,21 @@ defmodule AshEnterprise.Quality.Gate do
     end
   end
 
+  @doc """
+  Whether a `published_band_table/3` result has a certification in force no
+  older than the family's `max_age_days` (`:now` in `opts`, default now).
+  No table, an uncertified one or a revoked one is false.
+  """
+  @spec certified?(map() | nil, atom() | String.t(), keyword()) :: boolean()
+  def certified?(table, family, opts \\ [])
+
+  def certified?(%{certified_at: %DateTime{} = at}, family, opts) do
+    now = Keyword.get(opts, :now, DateTime.utc_now())
+    DateTime.diff(now, at, :second) <= FamilyConfig.fetch(family).max_age_days * 86_400
+  end
+
+  def certified?(_table, _family, _opts), do: false
+
   defp certification(definition, tenant, opts) do
     definition.key
     |> SystemOne.certifications_of_definition(

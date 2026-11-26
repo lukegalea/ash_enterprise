@@ -2099,6 +2099,10 @@ msgstr "Modèle manquant"
 msgid "Model profile"
 msgstr "Profil de modèle"
 
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Model's second opinion"
+msgstr "Second avis du modèle"
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:72
 msgid "Morning brief"

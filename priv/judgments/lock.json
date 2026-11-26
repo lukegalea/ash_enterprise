@@ -163,6 +163,10 @@
     "hash": "sha256:3921b45dfd76a5ab2205f3044b8723cd0e35d59ff956c7bcb037053f373f5990",
     "version": 1
   },
+  "judgment:v0:AshEnterprise.Mdm.MatchCandidate#judgments/records_describe_same_entity": {
+    "hash": "sha256:76522d58a6e36a0a6fb371ff8539a497ec498bf75daf7602fe3d4573d5fedf42",
+    "version": 1
+  },
   "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_strong_copyleft": {
     "hash": "sha256:1d83d9380af21e126e322659f32531fc99c9217e6e42238a89ba99f1e7789262",
     "version": 1

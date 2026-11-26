@@ -9,7 +9,11 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
   2. **HumanVerdict** — the person's answer to that question (`confirm` is
      `true`, `reject` is `false`), on the `:review_task` basis, so it feeds the live
      calibration slot (S1-62) like every other review-task verdict.
-  3. **The act.** `confirm` promotes the staged record: survivorship folds
+  3. **The second opinion's label.** When the model gave a second opinion
+     on the pair (`AshEnterprise.Mdm.SecondOpinion`), the same answer is
+     recorded as a human verdict on that ledger row too, so a steward who
+     disagrees with the model feeds the family's next calibration run.
+  4. **The act.** `confirm` promotes the staged record: survivorship folds
      its mapped values into the golden record, its source identity opens at
      the golden (the XREF the golden's provenance answers through), and the
      staged row is `:merged`. `reject` marks the staged row `:rejected` —
@@ -42,9 +46,12 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
 
     judgment = AshEnterprise.Mdm.MatchObservation.record!(candidate, tenant)
     human = record_human_verdict!(candidate, judgment, verdict, actor, tenant)
+    second = label_second_opinion!(candidate, verdict, actor, tenant)
     candidate = promote(candidate, act(verdict, candidate, tenant), actor, tenant)
 
-    ref = %{"verdict" => verdict, "verdict_id" => human.id, "judgment_id" => judgment.id}
+    ref =
+      %{"verdict" => verdict, "verdict_id" => human.id, "judgment_id" => judgment.id}
+      |> Map.merge(second)
 
     # The decision's own write has committed; the ref points at the verdict
     # rows that only exist now, so it rides a narrow follow-up write.
@@ -129,6 +136,18 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
     )
     |> Ash.create!()
   end
+
+  # The model's second opinion, when it was asked, gets the same answer: the
+  # ledger row is read as the system (the steward cited it by deciding the
+  # pair it is about), and the verdict is the steward's.
+  defp label_second_opinion!(%{second_opinion: %{"judgment_id" => id}}, verdict, actor, tenant)
+       when is_binary(id) do
+    judgment = Ash.get!(AshEnterprise.SystemOne.Judgment, id, tenant: tenant, authorize?: false)
+    human = record_human_verdict!(nil, judgment, verdict, actor, tenant)
+    %{"second_opinion_verdict_id" => human.id}
+  end
+
+  defp label_second_opinion!(_candidate, _verdict, _actor, _tenant), do: %{}
 
   # -- the act ----------------------------------------------------------------
 
