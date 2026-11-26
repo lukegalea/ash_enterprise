@@ -161,7 +161,18 @@ defmodule AshEnterprise.Provenance.Walk do
 
   # -- The subject row, read as the reader --------------------------------
 
-  defp read_subject(address, resource, ctx) do
+  @doc """
+  The subject of `address`, read as the reader through `resource`'s own primary
+  read: `{:ok, subject}`, or the one `Ash.Error.Query.NotFound` whatever the
+  reason the row is not there.
+
+  The address is not checked here; an explainer that follows an antecedent to
+  another record uses this, so that a record it reads is read the way the walk
+  reads the one it started from.
+  """
+  @spec read_subject(Address.t(), Ash.Resource.t(), map()) ::
+          {:ok, AshEnterprise.Provenance.Explainer.subject()} | {:error, Ash.Error.t()}
+  def read_subject(address, resource, ctx) do
     primary = Ash.Resource.Info.primary_action(resource, :read).name
 
     field = attribute_field(address, resource)

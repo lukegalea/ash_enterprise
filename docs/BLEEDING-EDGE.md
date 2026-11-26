@@ -114,7 +114,7 @@ confined so that removing one is a deletion, not a refactor.
 | Package | Used here for | Git dependencies of its own | Publishable to Hex now? |
 |---|---|---|---|
 | `ash_a2ui` | agent-renderable UI surfaces (ADR 0033) | none | yes |
-| `ash_strangler` | strangler-fig read model over `legacy.*` (ADR 0009) | none | yes |
+| `ash_strangler` | strangler-fig read model over `legacy.*` (ADR 0009), and facades over canonical resources with their explain hop (ADR 0083) | `ash_provenance` (optional) | after `ash_provenance` |
 | `ash_greenmask` | the generated greenmask config for pseudonymised copies (ADR 0032, `greenmask.yml`) | none | yes |
 | `ash_operations` | declared provider operations: the credential registry connector and webhook ingress (ADR 0063) | none | yes |
 | `ash_open_lineage` | OpenLineage emission (ADR 0012) | none | yes |

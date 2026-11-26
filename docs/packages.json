@@ -568,11 +568,11 @@
       "module": "AshStrangler",
       "repo": "https://github.com/lukegalea/ash_strangler",
       "purpose": "Strangler-fig migrations for Ash: map a resource onto a legacy Postgres schema and move it through the migration phases without hand-written SQL.",
-      "used_for": "The read model over the legacy schema and the bridge that makes a legacy write visible to LiveView.",
+      "used_for": "The read model over the legacy schema and the bridge that makes a legacy write visible to LiveView; facades over canonical resources and the explain hop for a facade value.",
       "adr": "0009",
       "declared": "direct",
       "only": null,
-      "ref": "e9835fec94122aad7172b9800537d63431d10741",
+      "ref": "b7134a6bbd0b04184306b675b430b1d169db5813",
       "version": "0.4.0",
       "stated_status": null,
       "maturity": "used-and-tested-here",
@@ -583,10 +583,11 @@
         "ash_postgres",
         "ash_state_machine",
         "ash_events",
-        "ash_archival"
+        "ash_archival",
+        "ash_provenance"
       ],
       "hex_name": "free",
-      "hex_path": "No git dependencies of its own.",
+      "hex_path": "After ash_provenance reaches Hex: it is an optional git dependency, and Hex needs optional dependencies to be Hex packages too.",
       "carry": "Only needed while a legacy schema is being migrated. It is used by lib/ash_enterprise/legacy/, the user ledger and the platform base's projected-lifecycle verifier."
     },
     {
