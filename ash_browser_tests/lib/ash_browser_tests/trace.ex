@@ -3,10 +3,11 @@ defmodule AshBrowserTests.Trace do
   Assertions over the spans a test produced.
 
   Every assertion takes a *selection*: a test key (or any `AshBrowserTests.Backend`
-  key), or a list of `AshBrowserTests.Span` already in hand. A key is polled until
-  the assertion holds or the timeout passes, so browser spans and late-arriving
-  server spans are waited for; a list is checked once. On failure the message prints
-  the spans as a tree.
+  key), a `AshBrowserTests.Trace.Cursor` over a key (one step of a multi-step test,
+  `cursor/2`), or a list of `AshBrowserTests.Span` already in hand. A key or a
+  cursor is polled until the assertion holds or the timeout passes, so browser spans
+  and late-arriving server spans are waited for; a list is checked once. On failure
+  the message prints the spans as a tree, and a cursor's label names the step.
 
   The pipeline is global, so selection is always by key: nothing here looks at the
   last trace or clears the sink.
@@ -25,12 +26,13 @@ defmodule AshBrowserTests.Trace do
 
   alias AshBrowserTests.Backend
   alias AshBrowserTests.Span
+  alias AshBrowserTests.Trace.Cursor
 
   @default_timeout 5_000
   @correlation_id "ash.correlation_id"
   @browser_marker "ui.page.path"
 
-  @type selection :: Backend.key() | [Span.t()]
+  @type selection :: Backend.key() | Cursor.t() | [Span.t()]
 
   # --- Matchers -------------------------------------------------------------------
 
@@ -83,10 +85,19 @@ defmodule AshBrowserTests.Trace do
 
   # --- Selecting -------------------------------------------------------------------
 
+  @doc """
+  A cursor over `key` from this instant: the spans of one step of a multi-step
+  test. Take one before the step acts and assert the step against it. `label` names
+  the step in failure messages. See `AshBrowserTests.Trace.Cursor`.
+  """
+  @spec cursor(Backend.key(), term()) :: Cursor.t()
+  def cursor(key, label \\ nil), do: Cursor.new(key, label)
+
   @doc "The spans for a selection, without any assertion."
   @spec spans(selection(), keyword()) :: [Span.t()]
   def spans(selection, opts \\ [])
   def spans(spans, _opts) when is_list(spans), do: spans
+  def spans(%Cursor{key: key} = cursor, opts), do: Cursor.select(cursor, spans(key, opts))
 
   def spans(key, opts) do
     case Backend.spans_for(key, Keyword.get(opts, :timeout, 0), opts) do
@@ -285,10 +296,15 @@ defmodule AshBrowserTests.Trace do
           Process.sleep(Keyword.get(opts, :poll_ms, 20))
           poll(key, opts, check, deadline)
         else
-          fail(message, spans)
+          fail(in_step(key, message), spans)
         end
     end
   end
+
+  defp in_step(%Cursor{label: label}, message) when label != nil,
+    do: "in step #{label}: #{message}"
+
+  defp in_step(_selection, message), do: message
 
   defp fail(message, spans) do
     raise ExUnit.AssertionError, message: "#{message}\n\nspans seen:\n#{tree(spans)}"

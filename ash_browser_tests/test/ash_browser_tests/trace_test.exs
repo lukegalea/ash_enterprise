@@ -294,4 +294,103 @@ defmodule AshBrowserTests.TraceTest do
       end
     end
   end
+
+  describe "a cursor narrows a key to one step" do
+    # Two steps of one test, each a handle_event -> ash_action chain, step one at
+    # t=100..103 and step two at t=200..203. Step two's action span is lost.
+    defp two_steps(drop_step_two_action?) do
+      step = fn n, base ->
+        [
+          span("event-#{n}", start_ns: base, attributes: %{"phx" => "event"}),
+          span("action-#{n}",
+            parent_span_id: "event-#{n}",
+            start_ns: base + 1,
+            attributes: %{"ash.action" => "approve"}
+          ),
+          span("query-#{n}",
+            parent_span_id: "action-#{n}",
+            start_ns: base + 2,
+            attributes: %{"db.system" => "postgresql"}
+          )
+        ]
+      end
+
+      spans = step.(1, 100) ++ step.(2, 200)
+      if drop_step_two_action?, do: Enum.reject(spans, &(&1.name == "action-2")), else: spans
+    end
+
+    @event [attributes: %{"phx" => "event"}]
+
+    test "without a cursor, step one's spans mask a span lost in step two" do
+      spans = two_steps(true)
+      chain = Trace.assert_chain(spans, [@event, Trace.ash_action(action: "approve")])
+      assert Enum.map(chain, & &1.name) == ["event-1", "action-1"]
+    end
+
+    test "with one, the lost span fails step two" do
+      spans = two_steps(true)
+      cursor = %Trace.Cursor{key: "k", since: 200, label: "02-approve"}
+
+      assert_raise ExUnit.AssertionError, ~r/reached step 1.*ash\.action/s, fn ->
+        Trace.assert_chain(Trace.Cursor.select(cursor, spans), [
+          @event,
+          Trace.ash_action(action: "approve")
+        ])
+      end
+    end
+
+    test "with one, an intact step two passes on its own spans only" do
+      spans = two_steps(false)
+      cursor = %Trace.Cursor{key: "k", since: 200, label: "02-approve"}
+
+      chain =
+        Trace.assert_chain(Trace.Cursor.select(cursor, spans), [
+          @event,
+          Trace.ash_action(action: "approve")
+        ])
+
+      assert Enum.map(chain, & &1.name) == ["event-2", "action-2"]
+    end
+
+    test "a span with no start time is not selected" do
+      cursor = %Trace.Cursor{key: "k", since: 0}
+      assert Trace.Cursor.select(cursor, [span("x", start_ns: nil)]) == []
+    end
+
+    test "against the real sink, the cursor's clock is the spans' clock, and a polled failure names the step" do
+      key = TestKey.from_owner(self()) <> "-cursor"
+      TestKey.put(key)
+
+      OpenTelemetry.Tracer.with_span "step-one" do
+        :ok
+      end
+
+      cursor = Trace.cursor(key, "02-second")
+
+      OpenTelemetry.Tracer.with_span "step-two" do
+        :ok
+      end
+
+      assert {:ok, all} = Backend.spans_for(key, 2_000)
+      assert Enum.sort(Enum.map(all, & &1.name)) == ["step-one", "step-two"]
+
+      assert Trace.assert_span(cursor, "step-two").name == "step-two"
+
+      assert_raise ExUnit.AssertionError, ~r/in step 02-second: no span matches "step-one"/, fn ->
+        Trace.assert_span(cursor, "step-one", timeout: 50)
+      end
+    end
+
+    test "a closed cursor holds only its own window, and the window counts positions" do
+      spans = two_steps(false)
+      one = %Trace.Cursor{key: "k", since: 100, until: 200, label: "01-approve"}
+      two = %Trace.Cursor{key: "k", since: 200, label: "02-approve"}
+
+      assert one |> Trace.Cursor.select(spans) |> Enum.map(& &1.name) ==
+               ["event-1", "action-1", "query-1"]
+
+      assert Trace.Cursor.window(one, spans) == %{from: 0, to: 3}
+      assert Trace.Cursor.window(two, spans) == %{from: 3, to: 6}
+    end
+  end
 end

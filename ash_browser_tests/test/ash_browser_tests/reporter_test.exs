@@ -81,6 +81,19 @@ defmodule AshBrowserTests.ReporterTest do
       assert recorded["failure"] == nil
     end
 
+    test "a journey test records the journey and locale it ran" do
+      tags = %{journey: {My.Journeys, :offboard_a_leaver, "en"}}
+
+      %{"tests" => [journey, plain]} =
+        run(
+          [test_struct(tags: tags, name: :"test a"), test_struct(name: :"test b")],
+          tmp("journey")
+        )
+
+      assert journey["journey"] == %{"id" => "offboard_a_leaver", "locale" => "en"}
+      assert plain["journey"] == nil
+    end
+
     test "every ExUnit state maps to a status" do
       states = [
         {nil, "passed"},
