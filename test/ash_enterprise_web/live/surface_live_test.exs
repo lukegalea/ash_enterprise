@@ -24,7 +24,7 @@ defmodule AshEnterpriseWeb.SurfaceLiveTest do
   # They must keep working.
   @thin_paths ~w(
     /app/users /app/teams /app/roles /app/business-units
-    /app/mdm /app/mdm/mappings /app/mdm/batches
+    /app/mdm /app/mdm/mappings /app/mdm/match-rules /app/mdm/batches
     /app/judgments /app/judgments/band-tables /app/judgments/certifications
     /app/judgments/calibration /app/judgments/facts /app/judgments/question-proposals
     /app/tasks /app/acknowledgements /app/reviews/stalled /app/credentialing
@@ -101,7 +101,7 @@ defmodule AshEnterpriseWeb.SurfaceLiveTest do
   describe "the generated pages" do
     test "each renders its entry's UI, named after its key, with deep links" do
       generated = Surfaces.generated()
-      assert length(generated) == 29
+      assert length(generated) == 30
 
       for surface <- generated do
         config = surface.live.__ash_a2ui_config__()

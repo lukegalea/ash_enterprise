@@ -1258,6 +1258,28 @@ defmodule AshEnterprise.Surfaces do
       acp: %{command: "mdm mappings", aliases: ["mappings"]}
     },
     %Surface{
+      key: :mdm_match_rules,
+      audience: [:reviewer],
+      label: dgettext_noop("default", "Proposed match rules"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Match-rule weights learned from steward verdicts, replayed over them, for a person to activate."
+        ),
+      description:
+        "Proposed match rules (ADR 0047): new rule weights learned from what stewards " <>
+          "confirmed and rejected, each replayed over those verdicts beside the active rules. " <>
+          "Only a person activates one; nothing changes matching before that.",
+      group: :mdm,
+      order: 35,
+      icon: "hero-adjustments-horizontal",
+      path: "/app/mdm/match-rules",
+      ui: A2ui.MdmMatchRuleProposalUI,
+      resource: AshEnterprise.Mdm.MatchRuleProposal,
+      context: :proposal,
+      acp: %{command: "match rules", aliases: ["match rule proposals"]}
+    },
+    %Surface{
       key: :mdm_batches,
       audience: [:operator],
       label: dgettext_noop("default", "Import batches"),

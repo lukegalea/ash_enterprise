@@ -61,7 +61,7 @@ flowchart LR
     ctx_ledger["Change ledger"]
     ctx_canonical["Canonical store<br/>10 resources"]
     ctx_business-events["Business events<br/>2 resources"]
-    ctx_mdm["Master data<br/>11 resources"]
+    ctx_mdm["Master data<br/>12 resources"]
     ctx_lineage["Lineage<br/>4 resources"]
     ctx_exports["Exports<br/>1 resources"]
   end
@@ -662,7 +662,7 @@ Versioned mappings, deterministic entity resolution, survivorship, non-destructi
 | **source identity** | The cross-reference registry: which external source identity points at which golden record, right now — temporal, one open period per identity. |
 | **golden record** | The survived, merged record the operational store reads; merges are non-destructive. |
 
-**Resources** — 11 introspected
+**Resources** — 12 introspected
 
 | Resource | Description | Aggregates | Calculations |
 |---|---|---|---|
@@ -673,6 +673,7 @@ Versioned mappings, deterministic entity resolution, survivorship, non-destructi
 | `AshEnterprise.Mdm.Mapping` | — | 0 | 2 |
 | `AshEnterprise.Mdm.MappingProposal` | — | 0 | 0 |
 | `AshEnterprise.Mdm.MatchCandidate` | — | 0 | 12 |
+| `AshEnterprise.Mdm.MatchRuleProposal` | — | 0 | 4 |
 | `AshEnterprise.Mdm.MatchRuleSet` | — | 0 | 0 |
 | `AshEnterprise.Mdm.SourceIdentity` | — | 0 | 0 |
 | `AshEnterprise.Mdm.SourceRecord` | — | 0 | 0 |

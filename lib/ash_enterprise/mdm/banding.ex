@@ -114,8 +114,24 @@ defmodule AshEnterprise.Mdm.Banding do
   """
   def band(score, tenant, opts \\ []) do
     # Required: a band that admits a match rests on a recorded evaluation, or is an error.
-    opts = Keyword.merge(opts, tenant: tenant, record: :required)
+    evaluate(score, Keyword.merge(opts, tenant: tenant, record: :required))
+  end
 
+  @doc """
+  What the band table would say about `score`, recorded nowhere: a replay asks
+  a question about the table and decides nothing about a case
+  (`AshEnterprise.Mdm.MatchRuleProposal`). Pass `pinned:` (a definition id,
+  from `definition/1`) so every score in one replay reads the same table.
+  """
+  def preview(score, tenant, opts \\ []) do
+    evaluate(score, Keyword.merge(opts, tenant: tenant, record: false))
+  end
+
+  @doc "The `mdm:match_bands` definition `tenant` bands through now."
+  def definition(tenant),
+    do: AshEnterprise.Process.Resolver.resolve(:decision, @definition_key, tenant)
+
+  defp evaluate(score, opts) do
     with {:ok, result} <-
            Decisions.evaluate(@definition_key, %{score_input() => score_string(score)}, opts),
          # A single-output decision promotes: outputs may be the bare value
