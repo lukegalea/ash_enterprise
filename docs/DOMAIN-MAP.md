@@ -89,7 +89,7 @@ flowchart LR
     ctx_zones["Residency zones"]
     ctx_assistant["Assistant<br/>18 resources"]
     ctx_legacy-agent["Legacy agent"]
-    ctx_quality["Quality<br/>4 resources"]
+    ctx_quality["Quality<br/>5 resources"]
     ctx_acp["Agent protocol"]
   end
   subgraph experience["Surfaces"]
@@ -1266,7 +1266,7 @@ Agent-quality suites and gated, attested releases.
 | **suite run** | One run of a published suite against a candidate agent: running, then finished. |
 | **case result** | What one case of a suite run scored, at one epoch; written once, never changed. |
 
-**Resources** — 4 introspected
+**Resources** — 5 introspected
 
 | Resource | Description | Aggregates | Calculations |
 |---|---|---|---|
@@ -1274,6 +1274,7 @@ Agent-quality suites and gated, attested releases.
 | `AshEnterprise.Quality.CaseResult` | — | 0 | 0 |
 | `AshEnterprise.Quality.Suite` | — | 0 | 1 |
 | `AshEnterprise.Quality.SuiteRun` | — | 0 | 2 |
+| `AshEnterprise.Quality.ToolCall` | — | 0 | 0 |
 
 
 <!-- domain-map:context:quality:end -->
