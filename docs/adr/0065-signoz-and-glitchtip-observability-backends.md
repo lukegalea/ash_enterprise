@@ -1,6 +1,6 @@
 # ADR 0065 — SigNoz for traces, logs and metrics; GlitchTip for error triage
 
-- **Status:** accepted (2026-11-12; proposed 2026-11-09)
+- **Status:** accepted (2026-11-12; proposed 2026-11-09); amended 2026-11-26 (with ADR 0086): a span links a journey step to its audit rows, and the audit row is the proof
 - **Date:** 2026-11-09
 - **Supersedes:** ADR 0018 (Grafana LGTM as the observability backend)
 - **Related:** ADR 0056 (the same shape: a public package the host instantiates)
@@ -88,3 +88,51 @@ Non-production telemetry is treated as sensitive but not secret, and browser tel
   not traces.
 - ClickHouse is one more stateful service to run in a development environment, offset by not running four.
 - Production backend sizing and retention are not decided here.
+
+## Amendment — 2026-11-26 (with ADR 0086): a span links a step to its audit rows; the audit row is the proof
+
+This amendment takes effect with [ADR 0086](0086-a-journey-is-one-declaration-with-proven-projections.md). The text
+above is unchanged, and the trust stance holds in full: browser telemetry is untrusted input, and the audit log remains
+the record. Where this amendment and the text above appear to conflict, the text above governs what a span is, and this
+amendment governs what a test or a journey may conclude from one.
+
+**Why it is needed.** Browser tests read spans to learn what server work a user step caused, and journey runs
+(ADR 0086) record that in their run manifests. Spans gained a consumer that draws conclusions, so this record has to
+say which conclusions a span supports. As built on 2026-11-26:
+
+- the generated row-action test in `ash_browser_tests` passes the `ash.correlation_id` of the step's `handle_event`
+  span to the host's `assert_audit/2`, and this repository's e2e wiring (`test/support/e2e/surfaces.ex`) asserts an
+  audit row with that correlation id, for the record and the action the test ran;
+- a journey step that declares `expect audit: true` asserts one correlation id across its server spans, then the host
+  (`test/support/e2e/journey_host.ex`) asserts an audit row with that correlation id about a record the journey bound.
+  It does not yet check which action wrote the row.
+
+1. **A span is a link and never evidence.** A step is proved by audit rows: rows in `audit_events` that carry the
+   step's correlation id, written by the action the step names, about the record it names. Those rows are
+   tamper-evident (ADR 0020). A span chain that matches with no such row does not prove the step.
+2. **The correlation id comes from a server span.** A step reads it from the server span its browser span caused
+   (the `handle_event` or action span), never from a browser span. This follows from the stance above: correlation
+   ids are server-minted, and browser spans have `ash.*`, `audit.*` and correlation attributes stripped at ingest. The
+   browser span only anchors the step: it is the root under which the step's server spans are found.
+3. **Spans can fail a step and never pass one.** A missing, forged, extra or sampled-out span can make a step fail or
+   leave it unlinked. It cannot make a step pass. A step with no audit row for its correlation id fails, whatever the
+   spans show.
+4. **One step, one correlation.** A step asserts a single `ash.correlation_id` across its server tree before it reads
+   audit rows, so rows written by unrelated work are never claimed for it.
+5. **The correlation id is kept; span ids are for diagnosis.** A run manifest records each step's correlation id and
+   span ids. Span ids let a reader open the trace while the backend still holds it (72 hours above). The correlation
+   id and the audit rows it names are what a reader uses later, so no evidence depends on trace retention.
+6. **Selecting spans is not authenticating them.** Tests select spans by a per-test key carried from the test
+   sandbox. The key finds spans in a shared pipeline; it says nothing about who produced them, and rules 1 to 3 do not
+   rest on it.
+7. **Sampling is not changed for tests or journeys.** A browser still cannot force or suppress sampling. In a run
+   against a deployment we operate, a step whose spans were not sampled is unlinked and is not evidence. Whether
+   journey runs there need every step sampled, and how the server would decide that without trusting the client, is
+   not decided here.
+
+**Unchanged:** the backends, the ingest endpoint and its checks, attribute stripping, scrubbing, the sampler, and
+the rule that spans are diagnostics.
+
+To reverse this amendment, delete it, and remove the correlation-id and span-id fields from the journey run manifest
+(ADR 0086). Steps would then be proved by their record expectations alone, and no browser test would read audit rows
+through a span.
