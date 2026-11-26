@@ -187,6 +187,24 @@ platform through.
   `AshEvents.EventLog` and `AshDiscreteBusinessEvents.Ledger.Extension`;
   the twin refuses to compile otherwise. Without the option the twin is
   a bare resource with no policies of yours.
+- A projector draining the twin can declare `simulation_projection: true`
+  on `use AshDiscreteBusinessEvents.Projections`. Its projection
+  resource's `grain_fields` must then include `:simulation_run`, and the
+  resource must carry the attribute (the projector refuses to compile
+  otherwise), so two runs give two projection rows instead of
+  overwriting each other — the checkpoints are already per run. A
+  simulation projection drains the twin only (its `drain/2` raises), and
+  `drain_simulation/3` checks that the grain fn returns the event's
+  `simulation_run` before processing a batch.
+
+## Common random numbers (simulation identity)
+
+- Call `Simulation.Identity.seed/1` and `draw/1` with exactly
+  `subject:`, `random_stream_id:` and `replication_id:` — the seed is a
+  pure function of those three keys and stable across releases.
+- The candidate is never an input: compared candidates draw the same
+  numbers for the same subject, stream and replication.
+- The stream id is mandatory — nothing defaults `random_stream_id`.
 
 ## Retention & erasure (BIZEV-12)
 
