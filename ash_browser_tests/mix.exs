@@ -84,7 +84,13 @@ defmodule AshBrowserTests.MixProject do
       # `ash_journeys` itself (its journeys live in its own code); a host without
       # them never compiles a journey test and needs nothing here. The dependency
       # points one way: `ash_journeys` never depends on this package.
-      {:ash_journeys, github: "lukegalea/ash_journeys", optional: true, only: :test}
+      #
+      # Not `only: :test`, unlike `ash_a2ui`: a host compiles this package as a
+      # dependency, in `:prod`, where an `only: :test` dependency is not in its
+      # code path, and `AshBrowserTests.Journeys` is compiled only when
+      # `AshJourneys` is there to compile against. So `ash`, which it requires,
+      # is optional in every environment too (`fixture_deps/0`).
+      {:ash_journeys, github: "lukegalea/ash_journeys", optional: true}
     ] ++ telemetry_dep() ++ fixture_deps()
   end
 
@@ -103,7 +109,7 @@ defmodule AshBrowserTests.MixProject do
   # real LiveView, so the chain assertions run against spans a browser produced.
   defp fixture_deps do
     [
-      {:ash, "~> 3.0", only: :test},
+      {:ash, "~> 3.0", optional: true},
       {:ash_postgres, "~> 2.6", only: :test},
       {:oban, "~> 2.19", only: :test},
       {:postgrex, ">= 0.0.0", only: :test}

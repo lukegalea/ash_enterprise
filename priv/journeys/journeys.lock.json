@@ -1,0 +1,99 @@
+{
+  "browser": {
+    "name": "chromium",
+    "version": "158.0.8127.18"
+  },
+  "format": 1,
+  "journeys": {
+    "revoke_a_leavers_access": {
+      "en": {
+        "browser": {
+          "name": "chromium",
+          "version": "158.0.8127.18"
+        },
+        "commit": "9bd2f0b1523fe9fcd85629806d01283d68f8efcb",
+        "environment": "test",
+        "figures": {
+          "deactivate.confirm": {
+            "file": "deactivate.confirm.png",
+            "file_sha256": "e920548e074525f1446f87179c5ef3680fcabf6e0f9d6fa7932178b8c1414823",
+            "height": 114,
+            "raster_sha256": "163758297b88d53a77f7cd0858d2a70d4d954c9e503a47b466d34f7cfe8aa751",
+            "width": 448
+          },
+          "deactivate.deactivated": {
+            "file": "deactivate.deactivated.png",
+            "file_sha256": "700727557c9cfb133576cc1d416087701620631e7972bdbcacb301017fd7c0e7",
+            "height": 48,
+            "raster_sha256": "41bd3353c60a8ef388d2a878e5e11e1691c1f97ca3e98cf8fff2e8845635056b",
+            "width": 1212
+          },
+          "find_the_person.people": {
+            "file": "find_the_person.people.png",
+            "file_sha256": "593ff4adecb1e2ff97a3c5baf6a9682d1d2bd77c58f9ed9bed417d6d6ef75f3a",
+            "height": 800,
+            "raster_sha256": "1bdbe11576f173286f324dd7ee69f752a0ea9a61603e92888f1d71ef1a6bab9b",
+            "width": 1280
+          },
+          "their_next_action_signs_them_out.sign_in": {
+            "file": "their_next_action_signs_them_out.sign_in.png",
+            "file_sha256": "2e9a62dd4bd868e88fb30ad5829715b7b46575cb70d224f962010609b662a30a",
+            "height": 800,
+            "raster_sha256": "20bdb38f38ff1ca0aff83f4db7c230e4555a1dbf9178369f2f43203c6744b132",
+            "width": 1280
+          }
+        },
+        "hash": "c779dc4d3696347b659685c6678a60aa30062636325456583844c87b38e0240d",
+        "manifest_sha256": "7860092c0d6c748801508263f3cb72b9008be32cec2d682ac4aa71c6ef9322be",
+        "run": "ci-45796414469",
+        "version": 1
+      },
+      "fr": {
+        "browser": {
+          "name": "chromium",
+          "version": "158.0.8127.18"
+        },
+        "commit": "9bd2f0b1523fe9fcd85629806d01283d68f8efcb",
+        "environment": "test",
+        "figures": {
+          "deactivate.confirm": {
+            "file": "deactivate.confirm.png",
+            "file_sha256": "ed61586ba5fe45d006b1e783c1dd56fe8696a6092382ec013a5383ecbcf2abc3",
+            "height": 114,
+            "raster_sha256": "e43d940bb9cceb03a3e9721aec72c764cfee551ab5df7e73624e47baaeeaf0b1",
+            "width": 448
+          },
+          "deactivate.deactivated": {
+            "file": "deactivate.deactivated.png",
+            "file_sha256": "b838b1e8a1c72bc8c471704f1cf411437d888b49c06cbd2cb0a95e89004ee4e0",
+            "height": 48,
+            "raster_sha256": "0d9fe20fe410294a76ffb00a5360f1dcbceb9b8558bac6077c58aa20be3acdb6",
+            "width": 1212
+          },
+          "find_the_person.people": {
+            "file": "find_the_person.people.png",
+            "file_sha256": "4c5a5ce0a76b8115ea1aa7f3d671f314ad8ca8fd7034098e62e71596c40ce2e6",
+            "height": 800,
+            "raster_sha256": "411636f7c45c9eb7567cbc4cc8b9e501778f0608cc222ca9d736f25ee7f604f7",
+            "width": 1280
+          },
+          "their_next_action_signs_them_out.sign_in": {
+            "file": "their_next_action_signs_them_out.sign_in.png",
+            "file_sha256": "2b3eb7f5f37a2b000afb97bed14d6a849ac0d738729039a4b769ed939c3b4e46",
+            "height": 800,
+            "raster_sha256": "9cf2a6b31b356baa34627e7f122e8e55a4b234ca1bfb66cf6da7d187c5dc3bf5",
+            "width": 1280
+          }
+        },
+        "hash": "c779dc4d3696347b659685c6678a60aa30062636325456583844c87b38e0240d",
+        "manifest_sha256": "ec604c248a7c02de656f80f6c0e0b25ea74ac75cdb384b3c47ee5be5bf177235",
+        "run": "ci-45796414469",
+        "version": 1
+      }
+    }
+  },
+  "tolerance": {
+    "channel_delta": 64,
+    "pixels": 32
+  }
+}

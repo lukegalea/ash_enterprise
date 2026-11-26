@@ -101,6 +101,8 @@ const gates = describe<string>({
   e2e: 'Every Playwright spec in assets/e2e, in Chromium, against a seeded development server.',
   quick:
     'Five checks on one runner. A cold clone fetches every dependency with no credentials, so every git dependency has to be public. The telemetry package’s own suite and the test-only browser package’s suite (Chromium against a small fixture application) run in their own mix projects. The battery runs flows that span two or more first-party packages, after checking its pins match mix.lock. This site is built (docs sync, link check, Astro), and what it would publish is scanned for private terms.',
+  journeys:
+    'Walks each declared journey in every locale it names, on the Chromium the pinned Playwright release bundles, and keeps the runs as an artifact: the only runs figures are approved from. It reports, and does not fail the run, until the figures have held steady across runs.',
   dialyzer: 'Type analysis, on pushes to main only. It runs and reports, and does not fail the run (ADR 0007).',
 });
 

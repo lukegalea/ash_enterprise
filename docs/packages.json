@@ -518,6 +518,30 @@
       "carry": "Pinned by `ref:`; the Typst engine comes from ash_typst 0.6.1, and `mix paper.lock` records every layout's hash in priv/paper.lock.json."
     },
     {
+      "name": "ash_journeys",
+      "module": "AshJourneys",
+      "repo": "https://github.com/lukegalea/ash_journeys",
+      "purpose": "User journeys declared once against what the application already declares (surfaces, actions, row actions): a versioned IR and content hash, gettext narration, approved runs locked by hash, and documentation pages exported from them.",
+      "used_for": "The offboarding journey (`AshEnterprise.Journeys`), walked in English and French by the browser tier, with its approved figures in priv/journeys/.",
+      "adr": null,
+      "declared": "direct",
+      "only": null,
+      "ref": "3a0ee9fda3f87e77ef4bd40d5c502ea7034f4f9c",
+      "version": "0.1.0",
+      "stated_status": "Early: the API will change.",
+      "maturity": "used-and-tested-here",
+      "battery": false,
+      "distribution": "git only",
+      "builds_on": [
+        "ash",
+        "spark",
+        "ash_a2ui"
+      ],
+      "hex_name": "free (checked on hex.pm 2026-11-26).",
+      "hex_path": "After ash_a2ui, an optional dependency, reaches Hex.",
+      "carry": "Pinned by `ref:`; the declarations live in lib/ash_enterprise/journeys/, and `mix ash_journeys.lock --check` fails when a declaration is newer than its approved run, so a change to a journey or to the surface it walks needs a re-approved run."
+    },
+    {
       "name": "ash_planning",
       "module": "AshPlanning",
       "repo": "https://github.com/lukegalea/ash_planning",

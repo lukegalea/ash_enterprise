@@ -202,6 +202,18 @@ jobs:
       - name: Check the A2UI catalogs are extracted
         run: mix ash_a2ui.gettext.extract_metadata --check-up-to-date
 
+      # The journeys' titles and narration are msgids in the `journeys` domain,
+      # derived from the declarations like the catalogs above. And a journey's
+      # published pages may show only what an approved run of the same
+      # declaration recorded: the lock check fails when a declaration has changed
+      # since its run was approved (priv/journeys/journeys.lock.json), and for
+      # nothing else. Re-run the journey and approve it from the `journeys` job's
+      # artifact.
+      - name: Check the journeys catalog is extracted and the journeys are approved
+        run: |
+          mix ash_journeys.gettext.extract --check-up-to-date
+          mix ash_journeys.lock --check
+
       # docs/roadmap.json is the single source for every status table in the
       # README and in docs/. Same reasoning as the gate above: a derived artifact
       # that can drift from its source will, and a status table that silently
@@ -1079,6 +1091,92 @@ jobs:
         env:
           MOAT_TERMS: ${{ secrets.MOAT_TERMS }}
         run: node scripts/moat-gate.mjs
+
+  journeys:
+    name: Journeys (advisory)
+    runs-on: ubuntu-latest
+    # The journeys this application declares (lib/ash_enterprise/journeys/),
+    # walked in a real browser in each of their locales by the browser tier
+    # (`mix test.browser test/e2e/journeys`). Each run leaves a manifest and its
+    # figures under tmp/journeys/runs/ci-<run id>/, uploaded below
+    # whether it passed or not: figures are approved only from this artifact
+    # (`gh run download`, then `mix ash_journeys.approve`), because the lock pins
+    # the browser build they were shot on, and that build is the Chromium the
+    # Playwright release in assets/package-lock.json bundles (E2E_CHROMIUM=bundled
+    # below), not the runner image's own, which changes under it.
+    # Advisory until its runs have shown it is steady.
+    continue-on-error: true
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      E2E_CHROMIUM: bundled
+      # One run id for every attempt: a re-run job counts its earlier attempts as
+      # retries, so a pass after a failure is never approvable.
+      JOURNEYS_RUN_ID: ci-${{ github.run_id }}
+      JOURNEYS_RUN_ATTEMPT: ${{ github.run_attempt }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: beam
+        uses: ./.github/actions/setup-beam
+
+      # Restore only: the main job saves this cache.
+      - name: Restore dependency and build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-
+
+      # boxic_dmn shells out to `xmllint`; see the main job's step.
+      - name: Install xmllint
+        run: sudo apt-get update -y && sudo apt-get install -y libxml2-utils
+
+      - run: mix deps.get
+      - run: mix deps.compile
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: assets/package-lock.json
+
+      # The Playwright driver the browser tier drives (assets/node_modules), and
+      # the Chromium build that release bundles.
+      - name: Install the Playwright driver and its Chromium
+        working-directory: assets
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - run: mix assets.setup
+
+      - name: Journeys
+        run: mix test.browser test/e2e/journeys
+
+      - name: Upload the journey runs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journey-runs
+          path: tmp/journeys/runs/
+          include-hidden-files: true
+          retention-days: 30
 
   dialyzer:
     name: Dialyzer (advisory)

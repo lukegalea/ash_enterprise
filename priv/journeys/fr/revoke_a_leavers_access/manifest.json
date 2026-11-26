@@ -1,0 +1,202 @@
+{
+  "browser": {
+    "executable": "bundled",
+    "name": "chromium",
+    "version": "158.0.8127.18"
+  },
+  "commit": "9bd2f0b1523fe9fcd85629806d01283d68f8efcb",
+  "declaration_hash": "c779dc4d3696347b659685c6678a60aa30062636325456583844c87b38e0240d",
+  "environment": "test",
+  "format": 2,
+  "framing": {
+    "color_scheme": "light",
+    "device_scale_factor": 1.0,
+    "locale": "fr",
+    "reduced_motion": "reduce",
+    "timezone_id": "UTC",
+    "viewport": {
+      "height": 800,
+      "width": 1280
+    }
+  },
+  "journey": "revoke_a_leavers_access",
+  "locale": "fr",
+  "retries": 0,
+  "run_id": "ci-45796414469",
+  "status": "passed",
+  "steps": [
+    {
+      "actor": "leaver",
+      "attempts": 1,
+      "correlation_id": null,
+      "cursor": {
+        "from": 5,
+        "to": 66
+      },
+      "error": null,
+      "figures": [],
+      "label": "01-leaver_is_signed_in",
+      "name": "leaver_is_signed_in",
+      "span_ids": [],
+      "status": "passed"
+    },
+    {
+      "actor": "admin",
+      "attempts": 1,
+      "correlation_id": null,
+      "cursor": {
+        "from": 66,
+        "to": 131
+      },
+      "error": null,
+      "figures": [
+        {
+          "file": "find_the_person.people.png",
+          "file_sha256": "4c5a5ce0a76b8115ea1aa7f3d671f314ad8ca8fd7034098e62e71596c40ce2e6",
+          "height": 800,
+          "highlight": {
+            "height": 47.5,
+            "width": 1212.0,
+            "x": 34.0,
+            "y": 444.125
+          },
+          "name": "people",
+          "raster_sha256": "411636f7c45c9eb7567cbc4cc8b9e501778f0608cc222ca9d736f25ee7f604f7",
+          "settled": true,
+          "width": 1280
+        }
+      ],
+      "label": "02-find_the_person",
+      "name": "find_the_person",
+      "span_ids": [],
+      "status": "passed"
+    },
+    {
+      "actor": "admin",
+      "attempts": 1,
+      "correlation_id": "5154ea86-22e7-48da-8bbe-44abf936b592",
+      "cursor": {
+        "from": 131,
+        "to": 186
+      },
+      "error": null,
+      "figures": [
+        {
+          "file": "deactivate.confirm.png",
+          "file_sha256": "ed61586ba5fe45d006b1e783c1dd56fe8696a6092382ec013a5383ecbcf2abc3",
+          "height": 114,
+          "highlight": null,
+          "name": "confirm",
+          "raster_sha256": "e43d940bb9cceb03a3e9721aec72c764cfee551ab5df7e73624e47baaeeaf0b1",
+          "settled": true,
+          "width": 448
+        },
+        {
+          "file": "deactivate.deactivated.png",
+          "file_sha256": "b838b1e8a1c72bc8c471704f1cf411437d888b49c06cbd2cb0a95e89004ee4e0",
+          "height": 48,
+          "highlight": null,
+          "name": "deactivated",
+          "raster_sha256": "0d9fe20fe410294a76ffb00a5360f1dcbceb9b8558bac6077c58aa20be3acdb6",
+          "settled": true,
+          "width": 1212
+        }
+      ],
+      "label": "03-deactivate",
+      "name": "deactivate",
+      "span_ids": [
+        "b7701a677e67f546",
+        "83d35e095387ae98",
+        "ebfe5a9b2734efe2",
+        "925fbbac029c2744",
+        "2ba59495d5f9214e",
+        "c6834e055f07814a",
+        "86e5608214b4a2d9",
+        "a07d9ae344769c56",
+        "e342b22f690b282d",
+        "61c8f6e4d4273ddd",
+        "78e75e43c7eca8fc",
+        "a68cb6f4c9b6d2c6",
+        "b73931d1df83368d",
+        "1a85a8f62d16a2a1",
+        "1b69653095cd0c4a",
+        "682b7a6c8a743f70",
+        "0849fb275106a76f",
+        "96c3c7521a2d100e",
+        "cebfb405cb7e7e32",
+        "af70a6b07a1a2e99",
+        "b09b81d3dd7ab6cc",
+        "e72e4dbb4c70579b",
+        "25044f2aa993a7e6",
+        "dfc9b7322b6c6e5f",
+        "246b27be777187e0",
+        "1ba58909bf1dd67a",
+        "29aaa219d5587aca",
+        "55e5436230187287",
+        "28affd981d4b4d43",
+        "2fdbfad3fbd1059c",
+        "40bd13dac20cdea4",
+        "772490f1d9d9e733",
+        "b1d04a37b2cdff2c",
+        "cf149bd1ae51aa98",
+        "064201bdb35c9a1f",
+        "869a01fa8470702d",
+        "53f3093f1e87802c",
+        "cf69badcd9376b1c",
+        "ff1a9ff3b9836ef0",
+        "a3a5dac8c4edd5a6",
+        "97d2d1fb0331e0c6",
+        "31904d79142e3b77",
+        "7bc736d164e43f86",
+        "2946ec06a5ac2572",
+        "b8899bd4054ec887",
+        "257cae3e02371148",
+        "b59c12835f67183d",
+        "539a41efa1080f46",
+        "73e833b9d4ac617e",
+        "40cd8f82196b51b5",
+        "0c0518e37a24b295"
+      ],
+      "status": "passed"
+    },
+    {
+      "actor": "leaver",
+      "attempts": 1,
+      "correlation_id": null,
+      "cursor": {
+        "from": 186,
+        "to": 196
+      },
+      "error": null,
+      "figures": [
+        {
+          "file": "their_next_action_signs_them_out.sign_in.png",
+          "file_sha256": "2b3eb7f5f37a2b000afb97bed14d6a849ac0d738729039a4b769ed939c3b4e46",
+          "height": 800,
+          "highlight": null,
+          "name": "sign_in",
+          "raster_sha256": "9cf2a6b31b356baa34627e7f122e8e55a4b234ca1bfb66cf6da7d187c5dc3bf5",
+          "settled": true,
+          "width": 1280
+        }
+      ],
+      "label": "04-their_next_action_signs_them_out",
+      "name": "their_next_action_signs_them_out",
+      "span_ids": [],
+      "status": "passed"
+    }
+  ],
+  "texts": {
+    "deactivate.narration.1": "Choisissez Désactiver sur sa ligne, puis confirmez.",
+    "deactivate.narration.2": "Sa prochaine action dans l'application la renvoie vers la page de connexion.",
+    "deactivate.ui.action": "Désactiver",
+    "find_the_person.narration.1": "Ouvrez Utilisateurs et trouvez la personne qui s'en va.",
+    "find_the_person.ui.surface": "Utilisateurs",
+    "goal": "La personne qui s'en va ne peut plus utiliser l'application.",
+    "leaver_is_signed_in.narration.1": "La personne qui s'en va est toujours connectée, avec l'application ouverte.",
+    "outcome": "Son compte est inactif, et sa prochaine action dans l'application la renvoie vers la page de connexion.",
+    "their_next_action_signs_them_out.narration.1": "La prochaine fois que cette personne ouvre l'application, elle est renvoyée vers la page de connexion.",
+    "title": "Révoquer l'accès d'une personne qui s'en va"
+  },
+  "version": 1
+}
