@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Start the Nix daemon in the dev container, which has no systemd to start it.
 # Sourced by post-create.sh (after installing Nix) and post-start.sh (on every
-# later start). Idempotent: does nothing when the daemon socket already exists.
+# later start). Idempotent: does nothing when a nix-daemon is already running.
+# The socket file alone proves nothing: /nix persists across container
+# restarts, so a restarted container finds the old socket with no daemon
+# behind it and every nix call fails with "Connection refused".
 #
 # The container user is added to trusted-users first. devenv.yaml takes nixpkgs
 # from devenv's own binary cache, and an untrusted user cannot use a cache that
@@ -15,11 +18,12 @@ if ! sudo grep -qs "^extra-trusted-users = $(id -un)\$" /etc/nix/nix.conf; then
   echo "extra-trusted-users = $(id -un)" | sudo tee -a /etc/nix/nix.conf >/dev/null
   # A running daemon reads nix.conf only at start, so this takes effect on
   # the next container start. In practice it is written before the first one.
-  sudo test -S /nix/var/nix/daemon-socket/socket \
+  pgrep -x nix-daemon >/dev/null \
     && echo "nix-daemon: trusted-users changed while the daemon runs; restart the container" >&2
 fi
 
-if ! sudo test -S /nix/var/nix/daemon-socket/socket; then
+if ! pgrep -x nix-daemon >/dev/null; then
+  sudo rm -f /nix/var/nix/daemon-socket/socket
   sudo mkdir -p /nix/var/nix/daemon-socket /nix/var/nix/log
   sudo sh -c 'nohup /nix/var/nix/profiles/default/bin/nix-daemon >/nix/var/nix/log/daemon.log 2>&1 </dev/null &'
   for _ in $(seq 1 30); do
