@@ -10,7 +10,10 @@ on:
 
 # A failed run tells you nothing if a later push is already superseding it.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # A same-repo PR shares its branch's group, so the push run and the PR run
+  # for one commit cancel down to one. A fork PR keys on its pull ref, so a
+  # fork branch named main can never cancel main's run.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref || github.event_name == 'pull_request' && github.ref || github.ref_name }}
   cancel-in-progress: true
 
 env:
@@ -220,6 +223,14 @@ jobs:
       # Drop --report to enforce once the listing is empty.
       - name: Report the control ownership gaps
         run: mix ash_compliance.controls.check --report --require-producer-proof --categories security,availability,processing_integrity,confidentiality,privacy
+
+      # docs/domain-map.json is the editorial source of docs/DOMAIN-MAP.md, as
+      # roadmap.json is for the status tables — but the domain map's regions
+      # also render what the registered domains introspect (resources,
+      # relationships, the declared signal graph), so drift here can mean the
+      # map disagrees with the code, not only with the JSON.
+      - name: Check the domain map is rendered
+        run: mix ash_agent.domain_map --check
 
       # `--skip` honours the `@sobelow_skip` attributes in the source. There is
       # exactly one, on `AshEnterprise.Audit.Export`, and it says why next to
@@ -862,6 +873,20 @@ jobs:
 
       - name: Locate Chromium
         run: echo "E2E_CHROMIUM=$(command -v chromium || command -v chromium-browser || command -v google-chrome)" >> "$GITHUB_ENV"
+
+      # A cold runner sometimes takes over 30 s to start Chromium for the first time,
+      # which failed the suite before any spec ran (ECL-66). Pay that cost here, with
+      # its own bound, so the launch inside the suite is a warm one.
+      - name: Warm Chromium
+        run: |
+          start=$(date +%s)
+          for attempt in 1 2 3; do
+            if timeout 60 "$E2E_CHROMIUM" --headless --no-sandbox --disable-gpu --dump-dom about:blank > /dev/null; then
+              break
+            fi
+            echo "warm-up attempt $attempt did not finish in 60 s"
+          done
+          echo "Chromium warm-up took $(( $(date +%s) - start )) s"
 
       - name: Test
         run: mix test

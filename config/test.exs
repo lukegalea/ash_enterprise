@@ -182,8 +182,8 @@ config :phoenix_test,
     # rather than one module's.
     browser_pool_checkout_timeout: 10 * 60_000,
     assets_dir: "./assets",
-    timeout: 15_000,
-    browser_launch_timeout: 30_000,
+    timeout: 30_000,
+    browser_launch_timeout: 90_000,
     # Both halves of each pair. `screenshot_dir` without `screenshot: true`
     # writes nothing at all, which is an easy way to upload an empty directory
     # for months without noticing.
@@ -335,3 +335,17 @@ config :ash_enterprise, AshEnterprise.Audit.ClearRecordsForReplay,
 # Keyset cursors are signed, so a cursor a client wrote is refused (ADR 0073). A deployment
 # derives its own from SECRET_KEY_BASE in config/runtime.exs.
 config :ash, keyset_signing_secret: "test-only keyset signing secret, not a deployment value"
+
+# The fixture documents the kernel's `mix paper.impact --layout <module>` compares a
+# layout change against (test/support; run it as `MIX_ENV=test mix paper.impact`).
+config :ash_paper, :impact_samples, AshEnterprise.Test.PaperSamples
+
+# The host's kinds plus the synthetic ones the generic paper tests issue
+# (test/support/paper_kind): the paper machinery is tested on a kind that is
+# nobody's business data.
+config :ash_enterprise, AshEnterprise.Documents.Paper,
+  kinds: [
+    AshEnterprise.Credentialing.Paper.CredentialStatusLetter,
+    AshEnterprise.Test.Paper.ActivitySummary,
+    AshEnterprise.Test.Paper.ActivitySummaryBrief
+  ]

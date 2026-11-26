@@ -14,8 +14,8 @@ config :phoenix_test,
     browser_pool: :chromium_pool,
     browser_pools: [[id: :chromium_pool, browser: :chromium, size: 2, executable_path: chromium]],
     assets_dir: "./test/playwright",
-    timeout: 15_000,
-    browser_launch_timeout: 30_000,
+    timeout: 30_000,
+    browser_launch_timeout: 90_000,
     trace: System.get_env("PW_TRACE") == "1"
   ]
 

@@ -72,8 +72,8 @@ config :phoenix_test,
       ]
     ],
     assets_dir: "./assets",
-    timeout: 15_000,
-    browser_launch_timeout: 30_000,
+    timeout: 30_000,
+    browser_launch_timeout: 90_000,
     # One screenshot per test, and a trace when PW_TRACE is set. Set both halves
     # of each pair: `screenshot_dir` without `screenshot: true` writes nothing,
     # which is an easy way to upload an empty directory for months without
