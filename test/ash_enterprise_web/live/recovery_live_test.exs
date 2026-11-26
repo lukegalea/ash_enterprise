@@ -1,7 +1,7 @@
 defmodule AshEnterpriseWeb.RecoveryLiveTest do
   @moduledoc """
   The recovery surface (`/app/recovery`) over the seeded clinic, the LiveView twin of
-  `assets/e2e/recovery.spec.ts`. The uncertain outcome comes from the showcase's fault
+  `test/playwright/recovery_test.exs`. The uncertain outcome comes from the showcase's fault
   panel (its "lose the registry's answer" control), never from seeded history: the
   coordinator asks to activate a credential, a committee member approves, the registry
   accepts and the answer is lost, and the registry cannot say afterwards whether it

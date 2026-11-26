@@ -2,7 +2,7 @@ defmodule AshEnterpriseWeb.ComparisonLiveTest do
   @moduledoc """
   Candidates compared (`/app/quality/compare`, `AshEnterpriseWeb.ComparisonLive`) through
   the real LiveView, over suite runs recorded as `finish` records them. The mirror of
-  `assets/e2e/comparison_matrix.spec.ts`:
+  `test/playwright/comparison_matrix_test.exs`:
 
     * improved, degraded, failed, skipped, not measured and missing cases are each their
       own cell, in words, never a zero or a pass;

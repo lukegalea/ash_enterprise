@@ -8,18 +8,17 @@ defmodule AshBrowserTests.BrowserTest do
       conn
       |> sign_in(%{"user" => "alice"}, Endpoint.session_options())
       |> visit("/whoami")
-      |> assert_connected()
       |> assert_has("#whoami", text: "alice", timeout: 5_000)
     end
 
     test "without one the page is anonymous", %{conn: conn} do
-      conn |> visit("/whoami") |> assert_connected() |> assert_has("#whoami", text: "nobody")
+      conn |> visit("/whoami") |> assert_has("#whoami", text: "nobody")
     end
   end
 
   describe "the composed tree" do
     setup %{conn: conn} do
-      %{conn: conn |> visit("/widgets") |> assert_connected()}
+      %{conn: conn |> visit("/widgets")}
     end
 
     test "deep_query reaches two shadow roots down, Playwright CSS selectors do not need to", %{
@@ -54,12 +53,12 @@ defmodule AshBrowserTests.BrowserTest do
 
   describe "failure capture" do
     test "a healthy page has no failures", %{conn: conn} do
-      conn |> visit("/plain") |> assert_connected() |> assert_no_browser_failures()
+      conn |> visit("/plain") |> assert_no_browser_failures()
     end
 
     @tag allow_browser_failures: true
     test "records a console error", %{conn: conn} do
-      conn = conn |> visit("/console-error") |> assert_connected()
+      conn = conn |> visit("/console-error")
 
       assert_raise ExUnit.AssertionError, ~r/fixture console error/, fn ->
         assert_no_browser_failures(conn)
@@ -68,7 +67,7 @@ defmodule AshBrowserTests.BrowserTest do
 
     @tag allow_browser_failures: true
     test "records an uncaught page error", %{conn: conn} do
-      conn = conn |> visit("/page-error") |> assert_connected()
+      conn = conn |> visit("/page-error")
 
       eventually(fn ->
         assert Enum.any?(browser_failures(conn), &(&1.type == :page_error))
@@ -77,7 +76,7 @@ defmodule AshBrowserTests.BrowserTest do
 
     @tag allow_browser_failures: true
     test "records a 5xx from a background fetch", %{conn: conn} do
-      conn = conn |> visit("/fetches-500") |> assert_connected()
+      conn = conn |> visit("/fetches-500")
 
       eventually(fn ->
         assert Enum.any?(browser_failures(conn), &(&1[:type] == :http_5xx and &1[:status] == 500))
@@ -87,14 +86,14 @@ defmodule AshBrowserTests.BrowserTest do
     test "take_browser_failures consumes expected failures so the test passes at exit", %{
       conn: conn
     } do
-      conn = conn |> visit("/console-error") |> assert_connected()
+      conn = conn |> visit("/console-error")
       assert [_failure] = take_browser_failures(conn, ~r/fixture console error/)
       assert_no_browser_failures(conn)
     end
 
     @tag allow_browser_failures: true
     test ":allow names acceptable failures", %{conn: conn} do
-      conn = conn |> visit("/console-error") |> assert_connected()
+      conn = conn |> visit("/console-error")
       assert_no_browser_failures(conn, allow: [~r/fixture console error/])
     end
   end

@@ -89,7 +89,7 @@ in the router. LiveView named `CanvasLive` under
 - ExUnit: registry completeness (every app domain/resource appears in the
   built graph), route gating (dev-only), select event resolves + renders
   inspector content, graph payload contains zero record nodes.
-- Playwright (`assets/e2e/canvas_graph.spec.ts`): logged-in `/canvas`
+- Playwright (`test/playwright/canvas_graph_test.exs`): logged-in `/canvas`
   renders the tree with domain + resource treeitems; clicking (and
   keyboard-selecting) a resource treeitem shows the inspector with label,
   capabilities, projections; no record treeitems exist; axe scan of the

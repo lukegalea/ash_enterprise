@@ -3,13 +3,12 @@ defmodule AshBrowserTests.Browser do
   Helpers for driving a page: session-cookie sign-in, assertions that see through
   shadow roots, and console and 5xx failure checks.
 
-  PhoenixTest's own helpers are unaffected. Use these where a selector must cross a
+  Fluffy's PhoenixTest helpers are unaffected. Use these where a selector must cross a
   shadow boundary that Playwright's own CSS does not pierce from your starting
   point, or where the assertion is about the composed tree as a whole.
   """
 
   alias AshBrowserTests.FailureCapture
-  alias PhoenixTest.Playwright
 
   @capture_key {__MODULE__, :failure_capture}
 
@@ -37,15 +36,18 @@ defmodule AshBrowserTests.Browser do
   """
   @spec sign_in(struct(), map(), keyword()) :: struct()
   def sign_in(conn, session, session_options) when is_map(session) do
-    Playwright.add_session_cookie(conn, [value: session], session_options)
+    Fluffy.add_session_cookie(conn, session, session_options: session_options)
   end
 
   # --- Connection ------------------------------------------------------------------
 
-  @doc "Asserts the LiveView on the page has joined its channel."
+  @doc """
+  Asserts the LiveView on the page has joined its channel. Fluffy's `visit` already
+  waits for that.
+  """
   @spec assert_connected(struct(), keyword()) :: struct()
   def assert_connected(conn, opts \\ []) do
-    PhoenixTest.assert_has(conn, "body .phx-connected",
+    Fluffy.PhoenixTest.assert_has(conn, "body .phx-connected",
       timeout: Keyword.get(opts, :timeout, 15_000)
     )
   end
@@ -56,12 +58,14 @@ defmodule AshBrowserTests.Browser do
   """
   @spec flush_browser_spans(struct()) :: struct()
   def flush_browser_spans(conn) do
-    Playwright.evaluate(conn, """
+    Fluffy.Playwright.evaluate(conn, """
     (() => {
       if (window.__otelEndConnect) window.__otelEndConnect()
       if (window.__otelFlush) window.__otelFlush()
     })()
     """)
+
+    conn
   end
 
   # --- The composed tree -----------------------------------------------------------
@@ -69,7 +73,7 @@ defmodule AshBrowserTests.Browser do
   @doc "The elements matching `selector` in the document and every open shadow root below it."
   @spec deep_query(struct(), String.t()) :: [map()]
   def deep_query(conn, selector) do
-    eval(conn, """
+    Fluffy.Playwright.evaluate(conn, """
     (() => {
       #{@walker}
       return deep(document, #{Jason.encode!(selector)}).map((el) => ({
@@ -116,7 +120,7 @@ defmodule AshBrowserTests.Browser do
     text = Keyword.get(opts, :text)
 
     clicked =
-      eval(conn, """
+      Fluffy.Playwright.evaluate(conn, """
       (() => {
         #{@walker}
         const text = #{Jason.encode!(text)}
@@ -171,18 +175,6 @@ defmodule AshBrowserTests.Browser do
     Enum.filter(matches, &String.contains?(&1["text"], text))
   end
 
-  defp eval(conn, expression) do
-    parent = self()
-    ref = make_ref()
-    Playwright.evaluate(conn, expression, fn result -> send(parent, {ref, result}) end)
-
-    receive do
-      {^ref, result} -> result
-    after
-      5_000 -> raise ExUnit.AssertionError, message: "the page did not answer evaluate"
-    end
-  end
-
   # --- Failure capture --------------------------------------------------------------
 
   @doc false
@@ -197,7 +189,7 @@ defmodule AshBrowserTests.Browser do
   """
   @spec browser_failures(struct()) :: [FailureCapture.failure()]
   def browser_failures(conn) do
-    Playwright.evaluate(conn, "1")
+    Fluffy.Playwright.evaluate(conn, "1")
     capture() |> FailureCapture.failures()
   end
 
@@ -225,7 +217,7 @@ defmodule AshBrowserTests.Browser do
   """
   @spec take_browser_failures(struct(), Regex.t()) :: [FailureCapture.failure()]
   def take_browser_failures(conn, %Regex{} = pattern) do
-    Playwright.evaluate(conn, "1")
+    Fluffy.Playwright.evaluate(conn, "1")
     capture() |> FailureCapture.take(pattern)
   end
 

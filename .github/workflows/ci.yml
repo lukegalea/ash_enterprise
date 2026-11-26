@@ -660,9 +660,10 @@ jobs:
   e2e:
     name: Browser end-to-end
     runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && github.actor == 'lukegalea' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'e2e') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
-    # Every Playwright spec in assets/e2e, in chromium, against the dev server
-    # the specs drive locally. It gates like the others: it was advisory until
-    # three runs in a row were green (42295888081, 42299104023, 42307413088).
+    # Every browser test in test/playwright, in chromium, against the dev
+    # server, which `mix test.playwright` starts in the test node. It gates like
+    # the others: it was advisory until three runs in a row were green
+    # (42295888081, 42299104023, 42307413088).
 
     # pgvector on pg18, for the reasons given on the main job's service. The
     # dev config connects to `ash_enterprise_dev`, created below.
@@ -688,7 +689,6 @@ jobs:
       SHOWCASE_FAULT_CONTROLS: "true"
       LOG_LEVEL: info
       E2E_PORT: "4100"
-      E2E_SERVER_COMMAND: mix phx.server
 
     steps:
       - uses: actions/checkout@v4
@@ -721,7 +721,8 @@ jobs:
           cache-dependency-path: assets/package-lock.json
 
       # The server's esbuild and tailwind watchers rebuild on change; the
-      # first build happens here so the first page a spec loads is styled.
+      # first build happens here so the first page a test loads is styled.
+      # npm also installs the axe-core the accessibility checks inject.
       - name: Build assets
         run: |
           npm ci --prefix assets
@@ -729,14 +730,13 @@ jobs:
           mix assets.build
 
       - name: Install chromium
-        working-directory: assets
-        run: npx playwright install --with-deps chromium
+        run: mix playwright.install chromium --with-deps
 
       # The order of `mix setup`, then the tenants the specs sign in to: the
       # seeder's example tenant (admin@example.com), the baseline processes
       # the flight view draws, and the clinic-demo tenant. The demo people get
-      # a random password, written to E2E_DEMO_PASSWORD_FILE for the specs to
-      # read (assets/e2e/support/demo.ts) and never printed.
+      # a random password, written to E2E_DEMO_PASSWORD_FILE for the tests to
+      # read (test/playwright/support/demo.ex) and never printed.
       - name: Create and seed the database
         env:
           E2E_DEMO_PASSWORD_FILE: ${{ runner.temp }}/e2e/demo-password
@@ -759,19 +759,19 @@ jobs:
       - name: Check the strangler mappings against the legacy fixture
         run: mix ash_strangler.check --strict
 
-      # Playwright's webServer starts the app (E2E_SERVER_COMMAND) and stops
-      # it when the run ends.
+      # `mix test.playwright` serves the endpoint in the test node, as
+      # `mix phx.server` would, and runs test/playwright against it.
       - name: Playwright
         env:
           E2E_DEMO_PASSWORD_FILE: ${{ runner.temp }}/e2e/demo-password
-        run: npm --prefix assets run test:e2e
+        run: mix test.playwright
 
       - name: Upload the Playwright results
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-results
-          path: assets/test-results
+          path: test-results
           retention-days: 7
 
   quick:
@@ -798,9 +798,8 @@ jobs:
     # - Browser tests: ash_browser_tests/ is a test-only package with its own
     #   mix project and lock, consumed through a sparse git dep or by path. Its
     #   suite drives a real Chromium against a tiny fixture application, so
-    #   nothing else in this workflow exercises it. The browser comes from the
-    #   runner image (locally it comes from devenv), never from Playwright's own
-    #   download.
+    #   nothing else in this workflow exercises it. The browser is the one
+    #   `mix playwright.install` installs (locally it comes from devenv).
     # - Battery: battery/ is a mix project of its own (README there): the flows
     #   that span two or more substrates, run against its own reference
     #   instantiation and its own database. The suite never compiles it, so
@@ -856,9 +855,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            site/package-lock.json
-            ash_browser_tests/test/playwright/package-lock.json
+          cache-dependency-path: site/package-lock.json
 
       # ---- Cold clone ------------------------------------------------------
 
@@ -921,8 +918,7 @@ jobs:
           path: |
             ash_browser_tests/deps
             ash_browser_tests/_build
-            ash_browser_tests/test/playwright/node_modules
-          key: ${{ runner.os }}-browser-tests-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('ash_browser_tests/mix.lock', 'ash_browser_tests/test/playwright/package-lock.json') }}
+          key: ${{ runner.os }}-browser-tests-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('ash_browser_tests/mix.lock') }}
           restore-keys: ${{ runner.os }}-browser-tests-${{ steps.beam.outputs.elixir-version }}-
 
       - name: "Browser tests: fetch dependencies"
@@ -948,48 +944,26 @@ jobs:
         working-directory: ash_browser_tests
         run: mix compile --warnings-as-errors
 
-      - name: "Browser tests: install the Playwright driver"
-        id: browser-tests-driver
+      - name: "Browser tests: install the Playwright driver and Chromium"
+        id: browser-tests-chromium
         if: ${{ !cancelled() && steps.browser-tests-setup.outcome == 'success' }}
         working-directory: ash_browser_tests
-        env:
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-        run: npm ci --prefix test/playwright
-
-      - name: "Browser tests: locate Chromium"
-        id: browser-tests-chromium
-        if: ${{ !cancelled() && steps.browser-tests-driver.outcome == 'success' }}
-        run: echo "E2E_CHROMIUM=$(command -v chromium || command -v chromium-browser || command -v google-chrome)" >> "$GITHUB_ENV"
-
-      # A cold runner sometimes takes over 30 s to start Chromium for the first time,
-      # which failed the suite before any spec ran (ECL-66). Pay that cost here, with
-      # its own bound, so the launch inside the suite is a warm one.
-      - name: "Browser tests: warm Chromium"
-        if: ${{ !cancelled() && steps.browser-tests-chromium.outcome == 'success' }}
-        run: |
-          start=$(date +%s)
-          for attempt in 1 2 3; do
-            if timeout 60 "$E2E_CHROMIUM" --headless --no-sandbox --disable-gpu --dump-dom about:blank > /dev/null; then
-              break
-            fi
-            echo "warm-up attempt $attempt did not finish in 60 s"
-          done
-          echo "Chromium warm-up took $(( $(date +%s) - start )) s"
+        run: mix playwright.install chromium --with-deps
 
       - name: "Browser tests: test"
         id: browser-tests-test
         if: ${{ !cancelled() && steps.browser-tests-chromium.outcome == 'success' }}
         working-directory: ash_browser_tests
         env:
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+          E2E_CHROMIUM: bundled
         run: mix test
 
-      - name: "Browser tests: upload screenshots from a failure"
+      - name: "Browser tests: upload traces and screenshots from a failure"
         if: ${{ !cancelled() && steps.browser-tests-test.outcome == 'failure' }}
         uses: actions/upload-artifact@v4
         with:
-          name: browser-tests-screenshots
-          path: ash_browser_tests/screenshots/
+          name: browser-tests-results
+          path: ash_browser_tests/test-results/
           retention-days: 7
 
       # ---- Cross-substrate integration battery -------------------------------

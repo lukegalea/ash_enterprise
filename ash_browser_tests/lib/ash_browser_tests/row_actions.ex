@@ -119,7 +119,7 @@ defmodule AshBrowserTests.RowActions do
     })()
     """
 
-    case eval(conn, expression) do
+    case Fluffy.Playwright.evaluate(conn, expression) do
       true ->
         conn
 
@@ -155,7 +155,7 @@ defmodule AshBrowserTests.RowActions do
   end
 
   defp do_wait_for_row(conn, expression, deadline, row_text) do
-    case eval(conn, expression) do
+    case Fluffy.Playwright.evaluate(conn, expression) do
       "yes" ->
         conn
 
@@ -165,7 +165,7 @@ defmodule AshBrowserTests.RowActions do
           do_wait_for_row(conn, expression, deadline, row_text)
         else
           state =
-            eval(conn, """
+            Fluffy.Playwright.evaluate(conn, """
             (() => {
               #{Browser.walker()}
               return JSON.stringify({
@@ -228,7 +228,7 @@ defmodule AshBrowserTests.RowActions do
       |> String.replace("__ROW_ID__", Jason.encode!(row_id))
       |> String.replace("__LABEL__", Jason.encode!(row_action.label))
 
-    case eval(conn, expression) do
+    case Fluffy.Playwright.evaluate(conn, expression) do
       "clicked" ->
         conn
 
@@ -257,35 +257,24 @@ defmodule AshBrowserTests.RowActions do
         raise ArgumentError,
               "prompt field #{inspect(field.label)} has no option #{inspect(value)}"
 
-    PhoenixTest.select(conn, field.label, option: option)
+    Fluffy.PhoenixTest.select(conn, field.label, option: option)
   end
 
   defp fill_prompt(conn, %{widget: :check_box} = field, true),
-    do: PhoenixTest.check(conn, field.label)
+    do: Fluffy.PhoenixTest.check(conn, field.label)
 
   defp fill_prompt(conn, %{widget: :check_box} = field, false),
-    do: PhoenixTest.uncheck(conn, field.label)
+    do: Fluffy.PhoenixTest.uncheck(conn, field.label)
 
   defp fill_prompt(conn, field, value) when is_struct(value, DateTime) do
-    PhoenixTest.fill_in(conn, field.label,
+    Fluffy.PhoenixTest.fill_in(conn, field.label,
       with: DateTime.to_iso8601(value) |> String.slice(0, 16)
     )
   end
 
   defp fill_prompt(conn, field, value) when is_struct(value, Date),
-    do: PhoenixTest.fill_in(conn, field.label, with: Date.to_iso8601(value))
+    do: Fluffy.PhoenixTest.fill_in(conn, field.label, with: Date.to_iso8601(value))
 
-  defp fill_prompt(conn, field, value), do: PhoenixTest.fill_in(conn, field.label, with: value)
-
-  defp eval(conn, expression) do
-    parent = self()
-    ref = make_ref()
-    PhoenixTest.Playwright.evaluate(conn, expression, &send(parent, {ref, &1}))
-
-    receive do
-      {^ref, result} -> result
-    after
-      5_000 -> raise ExUnit.AssertionError, message: "the page did not answer evaluate"
-    end
-  end
+  defp fill_prompt(conn, field, value),
+    do: Fluffy.PhoenixTest.fill_in(conn, field.label, with: value)
 end

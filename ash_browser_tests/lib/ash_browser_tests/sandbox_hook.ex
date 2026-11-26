@@ -37,12 +37,13 @@ defmodule AshBrowserTests.SandboxHook do
   @metadata_key {__MODULE__, :metadata}
 
   @doc """
-  Attaches the handlers. Idempotent. Options: `:sandbox`, default
-  `Ecto.Adapters.SQL.Sandbox`.
+  Attaches the handlers. Idempotent. Options: `:sandbox`, default `Fluffy.Sandbox`, so a
+  test waits for its LiveViews to exit; a custom allowance goes in
+  `config :fluffy, Fluffy.Sandbox, sandbox: ...`.
   """
   @spec attach(keyword()) :: :ok
   def attach(opts \\ []) do
-    config = %{sandbox: Keyword.get(opts, :sandbox, Ecto.Adapters.SQL.Sandbox)}
+    config = %{sandbox: Keyword.get(opts, :sandbox, Fluffy.Sandbox)}
 
     case :telemetry.attach_many(@handler_id, @events, &__MODULE__.handle_event/4, config) do
       :ok -> :ok

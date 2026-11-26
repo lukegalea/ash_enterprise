@@ -14,7 +14,7 @@ defmodule AshEnterpriseWeb.ExplorerLiveTest do
   @moduledoc """
   The execution explorer (`/app/explorer`, `AshEnterpriseWeb.ExplorerLive`) through the
   real LiveView, on the seeded clinic. The path is the one
-  `assets/e2e/execution_explorer.spec.ts` walks in a browser.
+  `test/playwright/execution_explorer_test.exs` walks in a browser.
 
   The coordinator's work, under one correlation id: a case opened on a credential and
   routed by the review routing table (the process run, its events and the decision with

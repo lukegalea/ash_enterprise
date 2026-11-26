@@ -383,9 +383,8 @@ defmodule AshBrowserTests.Tables do
   defp open(host, surface, context, contexts) do
     context.conn
     |> host.sign_in(surface.actor, context)
-    |> PhoenixTest.visit(path_with_contexts(surface.path, contexts))
-    |> Browser.assert_connected()
-    |> PhoenixTest.assert_has(surface.mounted || "[data-phx-main]", timeout: 15_000)
+    |> Fluffy.PhoenixTest.visit(path_with_contexts(surface.path, contexts))
+    |> Fluffy.PhoenixTest.assert_has(surface.mounted || "[data-phx-main]", timeout: 15_000)
   end
 
   # A context the path already names is not repeated in the query: a record

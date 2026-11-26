@@ -1,6 +1,4 @@
 /_build/
 /deps/
 erl_crash.dump
-/test/playwright/node_modules/
-/screenshots/
 /test-results/

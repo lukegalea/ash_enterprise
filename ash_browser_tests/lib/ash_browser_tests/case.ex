@@ -9,23 +9,24 @@ defmodule AshBrowserTests.Case do
           conn
           |> sign_in(%{"user_token" => token()}, MyAppWeb.Endpoint.session_options())
           |> visit("/orders")
-          |> assert_connected()
           |> click_button("Create")
 
           assert_chain(key, [browser_event(), handle_event(), ash_action(), query()])
         end
       end
 
-  It adds to `PhoenixTest.Playwright.Case`:
+  It adds to `Playwright.Test` and Fluffy's PhoenixTest facade (`Fluffy.PhoenixTest`):
 
     * the `:e2e` tag (`:browser` collides with the Playwright context option);
+    * `:conn`, a Playwright session, with the Ecto sandbox owned for the
+      repositories of `config :fluffy, ecto_repos: [...]`;
     * `:test_key` in the context, set on the test process too, so spans the test
       itself starts (and jobs it drains) carry it;
     * failure capture: a console error, page error or 5xx not consumed by the test
       fails it at exit. `@tag allow_browser_failures: true` opts a test out;
     * `AshBrowserTests.Browser` and `AshBrowserTests.Trace` imported.
 
-  Options are those of `PhoenixTest.Playwright.Case`.
+  Options are those of `ExUnit.Case` and `Playwright.Test`.
   """
 
   alias AshBrowserTests.Browser
@@ -34,10 +35,12 @@ defmodule AshBrowserTests.Case do
 
   defmacro __using__(opts) do
     quote do
-      use PhoenixTest.Playwright.Case, unquote(opts)
+      use ExUnit.Case, unquote(Keyword.take(opts, [:async, :group, :parameterize]))
+      use Playwright.Test, unquote(opts)
 
       @moduletag :e2e
 
+      import Fluffy.PhoenixTest
       import AshBrowserTests.Browser
       import AshBrowserTests.Trace
 
@@ -47,10 +50,17 @@ defmodule AshBrowserTests.Case do
 
   @doc false
   def setup_test(context) do
+    for repo <- Application.get_env(:fluffy, :ecto_repos, []) do
+      owner = Ecto.Adapters.SQL.Sandbox.start_owner!(repo, shared: not context[:async])
+      ExUnit.Callbacks.on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(owner) end)
+    end
+
+    conn = Fluffy.PhoenixTest.start_session(:playwright)
+
     key = TestKey.from_owner(self())
     TestKey.put(key)
 
-    capture = FailureCapture.start!(context.conn)
+    capture = FailureCapture.start!(conn)
     Browser.put_capture(capture)
     strict? = not Map.get(context, :allow_browser_failures, false)
 
@@ -62,6 +72,6 @@ defmodule AshBrowserTests.Case do
       end
     end)
 
-    [test_key: key, browser_failures: capture]
+    [conn: conn, test_key: key, browser_failures: capture]
   end
 end

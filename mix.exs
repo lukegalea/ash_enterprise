@@ -7,6 +7,9 @@ defmodule AshEnterprise.MixProject do
       version: "0.1.0",
       elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
+      test_paths: test_paths(Mix.env()),
+      test_load_filters: test_load_filters(Mix.env()),
+      test_ignore_filters: [&playwright_file?/1],
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
@@ -247,6 +250,8 @@ defmodule AshEnterprise.MixProject do
         precommit: :test,
         "test.durability": :test,
         "test.browser": :test,
+        # The Playwright tier tests the dev server, so it runs in dev.
+        "test.playwright": :dev,
         # The report reads the `:phoenix_test` configuration for the screenshot
         # and trace directories, and only config/test.exs sets it.
         "ash_browser_tests.report": :test,
@@ -490,6 +495,10 @@ defmodule AshEnterprise.MixProject do
       # its home, and a path dependency is the one arrangement where the
       # package and its first host cannot drift apart.
       {:ash_browser_tests, path: "ash_browser_tests", only: :test},
+      # The Playwright tier (`mix test.playwright`, test/playwright): the specs
+      # ported from Playwright Test, on the client Fluffy drives the browser tier
+      # with. In dev too, because that tier runs against the dev server.
+      {:playwright, "~> 1.65.0-rc.6", hex: :playwright_ex, only: [:dev, :test]},
 
       # --- Static analysis -----------------------------------------------------
       # Dialyzer runs NON-BLOCKING in CI: there is no official guidance for
@@ -591,6 +600,32 @@ defmodule AshEnterprise.MixProject do
     Mix.Task.rerun("loadconfig")
   end
 
+  # `mix test.playwright [paths] [mix test options]`: the specs ported from Playwright Test
+  # (test/playwright), against the dev server in this node, which Playwright Test's webServer
+  # started with `mix phx.server`. So it does what that task does, on E2E_PORT (4100 by
+  # default, so it never tests a server already on 4000), and runs `mix test` in dev, where
+  # `test_paths` is test/playwright. The specs read the dev database as `mix setup` and
+  # `mix ash_enterprise.demo` seed it. MIX_ENV is set so `mix test` does not warn about the
+  # environment.
+  defp test_playwright(args) do
+    System.put_env("PORT", System.get_env("E2E_PORT", "4100"))
+    System.put_env("MIX_ENV", to_string(Mix.env()))
+    Application.put_env(:phoenix, :serve_endpoints, true, persistent: true)
+    Mix.Tasks.Test.run(args)
+  end
+
+  # test/playwright is the Playwright tier's, which runs only in dev (`mix test.playwright`):
+  # the test environment neither loads it nor warns about it.
+  defp test_paths(:dev), do: ["test/playwright"]
+  defp test_paths(_env), do: ["test"]
+
+  defp test_load_filters(:dev), do: [&String.ends_with?(&1, "_test.exs")]
+
+  defp test_load_filters(_env),
+    do: [&(String.ends_with?(&1, "_test.exs") and not playwright_file?(&1))]
+
+  defp playwright_file?(file), do: String.starts_with?(file, "test/playwright/")
+
   # `mix test.browser [paths] [mix test options]`: the package's runner, which
   # allocates a free port and sets E2E, E2E_PORT and PORT for a child `mix test`.
   # The paths go first — the runner reads its own switches up to the first
@@ -643,6 +678,8 @@ defmodule AshEnterprise.MixProject do
       # compiles one environment rather than two — without the compiled CSS,
       # elements the page hides are visible and locators become ambiguous.
       "test.browser": &test_browser/1,
+      # The Playwright tier: the dev server in this node, and `mix test` on test/playwright.
+      "test.playwright": &test_playwright/1,
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind ash_enterprise", "esbuild ash_enterprise"],
       "assets.deploy": [

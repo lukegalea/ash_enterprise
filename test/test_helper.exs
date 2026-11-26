@@ -43,8 +43,7 @@ else
   # sandbox follows the host's.
   Ecto.Adapters.SQL.Sandbox.mode(AshEvidence.Repo, :manual)
 
-  # Starts the Playwright supervisor, points PhoenixTest at the endpoint and
-  # attaches the sandbox hook. Only for the tier that needs a browser.
+  # Points Fluffy at the endpoint and attaches the sandbox hook. Only for the tier that needs a browser.
   if e2e? do
     AshBrowserTests.start!(endpoint: AshEnterpriseWeb.Endpoint)
   end

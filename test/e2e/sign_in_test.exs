@@ -21,10 +21,13 @@ defmodule AshEnterpriseWeb.E2E.SignInTest do
 
     conn
     |> visit("/sign-in")
-    |> assert_connected()
-    |> fill_in("Email", with: to_string(user.email))
-    |> fill_in("Password", with: "password1234")
-    |> click_button("Sign in")
+    # The register and reset forms are on the page too, hidden by CSS, with the same labels.
+    |> within("#user-password-sign-in-with-password", fn session ->
+      session
+      |> fill_in("Email", with: to_string(user.email))
+      |> fill_in("Password", with: "password1234")
+      |> click_button("Sign in")
+    end)
     |> refute_path("/sign-in", timeout: 15_000)
     |> assert_connected()
 

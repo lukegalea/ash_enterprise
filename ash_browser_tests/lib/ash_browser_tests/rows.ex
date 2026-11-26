@@ -54,7 +54,7 @@ defmodule AshBrowserTests.Rows do
     })()
     """
 
-    eval(conn, expression)
+    Fluffy.Playwright.evaluate(conn, expression)
   end
 
   @doc "How long the drivers sleep between two reads of the page."
@@ -72,7 +72,7 @@ defmodule AshBrowserTests.Rows do
     row_attribute = (attributes && Map.fetch!(attributes, :row_id)) || "data-a2ui-row-id"
 
     %{"component" => component?, "rows" => rows} =
-      eval(conn, """
+      Fluffy.Playwright.evaluate(conn, """
       (() => {
         #{Browser.walker()}
         const component = #{Jason.encode!(to_string(table[:component_id]))}
@@ -89,7 +89,7 @@ defmodule AshBrowserTests.Rows do
   @doc "Every `data-a2ui-id` on the page, across shadow roots: for failure messages."
   @spec component_ids(struct()) :: [String.t()]
   def component_ids(conn) do
-    eval(conn, """
+    Fluffy.Playwright.evaluate(conn, """
     (() => {
       #{Browser.walker()}
       return [...new Set(deep(document, "[data-a2ui-id]").map((el) => el.getAttribute("data-a2ui-id")))]
@@ -206,7 +206,7 @@ defmodule AshBrowserTests.Rows do
     })()
     """
 
-    case eval(conn, expression) do
+    case Fluffy.Playwright.evaluate(conn, expression) do
       "opened" ->
         conn
 
@@ -220,18 +220,6 @@ defmodule AshBrowserTests.Rows do
 
       outcome ->
         raise ExUnit.AssertionError, message: "preset picker: #{outcome}"
-    end
-  end
-
-  defp eval(conn, expression) do
-    parent = self()
-    ref = make_ref()
-    PhoenixTest.Playwright.evaluate(conn, expression, &send(parent, {ref, &1}))
-
-    receive do
-      {^ref, result} -> result
-    after
-      5_000 -> raise ExUnit.AssertionError, message: "the page did not answer evaluate"
     end
   end
 

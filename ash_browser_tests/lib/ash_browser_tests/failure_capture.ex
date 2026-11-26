@@ -10,9 +10,9 @@ defmodule AshBrowserTests.FailureCapture do
 
   use GenServer
 
-  alias PlaywrightEx.Page
-
-  @connection PlaywrightEx.Supervisor.Connection
+  alias Fluffy.Event
+  alias Playwright.ConsoleMessage
+  alias Playwright.Response
 
   @type failure :: %{
           required(:type) => :console | :page_error | :http_5xx,
@@ -24,7 +24,12 @@ defmodule AshBrowserTests.FailureCapture do
   @doc "Starts capturing for a Playwright session. Not linked, so it outlives the test process."
   @spec start!(struct()) :: pid()
   def start!(conn) do
-    {:ok, pid} = GenServer.start(__MODULE__, conn)
+    {:ok, pid} = GenServer.start(__MODULE__, nil)
+
+    for event <- [Event.console(), Event.page_error(), Event.response()] do
+      Fluffy.on(conn, event, &send(pid, {:playwright_event, &1}))
+    end
+
     pid
   end
 
@@ -57,18 +62,7 @@ defmodule AshBrowserTests.FailureCapture do
   end
 
   @impl GenServer
-  def init(conn) do
-    # Console and response events are delivered to the page's subscribers. A page's
-    # uncaught errors are not subscribed by default in the driver's channel.
-    PlaywrightEx.subscribe(conn.page_id, pid: self())
-    PlaywrightEx.subscribe(conn.context_id, pid: self())
-    timeout = 5_000
-
-    {:ok, _ack} =
-      Page.update_subscription(conn.page_id, event: :response, enabled: true, timeout: timeout)
-
-    {:ok, %{failures: [], connection: nil}}
-  end
+  def init(nil), do: {:ok, %{failures: []}}
 
   @impl GenServer
   def handle_call(:failures, _from, state), do: {:reply, Enum.reverse(state.failures), state}
@@ -83,8 +77,8 @@ defmodule AshBrowserTests.FailureCapture do
   end
 
   @impl GenServer
-  def handle_info({:playwright_msg, msg}, state) do
-    {:noreply, record(state, msg)}
+  def handle_info({:playwright_event, event}, state) do
+    {:noreply, record(state, event)}
   rescue
     # Never let a surprising message shape crash the capture.
     _error -> {:noreply, state}
@@ -94,53 +88,47 @@ defmodule AshBrowserTests.FailureCapture do
 
   def handle_info(_other, state), do: {:noreply, state}
 
-  defp record(state, %{method: :console, params: %{type: type} = params})
-       when type in ["error", "assert"] do
-    url = location(params)
+  defp record(state, %ConsoleMessage{} = message) do
+    if ConsoleMessage.type(message) in ["error", "assert"] do
+      url = location(ConsoleMessage.location(message))
 
-    # Every page without an icon link logs this once; it says nothing about the page.
-    if url != nil and String.ends_with?(url, "/favicon.ico") do
-      state
+      # Every page without an icon link logs this once; it says nothing about the page.
+      if url != nil and String.ends_with?(url, "/favicon.ico") do
+        state
+      else
+        add(state, %{type: :console, text: ConsoleMessage.text(message), url: url})
+      end
     else
-      add(state, %{type: :console, text: params[:text] || "", url: url})
+      state
     end
   end
 
-  defp record(state, %{method: method, params: %{error: error}})
-       when method in [:page_error, :pageerror] do
-    message = error[:message] || error[:error][:message] || inspect(error)
-    add(state, %{type: :page_error, text: to_string(message)})
+  defp record(state, %Response{} = response) do
+    status_failure(state, response, Response.status(response))
   end
 
-  defp record(state, %{method: :response, params: %{response: %{guid: guid}}}) do
-    response_failure(state, guid)
+  defp record(state, error) when is_exception(error) do
+    add(state, %{type: :page_error, text: Exception.message(error)})
   end
 
-  defp record(state, _msg), do: state
+  defp record(state, _event), do: state
 
-  defp response_failure(state, guid) do
-    case PlaywrightEx.Connection.initializer!(@connection, guid) do
-      %{status: status} = initializer -> status_failure(state, initializer, status)
-      _other -> state
-    end
-  end
-
-  defp status_failure(state, initializer, status) when status >= 500 do
+  defp status_failure(state, response, status) when status >= 500 do
     add(state, %{
       type: :http_5xx,
       text: "HTTP #{status}",
       status: status,
-      url: initializer[:url] || ""
+      url: Response.url(response)
     })
   end
 
-  defp status_failure(state, _initializer, _status), do: state
+  defp status_failure(state, _response, _status), do: state
 
   defp add(state, failure) do
     failure = failure |> Enum.reject(fn {_k, v} -> v in [nil, ""] end) |> Map.new()
     %{state | failures: [failure | state.failures]}
   end
 
-  defp location(%{location: %{url: url}}) when is_binary(url), do: url
-  defp location(_params), do: nil
+  defp location(%{url: url}) when is_binary(url), do: url
+  defp location(_location), do: nil
 end

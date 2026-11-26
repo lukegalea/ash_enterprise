@@ -5,7 +5,7 @@ defmodule AshBrowserTests do
 
   | Module | Purpose |
   |---|---|
-  | `AshBrowserTests.Case` | Case template over `PhoenixTest.Playwright.Case`: `:e2e` tag, test key, failure capture |
+  | `AshBrowserTests.Case` | Case template over `Playwright.Test` and Fluffy's PhoenixTest facade: `:e2e` tag, test key, failure capture |
   | `AshBrowserTests.Browser` | Session-cookie sign-in, shadow-DOM helpers, console and 5xx assertions |
   | `AshBrowserTests.SandboxHook` | Telemetry handlers giving a LiveView database access without a router change |
   | `AshBrowserTests.Trace` | Chain, link, correlation and exception assertions, selected by test key |
@@ -23,19 +23,16 @@ defmodule AshBrowserTests do
   alias AshBrowserTests.SandboxHook
 
   @doc """
-  Starts the Playwright supervisor, points PhoenixTest at the endpoint and attaches
-  the sandbox hook. Call it from `test_helper.exs`, after the application started.
+  Points Fluffy at the endpoint and attaches the sandbox hook. Call it from `test_helper.exs`, after the application started.
 
   Options: `:endpoint` (required, a started endpoint), `:sandbox`
-  (default `Ecto.Adapters.SQL.Sandbox`).
+  (default `Fluffy.Sandbox`).
   """
   @spec start!(keyword()) :: :ok
   def start!(opts) do
     endpoint = Keyword.fetch!(opts, :endpoint)
-    url = endpoint.url()
 
-    Application.put_env(:phoenix_test, :base_url, url)
-    {:ok, _pid} = PhoenixTest.Playwright.Supervisor.start_link()
+    Application.put_env(:fluffy, :endpoint, endpoint)
 
     SandboxHook.attach(Keyword.take(opts, [:sandbox]))
   end

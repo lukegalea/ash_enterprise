@@ -1,23 +1,31 @@
 import Config
 
+# Chromium comes from devenv (`pkgs.chromium`) by default, `E2E_CHROMIUM=<path>` for
+# another binary, or `E2E_CHROMIUM=bundled` for the one `mix playwright.install chromium`
+# installs, which is what CI uses.
 chromium =
-  System.get_env("E2E_CHROMIUM") || System.find_executable("chromium") ||
-    raise """
-    ash_browser_tests needs a Chromium binary: enter the devenv shell, which provides
-    it, or set E2E_CHROMIUM. Playwright's own browser download is not used.
-    """
+  case System.get_env("E2E_CHROMIUM") do
+    "bundled" -> nil
+    nil -> System.find_executable("chromium")
+    path -> path
+  end
 
-config :phoenix_test,
-  otp_app: :ash_browser_tests,
+config :fluffy,
   endpoint: AshBrowserTests.Fixture.Endpoint,
-  playwright: [
-    browser_pool: :chromium_pool,
-    browser_pools: [[id: :chromium_pool, browser: :chromium, size: 2, executable_path: chromium]],
-    assets_dir: "./test/playwright",
-    timeout: 30_000,
-    browser_launch_timeout: 90_000,
-    trace: System.get_env("PW_TRACE") == "1"
-  ]
+  ecto_repos: [AshBrowserTests.Fixture.Repo]
+
+# `AshBrowserTests.SandboxHook` reads the sandbox metadata from the user agent.
+config :fluffy, Fluffy.Sandbox, header: "user-agent"
+
+config :playwright, :test,
+  browser_name: :chromium,
+  workers: 2,
+  launch_options: [timeout: 90_000] ++ if(chromium, do: [executable_path: chromium], else: []),
+  action_timeout: 30_000,
+  navigation_timeout: 30_000,
+  expect: [timeout: 30_000],
+  trace: if(System.get_env("PW_TRACE") == "1", do: :on, else: :retain_on_failure),
+  screenshot: :only_on_failure
 
 config :ash_browser_tests, AshBrowserTests.Fixture.Endpoint,
   url: [host: "127.0.0.1"],

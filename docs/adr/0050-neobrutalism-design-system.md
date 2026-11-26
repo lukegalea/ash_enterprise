@@ -135,7 +135,7 @@ clean in both themes.
 - A Cinder table, if one is ever added, needs a theme written in the tokens: a `use Cinder.Theme` module (Cinder's
   shipped themes are literal Tailwind palettes).
 - The A2UI and admin bridges map many roles. When ash_a2ui adds a role with a light-only fallback, dark shows it
-  first. The axe tests in `assets/e2e` are the guard.
+  first. The axe tests in `test/playwright` are the guard.
 - The documentation screenshots under `docs/screenshots/` predate this and show the daisy look until they are recaptured.
 
 ## Reversal

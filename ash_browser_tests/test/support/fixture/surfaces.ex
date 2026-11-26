@@ -11,7 +11,7 @@ end
 
 defmodule AshBrowserTests.Fixture.Actions do
   @moduledoc false
-  def create(conn, _context), do: PhoenixTest.click_button(conn, "Create widget")
+  def create(conn, _context), do: Fluffy.PhoenixTest.click_button(conn, "Create widget")
 end
 
 defmodule AshBrowserTests.Fixture.Surfaces do

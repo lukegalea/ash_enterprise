@@ -45,9 +45,8 @@ defmodule AshBrowserTests.MixProject do
   defp deps do
     [
       # --- The browser harness -----------------------------------------------------
-      {:phoenix_test, "~> 0.14"},
-      {:phoenix_test_playwright, "~> 0.19", runtime: false},
-      {:playwright_ex, "~> 0.16"},
+      {:fluffy, "~> 0.9.0-rc.7"},
+      {:playwright, "~> 1.65.0-rc.6", hex: :playwright_ex},
       {:phoenix, "~> 1.8"},
       {:phoenix_live_view, "~> 1.1"},
       {:phoenix_ecto, "~> 4.5"},
@@ -75,7 +74,7 @@ defmodule AshBrowserTests.MixProject do
       #
       # Deliberately a dependency of the *test harness* on the UI library, never
       # the reverse: `ash_a2ui` must not grow a dependency on
-      # `phoenix_test_playwright` and `bandit` in order to be testable.
+      # `fluffy` and `bandit` in order to be testable.
       {:ash_a2ui, github: "lukegalea/ash_a2ui", optional: true, only: :test}
     ] ++ telemetry_dep() ++ fixture_deps()
   end

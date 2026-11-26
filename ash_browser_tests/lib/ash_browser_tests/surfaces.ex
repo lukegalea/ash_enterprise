@@ -223,9 +223,8 @@ defmodule AshBrowserTests.Surfaces do
   defp open(host, surface, context) do
     context.conn
     |> host.sign_in(surface.actor, context)
-    |> PhoenixTest.visit(surface.path)
-    |> Browser.assert_connected()
-    |> PhoenixTest.assert_has(surface.mounted || "[data-phx-main]", timeout: 15_000)
+    |> Fluffy.PhoenixTest.visit(surface.path)
+    |> Fluffy.PhoenixTest.assert_has(surface.mounted || "[data-phx-main]", timeout: 15_000)
   end
 
   defp fetch_surface!(host, id) do
@@ -257,7 +256,9 @@ defmodule AshBrowserTests.Surfaces do
 
     conn =
       Enum.reduce(row_action[:prompt_fields] || [], conn, fn field, acc ->
-        PhoenixTest.fill_in(acc, field.label, with: Map.fetch!(row[:inputs] || %{}, field.name))
+        Fluffy.PhoenixTest.fill_in(acc, field.label,
+          with: Map.fetch!(row[:inputs] || %{}, field.name)
+        )
       end)
 
     case row_action[:confirm_label] do
@@ -276,7 +277,7 @@ defmodule AshBrowserTests.Surfaces do
 
   defp click_in_row(conn, row_text, label) do
     clicked =
-      eval(conn, """
+      Fluffy.Playwright.evaluate(conn, """
       (() => {
         #{Browser.walker()}
         const row = deep(document, 'tr, [role="row"]').find((el) => el.textContent.includes(#{Jason.encode!(row_text)}))
@@ -294,17 +295,5 @@ defmodule AshBrowserTests.Surfaces do
     end
 
     conn
-  end
-
-  defp eval(conn, expression) do
-    parent = self()
-    ref = make_ref()
-    PhoenixTest.Playwright.evaluate(conn, expression, &send(parent, {ref, &1}))
-
-    receive do
-      {^ref, result} -> result
-    after
-      5_000 -> raise ExUnit.AssertionError, message: "the page did not answer evaluate"
-    end
   end
 end

@@ -18,7 +18,6 @@ defmodule AshBrowserTests.TraceBrowserTest do
     conn
     |> signed_in()
     |> visit("/widgets")
-    |> assert_connected()
     |> click_button("Create widget")
 
     [browser, event, action, query] =
@@ -40,7 +39,7 @@ defmodule AshBrowserTests.TraceBrowserTest do
     conn: conn,
     test_key: key
   } do
-    conn |> signed_in() |> visit("/whoami") |> assert_connected() |> flush_browser_spans()
+    conn |> signed_in() |> visit("/whoami") |> flush_browser_spans()
 
     [_connect, mount] =
       Trace.assert_chain(key, [Trace.browser_connect(), Trace.live_mount()], direct: true)
@@ -52,7 +51,6 @@ defmodule AshBrowserTests.TraceBrowserTest do
     conn
     |> signed_in()
     |> visit("/widgets")
-    |> assert_connected()
     |> click_button("Create widget")
 
     id = Trace.assert_one_correlation(key, Trace.handle_event(), min_spans: 3)
@@ -66,7 +64,6 @@ defmodule AshBrowserTests.TraceBrowserTest do
     conn
     |> signed_in()
     |> visit("/widgets?oban=1")
-    |> assert_connected()
     |> click_button("Create widget")
 
     producer = Trace.assert_span(key, Trace.job_producer())
@@ -93,7 +90,6 @@ defmodule AshBrowserTests.TraceBrowserTest do
     conn
     |> signed_in()
     |> visit("/widgets?fake=#{URI.encode_www_form(Fake.url(fake))}")
-    |> assert_connected()
     |> click_button("Create widget")
 
     [_browser, event, http] =
@@ -111,7 +107,7 @@ defmodule AshBrowserTests.TraceBrowserTest do
 
   @tag allow_browser_failures: true
   test "a crash in handle_event is an exception event on its span", %{conn: conn, test_key: key} do
-    conn |> signed_in() |> visit("/widgets") |> assert_connected() |> click_button("Crash")
+    conn |> signed_in() |> visit("/widgets") |> click_button("Crash")
 
     span =
       Trace.assert_exception(key,
@@ -129,7 +125,6 @@ defmodule AshBrowserTests.TraceBrowserTest do
     conn
     |> signed_in()
     |> visit("/widgets")
-    |> assert_connected()
     |> click_button("Create widget")
 
     Trace.assert_chain(key, [Trace.handle_event(), Trace.ash_action(action: :create)])

@@ -11,7 +11,7 @@ What it gives a host, as `AshBrowserTests.*`:
 
 | Module | Purpose |
 |---|---|
-| `Case` | Case template over `PhoenixTest.Playwright.Case`: the `:e2e` tag, a per-test key, session-cookie sign-in, failure capture |
+| `Case` | Case template over `Playwright.Test` and Fluffy's PhoenixTest facade: the `:e2e` tag, a per-test key, session-cookie sign-in, failure capture |
 | `Browser` | `sign_in/3`, `assert_deep/3` and friends across shadow roots, console and 5xx assertions |
 | `SandboxHook` | Telemetry handlers that give a LiveView its database access and test key, with no router change |
 | `Trace` | Chain, link, correlation and exception assertions, always selected by test key |
@@ -37,16 +37,11 @@ What it gives a host, as `AshBrowserTests.*`:
 Trace assertions need `ash_enterprise_telemetry` for spans. The rest of the package
 works without it.
 
-### 2. Playwright, from the host's `assets`
+### 2. Chromium
 
-```jsonc
-// assets/package.json, exact version
-"devDependencies": {"playwright": "1.65.0"}
-```
-
-Run `npm ci` with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`. Browsers are never
-downloaded: Chromium comes from the environment (`pkgs.chromium` in devenv, and an
-`executable_path` below).
+Install Playwright's driver and Chromium with `mix playwright.install chromium` (in CI,
+`mix playwright.install chromium --with-deps`). In devenv, Chromium comes from the
+environment instead (`pkgs.chromium`, an `executable_path` below).
 
 ### 3. `config/test.exs`
 
@@ -58,31 +53,22 @@ config :my_app, MyAppWeb.Endpoint,
 
 config :my_app, :sql_sandbox, true
 
-config :phoenix_test,
-  otp_app: :my_app,
-  endpoint: MyAppWeb.Endpoint,
-  playwright: [
-    browser_pool: :chromium_pool,
-    browser_pools: [
-      [
-        id: :chromium_pool,
-        browser: :chromium,
-        size: 2,
-        executable_path: System.get_env("E2E_CHROMIUM") || System.find_executable("chromium")
-      ]
-    ],
-    assets_dir: "./assets",
-    timeout: 30_000,
-    browser_launch_timeout: 90_000,
-    # One screenshot per test, and a trace when PW_TRACE is set. Set both halves
-    # of each pair: `screenshot_dir` without `screenshot: true` writes nothing,
-    # which is an easy way to upload an empty directory for months without
-    # noticing.
-    screenshot: true,
-    screenshot_dir: "tmp/playwright/screenshots",
-    trace: System.get_env("PW_TRACE") == "1",
-    trace_dir: "tmp/playwright/traces"
-  ]
+config :fluffy, endpoint: MyAppWeb.Endpoint, ecto_repos: [MyApp.Repo]
+
+# `AshBrowserTests.SandboxHook` reads the sandbox metadata from the user agent.
+config :fluffy, Fluffy.Sandbox, header: "user-agent"
+
+chromium = System.get_env("E2E_CHROMIUM") || System.find_executable("chromium")
+
+config :playwright, :test,
+  browser_name: :chromium,
+  launch_options: [timeout: 90_000] ++ if(chromium, do: [executable_path: chromium], else: []),
+  action_timeout: 30_000,
+  navigation_timeout: 30_000,
+  expect: [timeout: 30_000],
+  # Under test-results/: traces and screenshots of failed tests.
+  trace: :retain_on_failure,
+  screenshot: :only_on_failure
 
 # The in-VM trace ring must hold a whole run.
 config :ash_enterprise_telemetry, :trace_sink, ring_size: 5_000, max_spans: 200_000
@@ -131,8 +117,7 @@ Skip the `setup/1` call if the application already makes it at start. It needs
 `browser_context: true` in the test environment, or the server never adopts the browser's
 span as a parent and every chain from `browser_event/1` or `browser_connect/1` fails.
 
-`AshBrowserTests.start!/1` starts the Playwright supervisor, points PhoenixTest at the
-endpoint, and attaches the sandbox hook.
+`AshBrowserTests.start!/1` points Fluffy at the endpoint and attaches the sandbox hook.
 
 ### 5. The endpoint
 
@@ -175,7 +160,6 @@ defmodule MyAppWeb.E2E.OrdersTest do
     conn
     |> sign_in(%{"user_token" => token}, MyAppWeb.Endpoint.session_options())
     |> visit("/orders")
-    |> assert_connected()
     |> click_button("Create order")
 
     assert_chain(key, [browser_event(), handle_event(), ash_action(action: :create), query()])
@@ -341,7 +325,7 @@ upload never captures:
 ```bash
 cd ash_browser_tests
 mix deps.get
-npm ci --prefix test/playwright       # PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+MIX_ENV=test mix playwright.install chromium   # or E2E_CHROMIUM=<path>, as in devenv
 mix test
 ```
 

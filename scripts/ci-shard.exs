@@ -138,7 +138,13 @@ defmodule CiShard do
     IO.puts("wrote #{length(ordered)} timings to #{@timings}")
   end
 
-  defp test_files, do: Path.wildcard("test/**/*_test.exs") |> Enum.sort()
+  # test/playwright is the Playwright tier's, which runs in dev against the dev server
+  # (`mix test.playwright`, the e2e job), never in a shard.
+  defp test_files,
+    do:
+      Path.wildcard("test/**/*_test.exs")
+      |> Enum.reject(&String.starts_with?(&1, "test/playwright/"))
+      |> Enum.sort()
 
   defp recorded do
     if File.exists?(@timings), do: @timings |> File.read!() |> JSON.decode!(), else: %{}

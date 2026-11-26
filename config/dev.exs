@@ -245,3 +245,12 @@ config :ash_enterprise, AshEnterprise.Audit.ClearRecordsForReplay,
 # derives its own from SECRET_KEY_BASE in config/runtime.exs, and so does a dev-config instance
 # that sets SECRET_KEY_BASE (config/runtime.exs).
 config :ash, keyset_signing_secret: "dev-only keyset signing secret, not a deployment value"
+
+# The Playwright tier (`mix test.playwright`, test/playwright) runs in dev, against this server
+# on E2E_PORT: what playwright.config.ts set, the base URL and a 10 s expect timeout, and a trace
+# of each failed test under test-results/, which the e2e job uploads. Lit renders everything in
+# open shadow roots; Playwright's engines pierce those natively.
+config :playwright, :test,
+  base_url: "http://127.0.0.1:#{System.get_env("E2E_PORT", "4100")}",
+  expect: [timeout: 10_000],
+  trace: :retain_on_failure

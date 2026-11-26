@@ -98,7 +98,7 @@ const gates = describe<string>({
   tests: 'One result for the whole suite. It fails when any shard failed or was cancelled.',
   integration:
     'Three checks on one runner. The durability tier: races between connections, jobs killed between two commits and leases taken over, which the SQL sandbox in the suite cannot show. The scale budget: 1,000 and then 50,000 audited teams in one tenant, and a page through JSON:API, GraphQL and a business-unit-depth role must issue the same queries at both sizes and stay under a time ceiling. The restore drill: a seeded database is backed up and restored into a fresh one, and every table’s row count and every audit chain are checked on the copy.',
-  e2e: 'Every Playwright spec in assets/e2e, in Chromium, against a seeded development server.',
+  e2e: 'Every browser test in test/playwright, in Chromium, against a seeded development server.',
   quick:
     'Five checks on one runner. A cold clone fetches every dependency with no credentials, so every git dependency has to be public. The telemetry package’s own suite and the test-only browser package’s suite (Chromium against a small fixture application) run in their own mix projects. The battery runs flows that span two or more first-party packages, after checking its pins match mix.lock. This site is built (docs sync, link check, Astro), and what it would publish is scanned for private terms.',
   dialyzer: 'Type analysis, on pushes to main only. It runs and reports, and does not fail the run (ADR 0007).',
