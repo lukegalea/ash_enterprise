@@ -14,7 +14,7 @@ Things change in one of three ways:
    one when the bug is fixed upstream.
 
 `mix.lock` pins every git dependency to an exact commit, so builds are reproducible either way. "Bleeding edge" is
-about what you are signing up to maintain, not about builds drifting. CI's `cold-clone` job proves every git
+about what you are signing up to maintain, not about builds drifting. CI's cold-clone check (the `quick` job) proves every git
 dependency can be fetched anonymously.
 
 `test/ash_enterprise/bleeding_edge_doc_test.exs` fails if a git dependency or an `override: true` exists in `mix.exs` or
@@ -124,7 +124,9 @@ confined so that removing one is a deletion, not a refactor.
 | `ash_events_chain` | the audit log's hash chain, its verifier and its verified move to the archive (`AshEnterprise.Audit.EventLog`) | none | yes |
 | `ash_evidence` | evidence pipeline records (System One); declared `branch: "main"` | none | yes |
 | `ash_paper` | deterministic PDF documents (the paper kernel): schemas, layouts, themes, the run fragment and `mix paper.lock`; pinned by ref `e14889c` (upstream [lukegalea/ash_paper](https://github.com/lukegalea/ash_paper)) while the API settles | `ash_typst` 0.6.1 from Hex (its two-week age rule waived by Luke on 2026-11-11), `ash_open_lineage` (the pin above) | yes, once the API settles: a Hex release, then `{:ash_paper, "~> <release>"}` |
+| `ash_provenance` | the value-explanation contract: addresses, PROV-DM steps, typed gaps and the PROV-O JSON-LD export (ADR 0078); upstream [lukegalea/ash_provenance](https://github.com/lukegalea/ash_provenance) | none | yes |
 | `ash_bpmn` | BPMN process engine (ADR 0009) | none | yes |
+| `ash_versions` | the version registry the artifact pages read through (`AshEnterprise.Artifacts` implements `AshVersions.Registry`; its entries and differs stay here) and temporal history through as-of reads (`AshVersions.TemporalHistory`) | none | yes |
 | `ash_planning` | planning kernel: fragments, backend behaviour, IR and validators (ADR 0062) | `ash_open_lineage` | after `ash_open_lineage` |
 | `ash_agent` | agent runtime fragments, extension and host behaviours (ADR 0056); upstream [lukegalea/ash_agent](https://github.com/lukegalea/ash_agent); `Execution.Invocation` instantiates the invocation fragment | none | none planned: the Hex name `ash_agent` belongs to an unrelated project (ADR 0056) |
 | `ash_signatures` | signing request, signer, event and completion fragments, a provider behaviour and the in-platform and upload providers (ADR 0074); `AshEnterprise.Signatures` instantiates all five, signed in the app | none | yes |
@@ -132,7 +134,7 @@ confined so that removing one is a deletion, not a refactor.
 | `ash_decisions` | DMN decisions | `boxic_dmn` fork | no: needs `boxic_dmn` upstream |
 | `ash_discrete_business_events` | business-event ledger (ADR 0051) | `ash_events` fork | no: needs an `ash_events` release |
 | `ash_mdm` | master data: mappings, matching, survivorship merge (ADR 0054) | `ash_discrete_business_events` | no: after `ash_discrete_business_events` |
-| `ash_judgments` | judgment substrate (System One); tracks the default branch, declared without `branch:` to match `ash_agent_tools` | `ash_rules`, `ash_compliance`, `ash_bpmn`, `ash_decisions`, `ash_events` fork | no: needs both forks gone |
+| `ash_judgments` | judgment substrate (System One); tracks the default branch, declared without `branch:` to match `ash_agent_tools` | `ash_rules`, `ash_compliance`, `ash_bpmn`, `ash_decisions`, `ash_provenance`, `ash_events` fork | no: needs both forks gone |
 | `ash_agent_tools` | read-only Ash introspection for coding agents, and the code subjects the standards are judged over (dev and test only) | `ash_rules`, `ash_bpmn`, `ash_decisions`, `ash_judgments` (all optional) | after those four, so after `boxic_dmn` and both forks |
 
 **Path to Hex:** a Hex package can only depend on Hex packages, so publish from the leaves up:

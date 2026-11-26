@@ -22,7 +22,39 @@ defmodule Battery.PlanningKit do
     use Ash.Domain, validate_config_inclusion?: false
 
     resources do
+      resource Battery.PlanningKit.RunRow
       resource Battery.PlanningKit.CandidateRow
+    end
+  end
+
+  defmodule RunRow do
+    @moduledoc """
+    A planning run, reduced to what the fragment reads: `:propose` copies the
+    run's `world` onto the candidate through the host's `belongs_to :run`.
+    """
+
+    use Ash.Resource, domain: Battery.PlanningKit.Domain, data_layer: Ash.DataLayer.Ets
+
+    ets do
+      private? true
+    end
+
+    attributes do
+      attribute :id, :uuid, primary_key?: true, allow_nil?: false, public?: true
+
+      attribute :world, :atom,
+        default: :operational,
+        allow_nil?: false,
+        public?: true,
+        constraints: [one_of: [:operational, :scenario]]
+    end
+
+    actions do
+      defaults [:read]
+
+      create :open do
+        accept [:id, :world]
+      end
     end
   end
 
@@ -39,6 +71,13 @@ defmodule Battery.PlanningKit do
 
     ets do
       private? true
+    end
+
+    relationships do
+      belongs_to :run, Battery.PlanningKit.RunRow do
+        define_attribute? false
+        public? true
+      end
     end
 
     # ETS cannot check an identity natively; the domain pre-checks the fragment's
@@ -78,6 +117,8 @@ defmodule Battery.PlanningKit do
   """
   @spec propose!(String.t(), non_neg_integer(), [map()], atom()) :: struct()
   def propose!(run_id, index, assignments, check_status \\ :correct) do
+    open_run!(run_id)
+
     CandidateRow
     |> Ash.Changeset.for_create(:propose, %{
       run_id: run_id,
@@ -86,6 +127,17 @@ defmodule Battery.PlanningKit do
     })
     |> Ash.create!()
     |> transition!(:record_check, %{check_status: check_status})
+  end
+
+  # The run a candidate names, opened once as an operational run.
+  defp open_run!(run_id) do
+    case Ash.get(RunRow, run_id) do
+      {:ok, run} ->
+        run
+
+      {:error, _not_found} ->
+        RunRow |> Ash.Changeset.for_create(:open, %{id: run_id}) |> Ash.create!()
+    end
   end
 
   @doc "Runs one of the fragment's update actions, raising on refusal."

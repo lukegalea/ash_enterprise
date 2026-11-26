@@ -93,8 +93,11 @@ defmodule AshEnterprise.SystemOne.CalibrationRun do
     # The calibration surface's report (AshJudgments.A2ui.Calibration): what
     # the band tables did with live work, beside each run's coverage.
     action :automated_share, {:array, :map} do
-      description "Per family and week, the live bandings the band table admitted, sent to review and omitted."
-      run {AshJudgments.Banding.AutomatedShare, banding_resource: AshEnterprise.SystemOne.Banding}
+      description "Per family and week, the live answers the band table admitted, sent to review, omitted and did not band."
+
+      run {AshJudgments.Banding.AutomatedShare,
+           banding_resource: AshEnterprise.SystemOne.Banding,
+           judgment_resource: AshEnterprise.SystemOne.Judgment}
     end
   end
 
@@ -140,7 +143,7 @@ defmodule AshEnterprise.SystemOne.CalibrationRun do
       authorize_if AshEnterprise.Security.Checks.RoleGrant
     end
 
-    # A read of the runs and the bandings, each under its own policies.
+    # A read of the runs, the bandings and the judgments, each under its own policies.
     policy action(:automated_share) do
       authorize_if AshEnterprise.Security.Checks.RoleGrant
     end

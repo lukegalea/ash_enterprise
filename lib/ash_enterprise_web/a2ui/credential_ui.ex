@@ -3,8 +3,8 @@ defmodule AshEnterpriseWeb.A2ui.CredentialUI do
   The credentialing workspace: the clinic's credentials, soonest to expire first, with the
   clinician each belongs to and whether the registry has activated it.
 
-  The number is a secured column (ADR 0073): a reader without its grant sees it empty (an
-  A2UI surface sends a hidden value as `null`, `AshEnterpriseWeb.HiddenField`), and
+  The number is a secured column (ADR 0073): a reader without its grant sees it as masked
+  text, not empty (`AshEnterpriseWeb.HiddenField`), and
   a sort on it is refused for them (`AshEnterprise.Security.Preparations.SecuredFieldRefs`),
   so the table neither sorts by it by default nor offers it as a sort. A search on it
   matches nothing for that reader. Edit leaves a hidden number as it is: the form sends

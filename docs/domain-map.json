@@ -654,7 +654,8 @@
       "mission": "Declared questions, the append-only judgment ledger, banding, admitted facts, human verdicts; evidence adjudication as assertions.",
       "packages": [
         "ash_judgments",
-        "ash_evidence"
+        "ash_evidence",
+        "ash_provenance"
       ],
       "adrs": [
         38,
@@ -1415,7 +1416,9 @@
       "domain": null,
       "plane": "experience",
       "mission": "The artifact registry: every versioned thing a person authors, reviews or releases, declared once.",
-      "packages": [],
+      "packages": [
+        "ash_versions"
+      ],
       "adrs": [],
       "terms": [
         {
@@ -1558,6 +1561,15 @@
       "role": "Document versions, addressed atoms, parse runs, assertions."
     },
     {
+      "package": "ash_provenance",
+      "repo": "lukegalea/ash_provenance",
+      "kind": "first-party",
+      "context": [
+        "system-one"
+      ],
+      "role": "Plain-data contract that explains a value: steps, typed gaps, PROV-O export."
+    },
+    {
       "package": "ash_rules",
       "repo": "lukegalea/ash_rules",
       "kind": "first-party",
@@ -1692,6 +1704,15 @@
         "signatures"
       ],
       "role": "The signature and acknowledgement fragments the host instantiates (ADR 0074)."
+    },
+    {
+      "package": "ash_versions",
+      "repo": "lukegalea/ash_versions",
+      "kind": "first-party",
+      "context": [
+        "artifacts"
+      ],
+      "role": "The version registry the artifact pages read through, and temporal history."
     },
     {
       "package": "ash_paper",
