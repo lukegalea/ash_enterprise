@@ -26,8 +26,9 @@ defmodule AshEnterprise.Assistant do
   loop: eleven over the person's own records, `stalled_reviews`, and `trace` and
   `explain`, which answer "what happened" and "why" from the execution record
   (`AshEnterprise.Execution.Entry`) as the person may read it, citing only what it
-  returned. One composes (`AshEnterprise.Assistant.Compose`): it asks for a
-  table, calendar or board of the person's own records, which the server writes as
+  returned; `explain` also answers where one value came from
+  (`AshEnterprise.Provenance`, ADR 0078). One composes
+  (`AshEnterprise.Assistant.Compose`): it asks for a table, calendar or board of the person's own records, which the server writes as
   an `AshA2ui.Dynamic` spec from a curated catalogue, resolves against the host
   allowlist and renders in the chat as the person
   (`AshEnterprise.Assistant.Composer`).
@@ -211,8 +212,11 @@ defmodule AshEnterprise.Assistant do
       description """
       Why one record stands as it does: the record (role subject), what its
       status means and waits on, and what was recorded under it. Pass a ref or
-      an entry's under. Answer only from these rows; rows with role missing
-      say what is not known, and you must say it too.
+      an entry's under. Or pass the address of one value to see where it came
+      from: who set it, when, in what context, and where the answer stops (rows
+      with role missing). The value itself is not in these rows. Answer only from
+      these rows; rows with role missing say what is not known, and you must say
+      it too.
       """
 
       action_parameters []

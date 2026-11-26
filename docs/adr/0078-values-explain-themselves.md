@@ -266,6 +266,22 @@ fragment, where an RFC 3986 parser sees no query; the address would need its own
 disclosure, and it needs its own record. Keyed digests already issued become unverifiable with their scopes whatever
 this record later says, which is their purpose.
 
+## Amendment, 2026-11-26 — the Why page and the tool's value form
+
+The first two surfaces over `explain` are in place, both behind the `ont_why` flag ([ADR 0072](0072-ash-native-tenant-flags.md)),
+which offers them and authorizes nothing:
+
+- **The Why page** (`/app/why`) is a report over `Explanation.why`, which answers through `explain` and projects the
+  answer into rows (`AshEnterprise.Provenance.Why`): steps first, then gaps, then a row saying so when the walk cut
+  the answer short. A value the reader may not see is the masked text, and a step that shows no value has no value
+  column. A person pastes the address; a record page that links to it comes later.
+- **The assistant's `explain` tool** takes an `address` in place of a `ref`, and `/mcp` serves the tool. The rows are the
+  page's, and carry structure only: who, when, in what context, the chain status and where the answer stops, with a
+  value shown as the masked text when it was hidden and never otherwise. That is why this form is not behind the
+  zone gate (ADR 0042): the gate keeps content from a model outside the zone, and there is none in these rows. The
+  `ref` form is unchanged, and an MCP client still gets the gate's refusal for it.
+- An unreadable subject and a missing one get one answer, as decision 6 requires.
+
 ## Manifesto amendment
 
 Thesis 3 carries this record's rule for explanations as a dated amendment:

@@ -636,7 +636,11 @@ config :ash_enterprise,
 # ADR 0072: the feature flags this build declares, key => what it turns on. A tenant
 # decides who sees each one with an `AshEnterprise.Flags.Flag` row; an undeclared key
 # is off everywhere. `FLAGS_OFF` (config/runtime.exs) kills declared keys.
-config :ash_enterprise, AshEnterprise.Flags.Catalogue, flags: %{}
+config :ash_enterprise, AshEnterprise.Flags.Catalogue,
+  flags: %{
+    "ont_why" =>
+      "Where a value came from: the Why page and the assistant's explain tool for a value's address (ADR 0078)."
+  }
 
 # ADR 0026 as amended: a model outside the zone is a sub-processor, called only for a
 # tenant that has recorded an opt-in (`AshEnterprise.AI.Models.check/3`). A call that

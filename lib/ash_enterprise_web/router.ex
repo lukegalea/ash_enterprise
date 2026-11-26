@@ -596,7 +596,11 @@ defmodule AshEnterpriseWeb.Router do
         :list_roles,
         :list_privileges,
         :list_role_assignments,
-        :assign_role
+        :assign_role,
+        # Where a value came from (ADR 0078): the assistant's own `explain`, which
+        # answers a value's address for any caller and refuses a record's ref
+        # outside an agent run.
+        :explain
       ],
       # The server implements 2025-03-26, but many clients still negotiate
       # against the older statement. Advertising the older one keeps Claude

@@ -580,6 +580,13 @@
     },
     {
       "action": null,
+      "kind": "live",
+      "module": "AshEnterpriseWeb.SurfaceLive.Why",
+      "path": "/app/why",
+      "verb": "GET"
+    },
+    {
+      "action": null,
       "kind": "forward",
       "module": "AshAuthentication.Phoenix.StrategyRouter",
       "path": "/auth",

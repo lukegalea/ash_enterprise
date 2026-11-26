@@ -25,3 +25,84 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "the system (%{name})"
 msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:90
+#, elixir-autogen, elixir-format
+msgid "Stopped at depth %{depth} of %{max_depth} and %{steps} of %{max_steps} steps."
+msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:128
+#, elixir-autogen, elixir-format
+msgid "attributed to"
+msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:135
+#, elixir-autogen, elixir-format
+msgid "could not be read"
+msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:139
+#, elixir-autogen, elixir-format
+msgid "cut short"
+msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:126
+#, elixir-autogen, elixir-format
+msgid "derived from"
+msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:129
+#, elixir-autogen, elixir-format
+msgid "done by"
+msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:136
+#, elixir-autogen, elixir-format
+msgid "erased"
+msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:131
+#, elixir-autogen, elixir-format
+msgid "erased by"
+msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:117
+#: lib/ash_enterprise/provenance/why.ex:137
+#, elixir-autogen, elixir-format
+msgid "not recorded"
+msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:134
+#, elixir-autogen, elixir-format
+msgid "not yours to read"
+msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:130
+#, elixir-autogen, elixir-format
+msgid "on behalf of"
+msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:138
+#, elixir-autogen, elixir-format
+msgid "past the archive"
+msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:132
+#, elixir-autogen, elixir-format
+msgid "revision of"
+msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:125
+#, elixir-autogen, elixir-format
+msgid "set by"
+msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:133
+#, elixir-autogen, elixir-format
+msgid "sourced from"
+msgstr ""
+
+#: lib/ash_enterprise/provenance/why.ex:127
+#, elixir-autogen, elixir-format
+msgid "used"
+msgstr ""
