@@ -941,7 +941,10 @@ jobs:
 
     env:
       E2E_CHROMIUM: bundled
-      JOURNEYS_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}
+      # One run id for every attempt: a re-run job counts its earlier attempts as
+      # retries, so a pass after a failure is never approvable.
+      JOURNEYS_RUN_ID: ci-${{ github.run_id }}
+      JOURNEYS_RUN_ATTEMPT: ${{ github.run_attempt }}
 
     steps:
       - uses: actions/checkout@v4

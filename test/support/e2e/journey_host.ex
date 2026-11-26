@@ -11,8 +11,11 @@ defmodule AshEnterpriseWeb.E2E.JourneyHost do
       the labels the reader sees.
     * `:as_of` is the page header's "As of" time, the one request-time label on a
       surface page. It cannot be pinned by a seed, so a figure masks it.
-    * The audit proof: an `audit_events` row with the step's correlation id, for
-      one of the world's bound records.
+    * The audit proof: the `audit_events` row the step's row action wrote, by its
+      action on its resource, about the record it acted on, with the step's
+      correlation id and no earlier than the step began. A LiveView keeps one
+      correlation id for its whole life (`AshEnterprise.Platform.TelemetryCorrelation`),
+      so the correlation id alone would also find an earlier step's rows.
   """
 
   @behaviour AshBrowserTests.Journeys.Host
@@ -38,17 +41,21 @@ defmodule AshEnterpriseWeb.E2E.JourneyHost do
   def mask(:as_of), do: ~s([id$="-as-of"])
 
   @impl true
-  def assert_audit(correlation_id, %{bindings: bindings}) do
-    ids = for {_binding, %{id: id}} <- bindings, do: id
-
+  def assert_audit(correlation_id, %{record: %{id: record_id}} = acted, _context) do
     events =
       EventLog
       |> Ash.Query.filter(correlation_id == ^correlation_id)
       |> Ash.read!(authorize?: false)
 
-    assert Enum.any?(events, &(&1.record_id in ids)),
-           "no audit row with correlation id #{correlation_id} for a bound record; " <>
+    assert Enum.any?(events, &proves?(&1, acted)),
+           "no audit row for #{inspect(acted.resource)}.#{acted.action} on #{record_id} " <>
+             "with correlation id #{correlation_id} since #{DateTime.to_iso8601(acted.since)}; " <>
              "rows with that correlation id: " <>
-             inspect(Enum.map(events, &{&1.resource, &1.action, &1.record_id}))
+             inspect(Enum.map(events, &{&1.resource, &1.action, &1.record_id, &1.occurred_at}))
+  end
+
+  defp proves?(event, %{resource: resource, action: action, record: %{id: id}, since: since}) do
+    event.resource == resource and event.action == action and event.record_id == id and
+      DateTime.compare(event.occurred_at, since) != :lt
   end
 end
