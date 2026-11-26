@@ -12,8 +12,8 @@ defmodule AshEnterprise.Journeys.Offboarding do
     * the action is traced from the server's event to the `deactivate` action
       under one correlation id, and that correlation id wrote the audit row;
     * the person's account is inactive afterwards;
-    * they are not disconnected at once: an open page of theirs stays until their
-      next action, and that action sends them to sign in.
+    * the next time they open the app, they land on sign in. Nobody is
+      disconnected at once: the next thing they do sends them there.
 
   `metadata` names the controls it is evidence for; only the evidence sink reads it.
   """
@@ -48,6 +48,7 @@ defmodule AshEnterprise.Journeys.Offboarding do
 
     step :leaver_is_signed_in, as: :leaver do
       open(:launcher)
+      expect(lands_on: :launcher)
       say("The person who is leaving is still signed in, with the app open.")
     end
 
@@ -71,10 +72,7 @@ defmodule AshEnterprise.Journeys.Offboarding do
 
       figure(:confirm, frame: :dialog)
 
-      note(
-        :warning,
-        "They are not signed out at once: the next thing they do in the app sends them to sign in."
-      )
+      note(:warning, "The next thing they do in the app sends them to sign in.")
 
       expect(
         trace: [:handle_event, {:ash_action, :deactivate}],

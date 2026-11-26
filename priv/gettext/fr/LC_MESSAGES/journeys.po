@@ -24,6 +24,10 @@ msgid "Revoke a leaver's access"
 msgstr "Révoquer l'accès d'une personne qui s'en va"
 
 #: lib/ash_enterprise/journeys/offboarding.ex
+msgid "The next thing they do in the app sends them to sign in."
+msgstr "Sa prochaine action dans l'application la renvoie vers la page de connexion."
+
+#: lib/ash_enterprise/journeys/offboarding.ex
 msgid "The next time they open the app, they are sent to sign in."
 msgstr "La prochaine fois que cette personne ouvre l'application, elle est renvoyée vers la page de connexion."
 
@@ -38,7 +42,3 @@ msgstr "La personne qui s'en va est toujours connectée, avec l'application ouve
 #: lib/ash_enterprise/journeys/offboarding.ex
 msgid "Their account is inactive, and the next thing they do in the app sends them to sign in."
 msgstr "Son compte est inactif, et sa prochaine action dans l'application la renvoie vers la page de connexion."
-
-#: lib/ash_enterprise/journeys/offboarding.ex
-msgid "They are not signed out at once: the next thing they do in the app sends them to sign in."
-msgstr "Elle n'est pas déconnectée immédiatement : sa prochaine action dans l'application la renvoie vers la page de connexion."
