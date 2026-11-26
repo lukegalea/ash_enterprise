@@ -36,6 +36,7 @@ defmodule AshEnterprise.Platform.DemoTenant do
   alias AshEnterprise.Credentialing.DemoData, as: ClinicData
   alias AshEnterprise.Mdm.DemoData, as: MdmData
   alias AshEnterprise.Platform.{DemoData, Seeder}
+  alias AshEnterprise.Showcase.Search
 
   # Sobelow reads `@sobelow_skip` from the source AST; persisting it keeps
   # `--warnings-as-errors` from calling it unused (see Zones).
@@ -102,7 +103,7 @@ defmodule AshEnterprise.Platform.DemoTenant do
 
   @doc """
   Fills the demo tenant `organization`; raises `ArgumentError` for any other. `opts` as for `run!/1`.
-  Returns `%{counts:, clinic:, mdm:}`, `mdm` being `nil` when the demo administrator is
+  Returns `%{counts:, clinic:, comparison:, search:, mdm:}`, `mdm` being `nil` when the demo administrator is
   missing.
   """
   @spec populate!(Organization.t(), keyword()) :: map()
@@ -122,6 +123,7 @@ defmodule AshEnterprise.Platform.DemoTenant do
       counts: counts,
       clinic: clinic,
       comparison: ComparisonDemoData.populate(tenant, clinic.director),
+      search: Search.seed!(organization, clinic.coordinator),
       mdm: admin && MdmData.populate(tenant, admin)
     }
   end
@@ -179,6 +181,7 @@ defmodule AshEnterprise.Platform.DemoTenant do
           counts: map(),
           clinic: map(),
           comparison: map(),
+          search: map(),
           mdm: map() | nil
         }
   def run!(opts \\ []) do

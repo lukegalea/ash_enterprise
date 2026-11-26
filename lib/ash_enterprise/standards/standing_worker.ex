@@ -186,20 +186,6 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
     the runtime reports for it and the runtime's version.
     """
     @spec default_instrument() :: {:ok, map()} | {:error, term()}
-    def default_instrument do
-      with {:ok, profile} <- AshJudgments.Profile.fetch(@profile),
-           {:ok, digest} <- AshJudgments.Profile.Digest.fetch(profile),
-           {:ok, transport} <- AshJudgments.Profile.req_llm_opts(profile),
-           {:ok, version} <- runtime_version(Keyword.fetch!(transport, :base_url)) do
-        {:ok, %{model_version: profile.model, model_digest: digest, runtime_version: version}}
-      end
-    end
-
-    defp runtime_version(base_url) do
-      case Req.get(base_url <> "/api/version", retry: false) do
-        {:ok, %{status: 200, body: %{"version" => version}}} -> {:ok, "ollaya-" <> version}
-        other -> {:error, {:runtime_version_unavailable, other}}
-      end
-    end
+    def default_instrument, do: AshEnterprise.SystemOne.Instrument.identity(@profile)
   end
 end

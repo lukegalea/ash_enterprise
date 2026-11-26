@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "first_party": ["github\\.com[:/]lukegalea/"],
+  "private": [],
+  "community_fork": ["github\\.com[:/](ash-project|team-alembic|expert-lsp|tidewave-ai)/"]
+}

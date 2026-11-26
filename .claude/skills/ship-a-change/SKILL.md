@@ -69,8 +69,15 @@ gh run watch <run-id>                             # block until it finishes
 ```
 
 - **A job goes red.** Reproduce that file locally with `mix test <file>`, fix it, and push to the
-  same `ci/` branch again. The Dialyzer job is advisory; add no new warnings. The browser
-  end-to-end job gates like the others: a red spec is a red run.
+  same `ci/` branch again. The browser end-to-end job gates like the others: a red spec is a red
+  run. The `quick` and `integration` jobs each hold several checks; every step name says which
+  check it belongs to, and one red check does not stop the others from running.
+- **Dialyzer** is advisory and runs only on pushes to `main`, so a `ci/` run never shows it. Add
+  no new warnings: look at main's run of your change.
+- **The shards drift apart.** The `Test suite (all shards)` job rebuilds the shard timings on every
+  green run; its summary says how many test files the committed `test/support/ci_timings.json`
+  has no timing for. When that grows, or one shard runs far longer than the rest, commit the
+  rebuilt file: `gh run download <run-id> -n ci-timings -D test/support`.
 - **Everything is green.** Fetch again. If `main` moved and the rebase touches files you changed,
   push to `ci/` and wait again. Otherwise:
 
@@ -83,6 +90,25 @@ git push origin --delete ci/<name>
 Waiting means blocking on `gh run watch` (or a bounded `until` loop), not checking a log every few
 seconds. A run can sit queued for a while when several branches are in CI at once; that is still far
 shorter than a local whole-suite run.
+
+### Self-hosted runners
+
+Every job in `ci.yml`, and the SBOM job in `supply-chain.yml`, can run on a self-hosted runner
+labelled `self-hosted` and `homelab` instead of GitHub's. It is off until the `SELF_HOSTED_JOBS`
+repository variable lists the job's id, as a JSON array:
+
+```bash
+gh variable set SELF_HOSTED_JOBS --body '["test-shards","integration"]'
+gh variable delete SELF_HOSTED_JOBS          # everything back on GitHub's runners
+```
+
+The ids are the job keys: `test`, `test-shards` (all ten shards), `tests`, `integration`, `e2e`,
+`quick`, `dialyzer`, and `sbom` in `supply-chain.yml`. Only a push to this repository is ever
+routed. A pull request never is: the repository is public, and a fork's pull request must never
+reach a self-hosted runner. A runner that takes these jobs needs Docker (each job's Postgres is
+a service container on host port 5432, so one job at a time per Docker host), passwordless sudo
+for apt on Ubuntu, and Chromium's system libraries for `e2e` and `quick`. The note at the top of
+`ci.yml` is the reference.
 
 ## 4. When other work lands first
 
@@ -104,3 +130,18 @@ Other sessions, long-running services and their databases run on the same machin
   (`pkill`, `killall`).
 - Never stop services you did not create.
 - Remove your worktree when your work has landed, and drop the test databases it created.
+
+## 6. The pre-flight gate (opt-in)
+
+`priv/decisions/agent_gate_rules.dmn` holds this page's rules as data: force only your own `ci/`
+branch, `mix` only inside `devenv shell --`, no `ecto.drop` without your own `DB_NAME`, no
+hand-edited migrations, no edits to the vendored CDM corpus, no killing by pattern. Its hook is not
+enabled in `.claude/settings.json`. To check your own calls against it, start
+`devenv shell -- mix ash_agent.serve --port 4197` and add to `.claude/settings.local.json`:
+
+```json
+{"hooks": {"PreToolUse": [{"hooks": [{"type": "command", "timeout": 5,
+  "command": "\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/pretooluse-gate.sh\""}]}]}}
+```
+
+While the daemon is down every call except a read is asked. See `docs/system-one/pre-flight-gate.md`.

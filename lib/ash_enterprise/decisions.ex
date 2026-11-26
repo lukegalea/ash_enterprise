@@ -37,7 +37,9 @@ defmodule AshEnterprise.Decisions do
       define :clause_table_impact_changes, action: :impact_changes
     end
 
-    resource AshEnterprise.Decisions.Evaluation
+    resource AshEnterprise.Decisions.Evaluation do
+      define :get_evaluation, action: :read, get_by: [:id], not_found_error?: false
+    end
   end
 
   @doc """

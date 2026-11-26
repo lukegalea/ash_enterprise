@@ -126,6 +126,12 @@ defmodule AshEnterpriseWeb.MdmSurfacesLiveTest do
     refute encoded =~ "Loser McAbsorbed"
   end
 
+  test "the proposed-match-rules surface mounts at its route", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/app/mdm/match-rules")
+
+    assert pushed_json(view) =~ "mdm_match_rules"
+  end
+
   test "the steward queue shows a review candidate with its verdicts", %{
     conn: conn,
     org: org,

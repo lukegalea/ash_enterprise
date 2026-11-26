@@ -25,15 +25,25 @@ concurrency:
   # for one commit cancel down to one. A fork PR keys on its pull ref, so a
   # fork branch named main can never cancel main's run.
   group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref || github.event_name == 'pull_request' && github.ref || github.ref_name }}
-  cancel-in-progress: true
+  # Main's runs are never cancelled: main takes a push every half hour or so,
+  # longer than a run, so cancelling left main with no finished run at all.
+  # GitHub still keeps only the newest pending run, so main never queues more
+  # than one behind the one in progress.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
 
 jobs:
   sbom:
-    name: SBOM covers every locked dependency
-    runs-on: ubuntu-latest
+    name: SBOM covers every locked dependency, and advisories
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && github.actor == 'lukegalea' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'sbom') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
+    # The SBOM gate and the advisories check, on every push and on the daily
+    # schedule. They were two jobs of about a minute each until 2026-11-26, each
+    # with its own runner and dependency fetch. The advisories run whether or
+    # not the SBOM steps passed, so one never hides the other. Self-hosted
+    # routing works as in ci.yml (see the note at the top there); the id to list
+    # in SELF_HOSTED_JOBS is `sbom`.
     timeout-minutes: 30
     permissions:
       contents: read
@@ -54,7 +64,9 @@ jobs:
         with:
           node-version: "22"
 
-      - run: mix deps.get
+      # MIX_ENV unset is dev, the environment hex.audit below reads.
+      - id: deps
+        run: mix deps.get
 
       # The production dependency names, from a prod-env resolution: the BOM is
       # held to what the release ships, not to dev and test tooling.
@@ -112,27 +124,17 @@ jobs:
           subject-path: sbom-elixir.cdx.json
           sbom-path: sbom-elixir.cdx.json
 
-  advisories:
-    name: Advisories (hex.audit + OSV) on a schedule
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-
-      - id: beam
-        uses: ./.github/actions/setup-beam
-
-      - run: mix deps.get
+      # Retired Hex packages. ci.yml runs the same on a push; this one also runs
+      # daily, so an advisory published after the last push is seen.
+      - name: Retired Hex packages
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         env:
           MIX_ENV: dev
-
-      # Retired Hex packages. ci.yml runs the same on a push; this one runs daily.
-      - run: mix hex.audit
-        env:
-          MIX_ENV: dev
+        run: mix hex.audit
 
       # Published advisories for Hex and npm, from the lockfiles alone.
       - name: OSV-Scanner
+        if: ${{ !cancelled() }}
         uses: google/osv-scanner-action/osv-scanner-action@v2.7.0
         with:
           scan-args: |-

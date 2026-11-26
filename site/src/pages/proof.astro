@@ -96,27 +96,25 @@ const gates = describe<string>({
   test: 'Everything except the suite: compile with warnings as errors, lint, check that generated code and catalogs are committed, scan for security problems and check for retired Hex packages.',
   'test-shards': 'The main suite, split by file across runners, each shard on a database of its own.',
   tests: 'One result for the whole suite. It fails when any shard failed or was cancelled.',
-  durability:
-    'Races between connections, jobs killed between two commits and leases taken over: what the SQL sandbox in the suite cannot show.',
-  scale:
-    'Seeds 1,000 and then 50,000 audited teams in one tenant, and checks that a page through JSON:API, GraphQL and a business-unit-depth role issues the same queries at both sizes and stays under a time ceiling.',
-  'backup-restore-drill':
-    'Backs up a seeded database, restores it into a fresh one, and checks every table’s row count and every audit chain on the copy.',
+  integration:
+    'Three checks on one runner. The durability tier: races between connections, jobs killed between two commits and leases taken over, which the SQL sandbox in the suite cannot show. The scale budget: 1,000 and then 50,000 audited teams in one tenant, and a page through JSON:API, GraphQL and a business-unit-depth role must issue the same queries at both sizes and stay under a time ceiling. The restore drill: a seeded database is backed up and restored into a fresh one, and every table’s row count and every audit chain are checked on the copy.',
   e2e: 'Every Playwright spec in assets/e2e, in Chromium, against a seeded development server.',
-  telemetry: 'The telemetry package’s own suite, in its own mix project.',
-  'browser-tests': 'The test-only browser package’s suite, driving Chromium against a small fixture application.',
+  quick:
+    'Five checks on one runner. A cold clone fetches every dependency with no credentials, so every git dependency has to be public. The telemetry package’s own suite and the test-only browser package’s suite (Chromium against a small fixture application) run in their own mix projects. The battery runs flows that span two or more first-party packages, after checking its pins match mix.lock. This site is built (docs sync, link check, Astro), and what it would publish is scanned for private terms.',
   journeys:
     'Walks each declared journey in every locale it names, on the Chromium the pinned Playwright release bundles, and keeps the runs as an artifact: the only runs figures are approved from. It reports, and does not fail the run, until the figures have held steady across runs.',
-  battery:
-    'Flows that span two or more first-party packages, in battery/’s own mix project and database, after checking its pins match mix.lock.',
-  dialyzer: 'Type analysis. It runs and reports, and does not fail the run (ADR 0007).',
-  site: 'Builds this site (docs sync, link check, Astro) and scans what it would publish for private terms.',
-  'cold-clone': 'Fetches every dependency with no credentials, so every git dependency has to be public.',
+  dialyzer: 'Type analysis, on pushes to main only. It runs and reports, and does not fail the run (ADR 0007).',
 });
 
-/** Setup steps (caches, installs, artifact uploads) are left out of the lists. */
+/**
+ * Setup steps (caches, installs, artifact uploads, dependency fetches) are left
+ * out of the lists. A job that holds several checks prefixes each step's name
+ * with its check ("Battery: install xmllint").
+ */
 const isSetup = (s: CiStep): boolean =>
-  (s.name !== null && /^(Restore|Install|Locate|Upload)\b/.test(s.name)) ||
+  (s.name !== null &&
+    (/^(?:[^:]+: )?(restore|install|locate|upload)\b/i.test(s.name) ||
+      /^[^:]+: (fetch|compile) dependencies$/.test(s.name))) ||
   (s.name === null && /^(mix deps\.(get|compile)|npm ci|mkdir)\b/.test(s.run ?? ''));
 
 const blockingCount = gates.filter((g) => g.job.blocking).length;
@@ -201,7 +199,7 @@ const securityChecks = [
   { label: 'Security scan', step: ciStep('test', 'Security scan') },
   { label: 'Retired Hex packages', step: ciStep('test', 'Retired Hex packages') },
   { label: 'Iron laws judge', step: ciStep('test', 'Iron laws judge') },
-  { label: 'Fetch dependencies with no credentials', step: ciStep('cold-clone', 'Fetch dependencies with no credentials') },
+  { label: 'Fetch dependencies with no credentials', step: ciStep('quick', 'Cold clone: fetch dependencies with no credentials') },
 ];
 const assent = overrides.find((o) => o.name === 'assent');
 
@@ -392,7 +390,7 @@ const cap = (s: string): string => s.replace(/^./, (c) => c.toUpperCase());
     step="04"
     eyebrow="Verification gates"
     title="What CI runs"
-    lead={`${cap(numberWord(gates.length))} jobs run on every push to ${pushBranches.join(', ')}${ciOnPullRequests ? ' and on every pull request' : ''}. ${cap(numberWord(blockingCount))} of them fail the run when they fail.`}
+    lead={`${cap(numberWord(gates.length))} jobs run on pushes to ${pushBranches.join(', ')}${ciOnPullRequests ? ' and on every pull request' : ''}. ${cap(numberWord(blockingCount))} of them fail the run when they fail.`}
     tone="muted"
     wide
   >

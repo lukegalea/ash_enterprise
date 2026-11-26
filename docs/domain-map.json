@@ -621,6 +621,52 @@
       ]
     },
     {
+      "id": "provenance",
+      "name": "Provenance",
+      "domain": "AshEnterprise.Provenance",
+      "plane": "knowledge",
+      "mission": "Where a value came from (ADR 0078): one explain question over any readable value, answered as the reader through one dispatch, with steps and typed gaps and nothing the reader could not read one record at a time.",
+      "packages": [
+        "ash_provenance"
+      ],
+      "adrs": [
+        78,
+        23,
+        52,
+        73
+      ],
+      "terms": [
+        {
+          "term": "address",
+          "definition": "Where a value lives: <base>/<type>/<id>#<attribute>; the type token is declared in the explainer registry, never derived from a module name."
+        },
+        {
+          "term": "explainer",
+          "definition": "One answerer in the dispatch (package explainers, derived values, the audit log, the record columns); the first that does not pass answers, and each antecedent it names is asked again."
+        },
+        {
+          "term": "gap",
+          "definition": "Where an answer stops, and why: unreadable, failed, erased, not recorded, or archived — never read as empty or as a clean answer."
+        },
+        {
+          "term": "masked",
+          "definition": "What a step shows of a value the reader may not see; never empty, which would read as a known, empty value."
+        }
+      ],
+      "edges": [
+        {
+          "to": "audit",
+          "pattern": "customer–supplier",
+          "note": "Reads the newest event that changed the attribute, as the reader, hot log then archive."
+        },
+        {
+          "to": "canonical",
+          "pattern": "open host service",
+          "note": "Explains canonical values through their own registry tokens."
+        }
+      ]
+    },
+    {
       "id": "exports",
       "name": "Exports",
       "domain": "AshEnterprise.Exports",
@@ -654,7 +700,8 @@
       "mission": "Declared questions, the append-only judgment ledger, banding, admitted facts, human verdicts; evidence adjudication as assertions.",
       "packages": [
         "ash_judgments",
-        "ash_evidence"
+        "ash_evidence",
+        "ash_provenance"
       ],
       "adrs": [
         38,
@@ -1415,7 +1462,9 @@
       "domain": null,
       "plane": "experience",
       "mission": "The artifact registry: every versioned thing a person authors, reviews or releases, declared once.",
-      "packages": [],
+      "packages": [
+        "ash_versions"
+      ],
       "adrs": [],
       "terms": [
         {
@@ -1558,6 +1607,15 @@
       "role": "Document versions, addressed atoms, parse runs, assertions."
     },
     {
+      "package": "ash_provenance",
+      "repo": "lukegalea/ash_provenance",
+      "kind": "first-party",
+      "context": [
+        "system-one"
+      ],
+      "role": "Plain-data contract that explains a value: steps, typed gaps, PROV-O export."
+    },
+    {
       "package": "ash_rules",
       "repo": "lukegalea/ash_rules",
       "kind": "first-party",
@@ -1692,6 +1750,15 @@
         "signatures"
       ],
       "role": "The signature and acknowledgement fragments the host instantiates (ADR 0074)."
+    },
+    {
+      "package": "ash_versions",
+      "repo": "lukegalea/ash_versions",
+      "kind": "first-party",
+      "context": [
+        "artifacts"
+      ],
+      "role": "The version registry the artifact pages read through, and temporal history."
     },
     {
       "package": "ash_paper",

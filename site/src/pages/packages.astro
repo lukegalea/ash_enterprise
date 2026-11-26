@@ -104,7 +104,7 @@ const pathDeps = packages.filter((p) => p.declared === 'path');
 /** Packages that build on no Ash package at all. */
 const notOnAsh = packages.filter((p) => !p.builds_on.some((d) => d === 'ash' || d.startsWith('ash_')));
 const names = (ps: Package[]): string => ps.map((p) => p.name).join(', ');
-const coldClone = ciJob('cold-clone');
+const coldClone = ciJob('quick');
 ---
 
 <Base
@@ -130,8 +130,8 @@ const coldClone = ciJob('cold-clone');
           </>
         )
       }, and CI's{' '}
-      <a class="ae-link" href={withBase(`/proof/#gate-${coldClone.id}`)}>{coldClone.id} job</a> checks that every one
-      of them can be fetched with no credentials.
+      <a class="ae-link" href={withBase(`/proof/#gate-${coldClone.id}`)}>cold-clone check</a>, in its {coldClone.id}{' '}
+      job, makes sure every one of them can be fetched with no credentials.
     </p>
   </header>
 

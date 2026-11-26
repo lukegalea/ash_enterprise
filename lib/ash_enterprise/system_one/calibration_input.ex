@@ -8,8 +8,8 @@ defmodule AshEnterprise.SystemOne.CalibrationInput do
   The package never sees a model or an eval store, so the pairs come from
   the host. This host keeps them as a file per family,
   `<eval_set_dir>/<family>.eval-set.json`, written once from the judgment
-  ledger by the family's exporter (for `third_party_licence`,
-  `AshEnterprise.Licences.EvalSet`). Reading a file rather than the ledger
+  ledger by the family's exporter (for each licence family, such as
+  `licence_weak_copyleft`, `AshEnterprise.Licences.EvalSet`). Reading a file rather than the ledger
   keeps the seam free of a database (the task boots no repo), makes the
   eval set a reviewable artifact, and gives `eval_set_hash` a plain meaning:
   the sha256 of the file's bytes.
@@ -18,6 +18,15 @@ defmodule AshEnterprise.SystemOne.CalibrationInput do
   (`S1_EVAL_SET_DIR` in `config/runtime.exs`). With no directory, or no file
   for the family, the seam refuses rather than inventing pairs. Only the
   `eval_set` source exists here; `shadow_ledger` is refused.
+
+  Only the questions the family declares now calibrate it. A file saved
+  before a question moved to another family still names that question, in
+  its `question_hashes` and its pairs' `question_hash` and `question`; it
+  is refused (`{:questions_outside_family, names}`), and so is a hash no
+  declared question has. A file saved under a family that no longer
+  exists, such as the pooled `third_party_licence` the licence questions
+  shared until 2026-11-21, declares none of its questions and is refused
+  the same way. Rebuild the file from the ledger instead.
 
   ## The file
 
@@ -46,16 +55,25 @@ defmodule AshEnterprise.SystemOne.CalibrationInput do
          path = Path.join(dir, "#{family}.eval-set.json"),
          {:ok, bytes} <- read(path),
          {:ok, doc} <- Jason.decode(bytes),
-         :ok <- same_family(doc, family) do
+         :ok <- same_family(doc, family),
+         :ok <- own_questions(doc) do
       {:ok, input(doc, bytes)}
     end
   end
 
   def load(_family, source), do: {:error, {:unsupported_source, source}}
 
-  @doc "The seam input for a decoded eval-set document and its bytes."
+  @doc """
+  The seam input for a decoded eval-set document and its bytes. Raises when
+  the document holds a question its family does not declare.
+  """
   @spec input(map(), binary()) :: map()
   def input(doc, bytes) do
+    case own_questions(doc) do
+      :ok -> :ok
+      {:error, reason} -> raise ArgumentError, inspect(reason)
+    end
+
     kind = answer_kind(doc["answer_kind"])
     pairs = Enum.map(doc["pairs"], &pair(kind, &1))
 
@@ -114,6 +132,42 @@ defmodule AshEnterprise.SystemOne.CalibrationInput do
       pass_bar: %{},
       finished_at: DateTime.utc_now()
     }
+  end
+
+  @doc "The questions this application declares in `family`."
+  @spec family_questions(String.t()) :: [AshJudgments.Registry.Question.t()]
+  def family_questions(family) do
+    Enum.filter(declared_questions(), &(Atom.to_string(&1.family) == family))
+  end
+
+  defp declared_questions do
+    for module <- Application.spec(:ash_enterprise, :modules) || [],
+        question <- AshJudgments.Registry.Info.questions(module),
+        do: question
+  end
+
+  defp own_questions(%{"family" => family} = doc) do
+    own = family_questions(family)
+    names = Map.new(declared_questions(), &{&1.question_hash, Atom.to_string(&1.name)})
+    own_hashes = MapSet.new(own, & &1.question_hash)
+    own_names = MapSet.new(own, &Atom.to_string(&1.name))
+    pairs = doc["pairs"] || []
+
+    hashes =
+      (doc["question_hashes"] || [])
+      |> Enum.concat(Enum.map(pairs, & &1["question_hash"]))
+      |> Enum.reject(&(is_nil(&1) or MapSet.member?(own_hashes, &1)))
+      |> Enum.map(&Map.get(names, &1, &1))
+
+    named =
+      pairs
+      |> Enum.map(& &1["question"])
+      |> Enum.reject(&(is_nil(&1) or MapSet.member?(own_names, &1)))
+
+    case (hashes ++ named) |> Enum.uniq() |> Enum.sort() do
+      [] -> :ok
+      outside -> {:error, {:questions_outside_family, outside}}
+    end
   end
 
   defp pair(:noul, %{"p" => p, "gold" => gold}) when is_boolean(gold), do: %{p: p / 1, gold: gold}

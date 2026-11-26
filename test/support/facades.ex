@@ -181,3 +181,35 @@ defmodule AshEnterprise.Test.Facades.Licence do
     defer :clinician_id
   end
 end
+
+defmodule AshEnterprise.Test.Facades.Registry do
+  @moduledoc """
+  The walk's registry for the test facades: their type tokens added to the host's
+  (`AshEnterprise.Provenance.Registry`), and the host's own dispatch order for
+  everything, so a facade is explained by what it is. The test facades are not in
+  the host registry because a test-only resource must not answer production addresses.
+  """
+
+  alias AshEnterprise.Provenance.Registry
+
+  @tokens %{
+    "work_item" => AshEnterprise.Test.Facades.WorkItem,
+    "licence" => AshEnterprise.Test.Facades.Licence
+  }
+
+  def resource(token) do
+    case Map.fetch(@tokens, token) do
+      {:ok, resource} -> {:ok, resource}
+      :error -> Registry.resource(token)
+    end
+  end
+
+  def token(resource) do
+    case Enum.find(@tokens, &(elem(&1, 1) == resource)) do
+      {token, _} -> {:ok, token}
+      nil -> Registry.token(resource)
+    end
+  end
+
+  defdelegate explainers_for(resource, field), to: Registry
+end
