@@ -81,7 +81,7 @@ step a2ui-gettext mix ash_a2ui.gettext.extract_metadata --check-up-to-date
 step roadmap mix ash_enterprise.roadmap --check
 step api-contract mix ash_enterprise.api.contract --check --base origin/main
 step data-inventory mix ash_enterprise.data_inventory --check
-step domain-map mix ash_enterprise.domain_map --check
+step domain-map mix ash_agent.domain_map --check
 step sobelow mix sobelow --config --skip --exit
 step hex.audit mix hex.audit
 step schema-replay env MIX_TEST_PARTITION="${MIX_TEST_PARTITION:-}_schema_portable" \
