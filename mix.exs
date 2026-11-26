@@ -180,6 +180,7 @@ defmodule AshEnterprise.MixProject do
         {:ash_mdm, link: :markdown},
         {:ash_provenance, link: :markdown},
         {:ash_rules, link: :markdown},
+        {:ash_versions, link: :markdown},
         :phoenix,
         {:igniter, link: :markdown},
         {:reactor, link: :markdown},
@@ -316,9 +317,9 @@ defmodule AshEnterprise.MixProject do
       # `bleeding_edge_doc_test.exs` fails if one is added without a row there.
       #
       # Not on hex yet, so these are git dependencies on public GitHub repos: a
-      # fresh clone fetches them with no credentials, and CI's `cold-clone` job
-      # fails if that stops being true. They track their own `main` with no
-      # `ref:`. `mix.lock` holds the exact SHA, so it is the lock that makes a
+      # fresh clone fetches them with no credentials, and CI's cold-clone check
+      # (the `quick` job) fails if that stops being true. They track their own
+      # `main` with no `ref:`. `mix.lock` holds the exact SHA, so it is the lock that makes a
       # build reproducible and the lock that has to be committed with any
       # change; a `ref:` would only pin what a branch name resolves to, which is
       # the part that goes stale. Bump them together with
@@ -344,6 +345,9 @@ defmodule AshEnterprise.MixProject do
       # Declared provider operations over Req (ADR 0063): the credential registry's
       # connector and the provider webhook ingress. mix.lock pins the SHA.
       {:ash_operations, github: "lukegalea/ash_operations"},
+      # The version pages' framework (`AshEnterprise.Artifacts` is the host's registry over
+      # `AshVersions.Registry`) and temporal history through as-of reads. mix.lock pins the SHA.
+      {:ash_versions, github: "lukegalea/ash_versions"},
       # ADR 0032: the greenmask config is generated from the `greenmask` blocks
       # the platform base enables on every resource. Metadata only, no runtime;
       # `mix ash_greenmask.gen.config --check` gates drift.

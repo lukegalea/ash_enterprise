@@ -10,11 +10,11 @@ defmodule AshEnterprise.Artifacts.RegistryTest do
   use AshEnterprise.DataCase, async: false
 
   alias AshEnterprise.Artifacts
-  alias AshEnterprise.Artifacts.{Artifact, Change}
   alias AshEnterprise.Assistant.{Composer, PinnedApp}
   alias AshEnterprise.Execution.{AgentVersion, ReleaseManifest, Run}
   alias AshEnterprise.Quality
   alias AshEnterprise.Test.AssistantFixtures
+  alias AshVersions.{Artifact, Change}
 
   @n2 [
     AshEnterprise.Execution.AgentVersion,
@@ -592,25 +592,25 @@ defmodule AshEnterprise.Artifacts.RegistryTest do
   # --- nothing missing reads as unchanged or valid ------------------------------------
 
   defmodule Raises do
-    @behaviour AshEnterprise.Artifacts.Differ
+    @behaviour AshVersions.Differ
     def aspects, do: [content: "Content"]
     def diff(_old, _new, _opts), do: raise("the differ broke")
   end
 
   defmodule Errors do
-    @behaviour AshEnterprise.Artifacts.Differ
+    @behaviour AshVersions.Differ
     def aspects, do: [content: "Content"]
     def diff(_old, _new, _opts), do: {:error, :could_not_compare}
   end
 
   defmodule Garbage do
-    @behaviour AshEnterprise.Artifacts.Differ
+    @behaviour AshVersions.Differ
     def aspects, do: [content: "Content"]
     def diff(_old, _new, _opts), do: :ok
   end
 
   defmodule FindsNothing do
-    @behaviour AshEnterprise.Artifacts.Differ
+    @behaviour AshVersions.Differ
     def aspects, do: [content: "Content"]
     def diff(_old, _new, _opts), do: {:ok, []}
   end

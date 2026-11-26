@@ -590,6 +590,28 @@
       "carry": "Only needed while a legacy schema is being migrated. It is used by lib/ash_enterprise/legacy/, the user ledger and the platform base's projected-lifecycle verifier."
     },
     {
+      "name": "ash_versions",
+      "module": "AshVersions",
+      "repo": "https://github.com/lukegalea/ash_versions",
+      "purpose": "A version registry for Ash records: each versioned resource is declared once as an entry, and discovery, a header, a semantic diff and validation follow from it, every read made as the viewer. Also walks a temporal resource's history version by version.",
+      "used_for": "The artifact pages (AshEnterprise.Artifacts implements its registry; the entries and per-kind differs stay here) and the time-travel views that step through temporal history.",
+      "adr": null,
+      "declared": "direct",
+      "only": null,
+      "ref": "62b29b1462ed67163acecbd41733ef75d6e96b05",
+      "version": "0.1.0",
+      "stated_status": null,
+      "maturity": "used-and-tested-here",
+      "battery": false,
+      "distribution": "git only",
+      "builds_on": [
+        "ash"
+      ],
+      "hex_name": "free (checked on hex.pm 2026-11-25).",
+      "hex_path": "No git dependencies of its own.",
+      "carry": "A runtime library with no extension or migrations: the host implements five callbacks (artifacts, tenant, open?, publisher, translate) and keeps its entries, differs and facet checks."
+    },
+    {
       "name": "ash_enterprise_telemetry",
       "module": "AshEnterprise.Telemetry",
       "repo": "https://github.com/lukegalea/ash_enterprise/tree/main/telemetry",

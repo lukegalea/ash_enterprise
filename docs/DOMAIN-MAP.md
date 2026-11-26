@@ -1400,7 +1400,7 @@ Tracer → OpenTelemetry → OTLP wiring.
 
 <!-- domain-map:context:artifacts:start -->
 
-Plane: **Surfaces**
+Plane: **Surfaces** · Packages: `ash_versions`
 
 The artifact registry: every versioned thing a person authors, reviews or releases, declared once.
 
@@ -1482,6 +1482,7 @@ The documents surface: issuing real documents from the host's own data through t
 | `ash_events_chain` | first-party | git @ cd122991 | [Audit](#audit) | The audit log's hash chain: immutability triggers, the verifier over hot log and archive as one chain, the verified move to the archive. |
 | `ash_greenmask` | first-party | git @ 24b0c882 | [Erasure](#erasure) | Masking blocks for sensitive attributes; the generated config's drift gate. |
 | `ash_signatures` | first-party | git @ cb192d44 | [Signatures](#signatures) | The signature and acknowledgement fragments the host instantiates (ADR 0074). |
+| `ash_versions` | first-party | git @ 62b29b14 | [Artifacts](#artifacts) | The version registry the artifact pages read through, and temporal history. |
 | `ash_paper` | first-party | git @ e14889c9 | [Documents](#documents) | Deterministic PDF documents from Ash data (early; the API may change). |
 
 <!-- domain-map:substrates:end -->
