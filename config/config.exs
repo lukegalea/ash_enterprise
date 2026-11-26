@@ -795,6 +795,11 @@ config :phoenix, :json_library, Jason
 # per-surface is needed. See docs/adr/0033-experience-layer-adoption.md.
 config :ash_a2ui, catalog: :admin_v1
 
+# The modules that declare journeys (`AshJourneys`), for its tasks: `mix
+# ash_journeys.lock --check` and `mix ash_journeys.gettext.extract
+# --check-up-to-date` in `check`, `approve`, `impact` and `export`.
+config :ash_journeys, journeys: [AshEnterprise.Journeys.Offboarding]
+
 # Calendars (`display :calendar`: /app/calendar, and calendars the assistant
 # composes) cut days in the display zone, read on every request so the
 # runtime `DISPLAY_TIME_ZONE` applies. ash_a2ui shifts through Elixir's

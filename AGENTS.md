@@ -2848,6 +2848,12 @@ missing data is never a pass._
 
 [ash_rules usage rules](deps/ash_rules/usage-rules.md)
 <!-- ash_rules-end -->
+<!-- ash_journeys-start -->
+## ash_journeys usage
+_Declarative user journeys for Ash: one declaration, proven by runs, published as docs._
+
+[ash_journeys usage rules](deps/ash_journeys/usage-rules.md)
+<!-- ash_journeys-end -->
 <!-- phoenix:ecto-start -->
 ## phoenix:ecto usage
 ## Ecto Guidelines

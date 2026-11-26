@@ -179,6 +179,7 @@ defmodule AshEnterprise.MixProject do
         {:ash_judgments, link: :markdown},
         {:ash_mdm, link: :markdown},
         {:ash_rules, link: :markdown},
+        {:ash_journeys, link: :markdown},
         :phoenix,
         {:igniter, link: :markdown},
         {:reactor, link: :markdown},
@@ -324,6 +325,10 @@ defmodule AshEnterprise.MixProject do
       # lib/ash_enterprise_web/a2ui/ so removing it is a deletion, not a
       # refactor. ADR 0033 records the experience layer's adoption.
       {:ash_a2ui, github: "lukegalea/ash_a2ui"},
+      # Journeys (lib/ash_enterprise/journeys/): how a persona reaches a goal,
+      # declared once, walked by the browser tier and published from approved
+      # runs. Not test-only: the declarations compile with the app.
+      {:ash_journeys, github: "lukegalea/ash_journeys"},
       # IANA zone data for the daily-loop surfaces' wall clock
       # (`AshEnterprise.Platform.LocalTime`). Already in the lock through
       # boxic_feel; declared because this app calls it directly.

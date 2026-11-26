@@ -1,0 +1,44 @@
+## "msgid"s in this file come from POT (.pot) files.
+###
+### Do not add, change, or remove "msgid"s manually here as
+### they're tied to the ones in the corresponding POT file
+### (with the same domain).
+###
+### Use "mix gettext.extract --merge" or "mix gettext.merge"
+### to merge POT files into PO files.
+msgid ""
+msgstr ""
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "Choose %{action} on their row, and confirm."
+msgstr ""
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "Open %{surface} and find the person who is leaving."
+msgstr ""
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "Revoke a leaver's access"
+msgstr ""
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "The next time they open the app, they are sent to sign in."
+msgstr ""
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "The person who is leaving can no longer use the app."
+msgstr ""
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "The person who is leaving is still signed in, with the app open."
+msgstr ""
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "Their account is inactive, and the next thing they do in the app sends them to sign in."
+msgstr ""
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "They are not signed out at once: the next thing they do in the app sends them to sign in."
+msgstr ""
