@@ -257,7 +257,12 @@ the Ash action and resource, `visible_when`, `prompt_fields`, and a confirm labe
 there is one) and `tables` with their presets.
 
 `ash_a2ui` now builds that — `AshA2ui.Manifest.for_surface/2` — so a host's module is
-usually one line per surface over its own registry. `A2uiManifest.Stub` answers `nil`
+usually one line per surface over its own registry. A generated row-action test asserts
+the chain browser event → `handle_event` → the Ash action; a host without browser
+tracing roots it at `handle_event` with the optional `row_action_chain/1`. After the
+chain, the optional `assert_audit/2` gets the `handle_event` span's correlation id. A
+row action whose manifest says `confirm: :destructive` is confirmed through the control
+inside the open dialog, which carries the row button's own label. `A2uiManifest.Stub` answers `nil`
 for every surface, for a host with no A2UI; `Static` serves a hand-written map.
 
 ### The derived table suite

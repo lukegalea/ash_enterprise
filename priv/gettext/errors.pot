@@ -401,3 +401,8 @@ msgstr ""
 #: lib/ash/type/tuple.ex:235
 msgid "value must not be nil"
 msgstr ""
+
+#: lib/ash_enterprise/accounts/validations/not_self.ex:21
+#, elixir-autogen, elixir-format
+msgid "You cannot deactivate your own account. Ask another administrator to do it."
+msgstr ""

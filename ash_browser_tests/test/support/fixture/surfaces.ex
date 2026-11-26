@@ -101,6 +101,36 @@ defmodule AshBrowserTests.Fixture.FailingAuditSurfaces do
   def assert_audit(_correlation_id, _context), do: raise("fixture audit row missing")
 end
 
+defmodule AshBrowserTests.Fixture.ServerChainSurfaces do
+  @moduledoc false
+  # A host whose row-action chain starts on the server, as one with no browser
+  # tracing must declare it.
+  @behaviour AshBrowserTests.Surfaces.Host
+
+  alias AshBrowserTests.Fixture.Surfaces
+
+  @impl true
+  defdelegate surfaces, to: Surfaces
+  @impl true
+  defdelegate waivers, to: Surfaces
+  @impl true
+  defdelegate sign_in(conn, actor, context), to: Surfaces
+  @impl true
+  defdelegate a2ui_manifest, to: Surfaces
+  @impl true
+  defdelegate row_for(surface, row_action, context), to: Surfaces
+  @impl true
+  defdelegate assert_audit(correlation_id, context), to: Surfaces
+
+  @impl true
+  def row_action_chain(row_action) do
+    [
+      AshBrowserTests.Trace.handle_event(),
+      AshBrowserTests.Trace.ash_action(action: row_action.ash_action)
+    ]
+  end
+end
+
 defmodule AshBrowserTests.Fixture.BadSurfaces do
   @moduledoc false
   @behaviour AshBrowserTests.Surfaces.Host

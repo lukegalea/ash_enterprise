@@ -83,6 +83,7 @@ msgstr ""
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
 msgid "Activate"
 msgstr ""
 
@@ -930,6 +931,7 @@ msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
 msgid "Deactivate"
 msgstr ""
 
