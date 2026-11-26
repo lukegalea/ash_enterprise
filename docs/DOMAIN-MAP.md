@@ -672,7 +672,7 @@ Versioned mappings, deterministic entity resolution, survivorship, non-destructi
 | `AshEnterprise.Mdm.ImportRowRefusal` | — | 0 | 0 |
 | `AshEnterprise.Mdm.Mapping` | — | 0 | 2 |
 | `AshEnterprise.Mdm.MappingProposal` | — | 0 | 0 |
-| `AshEnterprise.Mdm.MatchCandidate` | — | 0 | 12 |
+| `AshEnterprise.Mdm.MatchCandidate` | — | 0 | 13 |
 | `AshEnterprise.Mdm.MatchRuleProposal` | — | 0 | 4 |
 | `AshEnterprise.Mdm.MatchRuleSet` | — | 0 | 0 |
 | `AshEnterprise.Mdm.SourceIdentity` | — | 0 | 0 |

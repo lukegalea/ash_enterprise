@@ -2,7 +2,9 @@ defmodule AshEnterprise.Mdm.Changes.EndStewardReview do
   @moduledoc """
   A candidate that is superseded no longer has a question to ask, so its
   `mdm.steward_review` instance is cancelled with it: the open review task
-  closes, its clocks are defused, and the run ends `:cancelled`.
+  closes, its clocks are defused, and the run ends `:cancelled`. So does a
+  review-banded candidate the machine merged after all, on an admitted yes
+  from its certified second opinion (`AshEnterprise.Mdm.SecondOpinion`).
 
   A steward's confirm or reject completes the review task through
   `StewardVerdict`. Supersession never does: it happens when a merge
@@ -21,13 +23,18 @@ defmodule AshEnterprise.Mdm.Changes.EndStewardReview do
 
   require Ash.Query
 
+  @reasons %{
+    superseded: "candidate superseded",
+    auto_merged: "candidate merged by the machine"
+  }
+
   @impl true
   def change(changeset, _opts, context) do
-    if Ash.Changeset.changing_attribute?(changeset, :status) and
-         Ash.Changeset.get_attribute(changeset, :status) == :superseded do
-      Ash.Changeset.after_action(changeset, &cancel_review(&1, &2, context.actor))
+    with true <- Ash.Changeset.changing_attribute?(changeset, :status),
+         {:ok, reason} <- Map.fetch(@reasons, Ash.Changeset.get_attribute(changeset, :status)) do
+      Ash.Changeset.after_action(changeset, &cancel_review(&1, &2, context.actor, reason))
     else
-      changeset
+      _still_a_question -> changeset
     end
   end
 
@@ -36,7 +43,7 @@ defmodule AshEnterprise.Mdm.Changes.EndStewardReview do
   @impl true
   def atomic(changeset, opts, context), do: {:ok, change(changeset, opts, context)}
 
-  defp cancel_review(changeset, candidate, actor) do
+  defp cancel_review(changeset, candidate, actor, reason) do
     AshEnterprise.Bpmn.Instance
     |> Ash.Query.filter(subject_id == ^candidate.id and status == :running)
     |> Ash.read!(tenant: changeset.tenant, authorize?: false)
@@ -44,7 +51,7 @@ defmodule AshEnterprise.Mdm.Changes.EndStewardReview do
       &AshBpmn.cancel_instance!(&1,
         tenant: changeset.tenant,
         actor: actor,
-        reason: "candidate superseded"
+        reason: reason
       )
     )
 

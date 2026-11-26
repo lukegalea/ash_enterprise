@@ -22,6 +22,11 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUI do
   such a golden exists, and Confirm match refuses one opened by id. There
   is no second security model and no unauthorized read.
 
+  The detail also shows the model's second opinion on the pair, when one was
+  asked (`AshEnterprise.Mdm.SecondOpinion`): read from the candidate's own
+  stamp, labelled uncalibrated until its band table is certified, and never
+  a button. It decides nothing here; the steward does.
+
   Served at `/app/mdm`.
   """
 
@@ -72,6 +77,7 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUI do
         :email_survivor,
         :score,
         :explanation_text,
+        :second_opinion_text,
         :golden_label,
         :staged_batch_label,
         :review_stage
@@ -154,6 +160,10 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUI do
 
     field :explanation_text do
       label "Why it matched"
+    end
+
+    field :second_opinion_text do
+      label "Model's second opinion"
     end
   end
 end

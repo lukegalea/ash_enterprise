@@ -530,6 +530,12 @@ config :ash_evidence, AshEvidence.Repo, priv: "priv/repo"
 # (`AshEnterprise.Mdm.Banding`), not a `judgments_band_<family>` one.
 config :ash_enterprise, :band_table_keys, %{"mdm_matches" => "mdm:match_bands"}
 
+# The model's second opinion on review-banded match pairs (S1-83,
+# `AshEnterprise.Mdm.SecondOpinion`): off until a deployment has an in-zone
+# instrument and turns it on. Until its band table is certified it only shows
+# beside the pair and decides nothing.
+config :ash_enterprise, AshEnterprise.Mdm.SecondOpinion, enabled: false
+
 # The processes an agent may start through the `start_process` tool
 # (`AshEnterprise.Process.StartableKey`). None until a deployment names one.
 config :ash_enterprise, :agent_startable_processes, []
