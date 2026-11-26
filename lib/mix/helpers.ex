@@ -49,9 +49,15 @@ defmodule AshEnterprise.Mix.Helpers do
   plugins, no leadership, so nothing runs while the task does. For a task whose
   action enqueues work for the application's own nodes to run (an approval's
   expiry timer, a trigger's job). A no-op when Oban is already running.
+
+  Starts the `:oban` application first: an instance registers under
+  `Oban.Registry`, which that application owns, and `app.config` starts no
+  application.
   """
   @spec boot_oban_inserts() :: :ok
   def boot_oban_inserts do
+    {:ok, _} = Application.ensure_all_started(:oban)
+
     config =
       :ash_enterprise
       |> Application.fetch_env!(Oban)

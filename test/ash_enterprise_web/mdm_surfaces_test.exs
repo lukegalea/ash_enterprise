@@ -13,7 +13,15 @@ defmodule AshEnterpriseWeb.MdmSurfacesTest do
     surfaces = Enum.filter(AshEnterprise.Surfaces.all(), &(&1.group == :mdm))
 
     assert Enum.map(surfaces, & &1.key) ==
-             [:steward, :mdm_import, :mdm_golden, :time_travel, :mdm_mappings, :mdm_batches]
+             [
+               :steward,
+               :mdm_import,
+               :mdm_golden,
+               :time_travel,
+               :mdm_mappings,
+               :mdm_match_rules,
+               :mdm_batches
+             ]
 
     assert Enum.map(surfaces, & &1.path) == [
              "/app/mdm",
@@ -21,6 +29,7 @@ defmodule AshEnterpriseWeb.MdmSurfacesTest do
              "/app/mdm/golden",
              "/app/time-travel",
              "/app/mdm/mappings",
+             "/app/mdm/match-rules",
              "/app/mdm/batches"
            ]
 
@@ -30,6 +39,7 @@ defmodule AshEnterpriseWeb.MdmSurfacesTest do
              steward: :candidate,
              mdm_golden: :person,
              mdm_mappings: :mapping,
+             mdm_match_rules: :proposal,
              mdm_batches: :batch
            ]
 
@@ -39,7 +49,13 @@ defmodule AshEnterpriseWeb.MdmSurfacesTest do
   end
 
   test "the MDM surfaces derive valid A2UI messages" do
-    for ui <- [A2ui.MdmStewardUI, A2ui.MdmMappingUI, A2ui.MdmGoldenUI, A2ui.MdmBatchUI] do
+    for ui <- [
+          A2ui.MdmStewardUI,
+          A2ui.MdmMappingUI,
+          A2ui.MdmMatchRuleProposalUI,
+          A2ui.MdmGoldenUI,
+          A2ui.MdmBatchUI
+        ] do
       messages = AshA2ui.Info.build_surface(ui)
 
       assert messages != []

@@ -276,8 +276,34 @@ D9 still holds: judged scores report and never gate (S1-97).
   tenant, revoked, another version or content, none, too old, unreadable, what the read shows and who may run it.
   `test/ash_enterprise/releases/judged_report_test.exs` covers a `start` run whose certified family fails on hs5:
   its report is on the manifest, and the gate passes as it does without it.
-- **Not built.** Grading a `start` run's answers. `finish` reads facts and never asks a judge, so until something
-  grades those subjects, their scores read `unknown`.
+- **Not built then.** Grading a `start` run's answers: built the same day, below.
+
+## Built, 2026-11-21: `start` runs are graded in the evaluation tenant only
+
+D9 still holds: grading changes what a judged report says, never the deterministic gate or `request_release`.
+Only a synthetic tenant's answers go to the judge (S1-79, decision 6).
+
+- **The designation.** `config :ash_enterprise, AshEnterprise.Quality.Evaluation, tenant:` names one
+  organization by `unique_name` (`QUALITY_EVALUATION_TENANT` in `config/runtime.exs`), as the standards standing
+  worker names its tenant. One name is at most one tenant. Unset, or naming no organization, nothing is graded
+  anywhere.
+- **In the evaluation tenant.** When a suite naming the `agent_reply_style` scorer finishes, `finish` records the
+  scores the facts give now with `"grading": {"status": "pending"}`, and enqueues
+  `Quality.SuiteRun.GradeWorker` (queue `system_one`, args `suite_run_id` and `tenant`, one per suite run at a
+  time) in its transaction. The worker reads the instrument identity of the profile the questions declare
+  (`SystemOne.Instrument`), grades each text answer through `Quality.Grader` (judge, band, admit), and runs
+  `record_judged`, which recomputes `summary["judged"]` and each case result's `scores` from the admitted facts
+  (`"grading": {"status": "graded", "judged", "judge_errors"}`). A model error admits nothing, so that pair stays
+  `unknown`, and the job fails so a retry asks only those pairs; a pair already admitted, or already judged and
+  banded on unchanged text, is never judged again. An instrument that cannot be identified judges nothing
+  (`"failed"`, `instrument_unavailable`).
+- **Anywhere else.** Nothing is enqueued, no fact is read and no model is called: every score is `unknown` with
+  `not_evaluation_tenant` (or `no_evaluation_tenant`), and the report is `unmeasured` for that reason, with
+  `"grading": {"status": "not_graded", "reason": ...}`. A job whose tenant stopped being the evaluation tenant
+  records the same and is cancelled.
+- **Tests.** `test/ash_enterprise/quality/evaluation_grading_test.exs`: graded in the evaluation tenant; not
+  graded in another tenant, nor with none designated; a model error leaves the scores unknown; a second run of the
+  job records no second judgment; the release gate and `SuiteGate` read the same before and after grading.
 
 ## Built, 2026-11-05: release manifests
 

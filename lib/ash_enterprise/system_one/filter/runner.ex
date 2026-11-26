@@ -47,7 +47,10 @@ defmodule AshEnterprise.SystemOne.Filter.Runner do
 
   Required opts: `:actor` (the run is an explicit act by someone), `:tenant`
   (the proposal and execution are tenanted platform rows). Optional:
-  `:min_grade` (default `:grant`), `:scope` (default `nil`).
+  `:min_grade` (default `:grant`), `:scope` (default `nil`), `:subject_type`
+  (default `nil`: every subject the actor's read returns; a string restricts
+  the searched set to that subject type, so a search over one declared set
+  never folds the facts of the others into its unknown partition).
 
   Returns `{:ok, %{partitions: %{in: [...], out: [...], unknown: [...]},
   counts: %{...}, assess: %{...}, execution: row}}`, or `{:error, reason}`
@@ -65,11 +68,13 @@ defmodule AshEnterprise.SystemOne.Filter.Runner do
          {:ok, ast} <- decode(proposal) do
       min_grade = Keyword.get(opts, :min_grade, :grant)
       scope = Keyword.get(opts, :scope)
+      subject_type = Keyword.get(opts, :subject_type)
       now = DateTime.utc_now()
 
-      {:ok, plan} = Compiler.compile(ast, min_grade: min_grade, scope: scope)
+      {:ok, plan} =
+        Compiler.compile(ast, min_grade: min_grade, scope: scope, subject_type: subject_type)
 
-      facts_by_subject = read_facts(actor, min_grade)
+      facts_by_subject = read_facts(actor, min_grade, subject_type)
       partitions = Compiler.fold(ast, facts_by_subject, scope, now)
       counts = Enum.map(partitions, fn {k, v} -> {k, length(v)} end) |> Map.new()
 
@@ -137,18 +142,22 @@ defmodule AshEnterprise.SystemOne.Filter.Runner do
   # fact data). The admission-grade floor is the Q19 request-time
   # parameter, applied IN the read — a person-grade floor never reads
   # grant rows to widen anything; it narrows.
-  defp read_facts(actor, min_grade) do
+  defp read_facts(actor, min_grade, subject_type) do
     grades = Compiler.grades_at_least(min_grade)
 
     Fact
     |> Ash.Query.for_read(:current, %{}, actor: actor)
     |> Ash.Query.filter(admission_grade in ^grades)
+    |> restrict(subject_type)
     |> Ash.read!()
     |> Enum.group_by(&{&1.subject_type, &1.subject_id}, fn fact ->
       {fact.predicate, fact}
     end)
     |> Map.new(fn {subject, predicates} -> {subject, Map.new(predicates)} end)
   end
+
+  defp restrict(query, nil), do: query
+  defp restrict(query, subject_type), do: Ash.Query.filter(query, subject_type == ^subject_type)
 
   defp record_execution(proposal, plan, counts, min_grade, scope, actor, tenant) do
     FilterExecution

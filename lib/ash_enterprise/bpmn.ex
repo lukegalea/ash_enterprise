@@ -59,7 +59,12 @@ defmodule AshEnterprise.Bpmn do
     # and not on `AshEnterprise.Process`.
     resource AshEnterprise.Bpmn.Subscription
     resource AshEnterprise.Bpmn.Cursor
-    resource AshEnterprise.Bpmn.Dispatch
+
+    resource AshEnterprise.Bpmn.Dispatch do
+      # What an explanation reads to name the dispatch a recipe step ran
+      # under, as its reader (ADR 0078, section 2).
+      define :get_dispatch, action: :read, get_by: [:id]
+    end
 
     # A person driving a failed dispatch again, and what came of it.
     resource AshEnterprise.Bpmn.Redrive

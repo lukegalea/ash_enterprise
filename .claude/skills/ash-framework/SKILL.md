@@ -197,10 +197,14 @@ metadata:
 
 - [ash_strangler](references/ash_strangler/ash_strangler.md)
 
+### ash_versions
+
+- [ash_versions](references/ash_versions/ash_versions.md)
+
 ## Searching Documentation
 
 ```sh
-mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_admin -p ash_agent -p ash_agent_tools -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_bpmn -p ash_cloak -p ash_compliance -p ash_credo -p ash_decisions -p ash_diagram -p ash_discrete_business_events -p ash_enterprise_telemetry -p ash_events -p ash_events_chain -p ash_evidence -p ash_graphql -p ash_greenmask -p ash_journeys -p ash_json_api -p ash_judgments -p ash_mdm -p ash_money -p ash_oban -p ash_open_lineage -p ash_operations -p ash_paper -p ash_phoenix -p ash_planning -p ash_postgres -p ash_provenance -p ash_rules -p ash_signatures -p ash_state_machine -p ash_strangler
+mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_admin -p ash_agent -p ash_agent_tools -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_bpmn -p ash_cloak -p ash_compliance -p ash_credo -p ash_decisions -p ash_diagram -p ash_discrete_business_events -p ash_enterprise_telemetry -p ash_events -p ash_events_chain -p ash_evidence -p ash_graphql -p ash_greenmask -p ash_journeys -p ash_json_api -p ash_judgments -p ash_mdm -p ash_money -p ash_oban -p ash_open_lineage -p ash_operations -p ash_paper -p ash_phoenix -p ash_planning -p ash_postgres -p ash_provenance -p ash_rules -p ash_signatures -p ash_state_machine -p ash_strangler -p ash_versions
 ```
 
 ## Available Mix Tasks

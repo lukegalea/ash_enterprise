@@ -14,13 +14,18 @@ concurrency:
   # for one commit cancel down to one. A fork PR keys on its pull ref, so a
   # fork branch named main can never cancel main's run.
   group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref || github.event_name == 'pull_request' && github.ref || github.ref_name }}
-  cancel-in-progress: true
+  # Main's runs are never cancelled: main takes a push every half hour or so,
+  # longer than a run, so cancelling left main with no finished run at all.
+  # GitHub still keeps only the newest pending run, so main never queues more
+  # than one behind the one in progress.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 # Self-hosted routing, off by default. Every job's runs-on names
-# `ubuntu-latest` unless all three hold: the event is a push (never a pull
+# `ubuntu-latest` unless all four hold: the event is a push (never a pull
 # request: this repository is public, and a fork's pull request must never reach
 # a self-hosted runner), the repository is this one (a fork's own pushes stay on
-# GitHub's runners), and the job's id is in the SELF_HOSTED_JOBS repository
+# GitHub's runners), the push is by lukegalea (the runners are on his own
+# machine), and the job's id is in the SELF_HOSTED_JOBS repository
 # variable, a JSON array such as ["test-shards","integration"]. Then it runs on
 # a runner labelled `self-hosted` and `homelab`. Unset, the variable is `[]` and
 # nothing moves. The ids that can be listed are the jobs' keys below: test,
@@ -77,7 +82,7 @@ env:
 jobs:
   test:
     name: Compile, test, and check generated code
-    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'test') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && github.actor == 'lukegalea' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'test') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
 
     # Single leg: Elixir 1.20.4 / OTP 27.3.4, flipped from canary to gate in
     # one commit together with devenv.nix, the Dockerfile and the mix.exs
@@ -355,7 +360,7 @@ jobs:
 
   test-shards:
     name: Test shard ${{ matrix.partition }} of 10
-    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'test-shards') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && github.actor == 'lukegalea' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'test-shards') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
     # The suite, split by file across ten runners. It is almost entirely
     # synchronous (2026-10-30: 1,427 tests, 6,108s of 6,152s sync), so one
     # runner took over 100 minutes. `mix test --partitions` splits by file
@@ -434,7 +439,7 @@ jobs:
 
   tests:
     name: Test suite (all shards)
-    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'tests') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && github.actor == 'lukegalea' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'tests') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
     # One result for the whole suite, so a required check need not name the
     # shards. It fails when any shard failed or was cancelled.
     #
@@ -449,7 +454,11 @@ jobs:
     # each, took forty minutes in one shard. These steps never decide the
     # result; the last step does.
     needs: test-shards
-    if: always()
+    # Not always(): a run that was cancelled (superseded by a newer push, or the
+    # push run cancelled in favour of the PR run for the same commit) would then
+    # post a red "Test suite (all shards)" on that commit, under a required
+    # check's name, while the run that counts is still going.
+    if: ${{ !cancelled() }}
     permissions:
       contents: read
       actions: read
@@ -514,7 +523,7 @@ jobs:
 
   integration:
     name: Durability tier, scale budget and restore drills
-    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'integration') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && github.actor == 'lukegalea' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'integration') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
     # Three blocking checks that each need the root project compiled for test and
     # a database server, and nothing else in this workflow waits on: one job, so
     # they pay for one runner, one cache restore and one dependency compile
@@ -662,7 +671,7 @@ jobs:
 
   e2e:
     name: Browser end-to-end
-    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'e2e') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && github.actor == 'lukegalea' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'e2e') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
     # Every Playwright spec in assets/e2e, in chromium, against the dev server
     # the specs drive locally. It gates like the others: it was advisory until
     # three runs in a row were green (42295888081, 42299104023, 42307413088).
@@ -779,7 +788,7 @@ jobs:
 
   quick:
     name: Packages, battery, site and cold clone
-    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'quick') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && github.actor == 'lukegalea' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'quick') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
     # Five blocking checks that each ran in about a minute, and each paid for a
     # runner of its own, its own setup and its own place in the queue. They were
     # five jobs until 2026-11-26. They are independent of one another, so each
@@ -1171,7 +1180,7 @@ jobs:
 
   dialyzer:
     name: Dialyzer (advisory)
-    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'dialyzer') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && github.actor == 'lukegalea' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'dialyzer') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
     # DELIBERATELY non-blocking. There is no official guidance for running
     # Dialyzer against Ash or Spark, no canonical ignore file, and Spark's macro
     # expansion produces spurious warnings. Running it as a hard gate would mean

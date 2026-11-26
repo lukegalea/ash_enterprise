@@ -181,6 +181,7 @@ defmodule AshEnterprise.MixProject do
         {:ash_provenance, link: :markdown},
         {:ash_rules, link: :markdown},
         {:ash_journeys, link: :markdown},
+        {:ash_versions, link: :markdown},
         :phoenix,
         {:igniter, link: :markdown},
         {:reactor, link: :markdown},
@@ -283,12 +284,11 @@ defmodule AshEnterprise.MixProject do
       # the engineering standards are judged over (`AshEnterprise.Standards`,
       # compiled only when this dependency is loaded, so in dev and test).
       # First-party, public on GitHub and not yet on hex; mix.lock pins the SHA.
-      # Pinned to PR #34 (domain-map-task, fc7aa130): the domain map generator
-      # lives there now — `mix ash_agent.domain_map` replaced the host-local
-      # task (ADR 0085 amendment 7). Unpin at the merge.
+      # Pinned to PR #34 (domain-map-task, 07f800fc: carries the domain map and
+      # the signal-graph render fix); unpin at the merge.
       {:ash_agent_tools,
        github: "lukegalea/ash_agent_tools",
-       ref: "fc7aa130a8d443f05609fc133b60ef9d315346a2",
+       ref: "07f800fc7856f4ad4c3d78675db5934884d806e9",
        only: [:dev, :test],
        runtime: false},
 
@@ -349,6 +349,9 @@ defmodule AshEnterprise.MixProject do
       # Declared provider operations over Req (ADR 0063): the credential registry's
       # connector and the provider webhook ingress. mix.lock pins the SHA.
       {:ash_operations, github: "lukegalea/ash_operations"},
+      # The version pages' framework (`AshEnterprise.Artifacts` is the host's registry over
+      # `AshVersions.Registry`) and temporal history through as-of reads. mix.lock pins the SHA.
+      {:ash_versions, github: "lukegalea/ash_versions"},
       # ADR 0032: the greenmask config is generated from the `greenmask` blocks
       # the platform base enables on every resource. Metadata only, no runtime;
       # `mix ash_greenmask.gen.config --check` gates drift.

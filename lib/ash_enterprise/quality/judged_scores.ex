@@ -65,8 +65,10 @@ defmodule AshEnterprise.Quality.JudgedScores do
   for the summary.
 
   `report` is the family report for the same replies (`Gate.family_report/3`); the scores
-  are read the way it read them (`opts` takes its `:min_grade` and `:questions`). Options:
-  `:tenant` (required), `:actor` (default the `oban` system actor).
+  are read the way it read them (`opts` takes its `:min_grade`, `:questions` and
+  `:not_graded`). Options: `:tenant` (required), `:actor` (default the `oban` system
+  actor), `:grading` (whether and how the replies were graded, put in the report as
+  `"grading"`; see `AshEnterprise.Quality.Evaluation`).
 
   Returns `%{scores: %{case_id => [score]}, report: map}`; a reply whose id names no case
   has no scores.
@@ -85,7 +87,13 @@ defmodule AshEnterprise.Quality.JudgedScores do
          end}
       end
 
-    %{scores: scores, report: summary(report, certification)}
+    report =
+      case Keyword.get(opts, :grading) do
+        nil -> summary(report, certification)
+        grading -> Map.put(summary(report, certification), "grading", grading)
+      end
+
+    %{scores: scores, report: report}
   end
 
   @doc "The certification of the family's band table, as the report read it."

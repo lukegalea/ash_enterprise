@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+The pre-flight tool-call gate's rules for this repository (AshAgentTools.Gate,
+from the ash_agent_tools dev dependency). This table is asked first; what it
+defers goes on to the generic seed table that ships with ash_agent_tools
+(force pushes, community-fork pushes, no-verify, killing by pattern).
+
+Each rule's description cites the line of CLAUDE.md or the ship-a-change
+skill it comes from. The command and path patterns are the input columns
+(FEEL matches(), an XPath regular expression); a rule is a row of true,
+false and "-". `mix ash_agent.gate` with its verify flag runs the
+ash_decisions verifier over this table and the seed (see the doc below).
+
+The gate is a guardrail, not a security boundary. Enabling its hook is
+opt-in: see docs/system-one/pre-flight-gate.md.
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="agent_gate_rules"
+             name="Agent gate rules (ash_enterprise)"
+             namespace="https://github.com/lukegalea/ash_enterprise/gate"
+             expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+             typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+  <inputData id="input_tool" name="tool">
+    <variable id="var_tool" name="tool" typeRef="string"/>
+  </inputData>
+  <inputData id="input_command" name="command">
+    <variable id="var_command" name="command" typeRef="string"/>
+  </inputData>
+  <inputData id="input_path" name="path">
+    <variable id="var_path" name="path" typeRef="string"/>
+  </inputData>
+  <inputData id="input_repo_kind" name="repo_kind">
+    <variable id="var_repo_kind" name="repo_kind" typeRef="string"/>
+  </inputData>
+  <decision id="decision_gate" name="Gate">
+    <variable id="var_gate" name="Gate"/>
+    <informationRequirement id="req_tool"><requiredInput href="#input_tool"/></informationRequirement>
+    <informationRequirement id="req_command"><requiredInput href="#input_command"/></informationRequirement>
+    <informationRequirement id="req_path"><requiredInput href="#input_path"/></informationRequirement>
+    <informationRequirement id="req_repo_kind"><requiredInput href="#input_repo_kind"/></informationRequirement>
+    <decisionTable id="table_gate" hitPolicy="FIRST">
+      <input id="clause_tool" label="Tool">
+        <inputExpression id="expr_tool" typeRef="string"><text>tool</text></inputExpression>
+      </input>
+      <input id="clause_repo_kind" label="Repository kind">
+        <inputExpression id="expr_repo_kind" typeRef="string"><text>repo_kind</text></inputExpression>
+      </input>
+      <input id="clause_ci_force_push" label="Force-pushes its own ci/ branch">
+        <inputExpression id="expr_ci_force_push" typeRef="boolean"><text>matches(command, "^\s*git( -C [^ ;&amp;|\r\n]+)? push (-f|--force|--force-with-lease) origin HEAD:refs/heads/ci/[A-Za-z0-9_/-]+\s*$")</text></inputExpression>
+      </input>
+      <input id="clause_ecto_drop" label="Drops a database">
+        <inputExpression id="expr_ecto_drop" typeRef="boolean"><text>matches(command, "mix\s+ecto\.(drop|reset)(\W|$)")</text></inputExpression>
+      </input>
+      <input id="clause_own_database" label="Names its own database">
+        <inputExpression id="expr_own_database" typeRef="boolean"><text>matches(command, "(^|[\s;&amp;('\x22])DB_NAME=[A-Za-z0-9_]+")</text></inputExpression>
+      </input>
+      <input id="clause_bare_mix" label="Runs mix">
+        <inputExpression id="expr_bare_mix" typeRef="boolean"><text>matches(command, "(^|[;&amp;|(]\s*)([A-Za-z_][A-Za-z0-9_]*=\S*\s+)*mix(\s|$)")</text></inputExpression>
+      </input>
+      <input id="clause_in_devenv" label="Inside devenv shell">
+        <inputExpression id="expr_in_devenv" typeRef="boolean"><text>matches(command, "devenv\s+shell")</text></inputExpression>
+      </input>
+      <input id="clause_phx_server" label="Runs phx.server">
+        <inputExpression id="expr_phx_server" typeRef="boolean"><text>matches(command, "mix\s+phx\.server")</text></inputExpression>
+      </input>
+      <input id="clause_vendored_cdm" label="Vendored CDM corpus">
+        <inputExpression id="expr_vendored_cdm" typeRef="boolean"><text>matches(path, "^priv/cdm/schemaDocuments/")</text></inputExpression>
+      </input>
+      <input id="clause_generated_migration" label="Generated migration or snapshot">
+        <inputExpression id="expr_generated_migration" typeRef="boolean"><text>matches(path, "^priv/(repo/(tenant_)?migrations|resource_snapshots)/")</text></inputExpression>
+      </input>
+      <input id="clause_agents_md" label="AGENTS.md">
+        <inputExpression id="expr_agents_md" typeRef="boolean"><text>matches(path, "^AGENTS\.md$")</text></inputExpression>
+      </input>
+      <output id="out_decision" name="decision" label="Decision" typeRef="string">
+        <outputValues id="out_decision_values"><text>"allow","ask","deny","defer"</text></outputValues>
+      </output>
+      <output id="out_rule_id" name="rule_id" label="Rule" typeRef="string"/>
+      <output id="out_reason" name="reason" label="Reason" typeRef="string"/>
+
+      <rule id="ae_ci_force_push">
+        <description>CLAUDE.md:57-60 (finished work goes through CI on a ci/&lt;name&gt; branch) and ship-a-change SKILL.md:66 (git push -f origin HEAD:refs/heads/ci/&lt;name&gt;; force only on your own ci/ branch). Only that exact command: a compound command falls through to the seed's force-push refusal.</description>
+        <inputEntry id="ae_ci_force_push_tool"><text>"bash"</text></inputEntry>
+        <inputEntry id="ae_ci_force_push_repo_kind"><text>"first_party"</text></inputEntry>
+        <inputEntry id="ae_ci_force_push_ci_force_push"><text>true</text></inputEntry>
+        <inputEntry id="ae_ci_force_push_ecto_drop"><text>-</text></inputEntry>
+        <inputEntry id="ae_ci_force_push_own_database"><text>-</text></inputEntry>
+        <inputEntry id="ae_ci_force_push_bare_mix"><text>-</text></inputEntry>
+        <inputEntry id="ae_ci_force_push_in_devenv"><text>-</text></inputEntry>
+        <inputEntry id="ae_ci_force_push_phx_server"><text>-</text></inputEntry>
+        <inputEntry id="ae_ci_force_push_vendored_cdm"><text>-</text></inputEntry>
+        <inputEntry id="ae_ci_force_push_generated_migration"><text>-</text></inputEntry>
+        <inputEntry id="ae_ci_force_push_agents_md"><text>-</text></inputEntry>
+        <outputEntry id="ae_ci_force_push_decision"><text>"allow"</text></outputEntry>
+        <outputEntry id="ae_ci_force_push_rule_id"><text>"ae_ci_force_push"</text></outputEntry>
+        <outputEntry id="ae_ci_force_push_reason"><text>"Force-pushing your own ci/ branch is how a change reaches CI."</text></outputEntry>
+      </rule>
+
+      <rule id="ae_ecto_drop_shared">
+        <description>CLAUDE.md:57-64 and ship-a-change SKILL.md:24 (give each worktree its own DB_NAME) and :106 (drop the test databases it created). Without DB_NAME, config/dev.exs and config/test.exs fall back to the shared ash_enterprise_dev database.</description>
+        <inputEntry id="ae_ecto_drop_shared_tool"><text>"bash"</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_shared_repo_kind"><text>-</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_shared_ci_force_push"><text>-</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_shared_ecto_drop"><text>true</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_shared_own_database"><text>false</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_shared_bare_mix"><text>-</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_shared_in_devenv"><text>-</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_shared_phx_server"><text>-</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_shared_vendored_cdm"><text>-</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_shared_generated_migration"><text>-</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_shared_agents_md"><text>-</text></inputEntry>
+        <outputEntry id="ae_ecto_drop_shared_decision"><text>"deny"</text></outputEntry>
+        <outputEntry id="ae_ecto_drop_shared_rule_id"><text>"ae_ecto_drop_shared"</text></outputEntry>
+        <outputEntry id="ae_ecto_drop_shared_reason"><text>"Without DB_NAME this drops the shared database: set DB_NAME to your worktree's own database."</text></outputEntry>
+      </rule>
+
+      <rule id="ae_ecto_drop_own">
+        <description>ship-a-change SKILL.md:106: drop only the test databases your worktree created.</description>
+        <inputEntry id="ae_ecto_drop_own_tool"><text>"bash"</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_own_repo_kind"><text>-</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_own_ci_force_push"><text>-</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_own_ecto_drop"><text>true</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_own_own_database"><text>true</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_own_bare_mix"><text>-</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_own_in_devenv"><text>-</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_own_phx_server"><text>-</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_own_vendored_cdm"><text>-</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_own_generated_migration"><text>-</text></inputEntry>
+        <inputEntry id="ae_ecto_drop_own_agents_md"><text>-</text></inputEntry>
+        <outputEntry id="ae_ecto_drop_own_decision"><text>"ask"</text></outputEntry>
+        <outputEntry id="ae_ecto_drop_own_rule_id"><text>"ae_ecto_drop_own"</text></outputEntry>
+        <outputEntry id="ae_ecto_drop_own_reason"><text>"Dropping a database: confirm DB_NAME names one your worktree created."</text></outputEntry>
+      </rule>
+
+      <rule id="ae_bare_mix">
+        <description>CLAUDE.md:13-14: everything runs inside devenv; do not invoke mix directly (wrong Elixir, and it writes to ~/.mix).</description>
+        <inputEntry id="ae_bare_mix_tool"><text>"bash"</text></inputEntry>
+        <inputEntry id="ae_bare_mix_repo_kind"><text>-</text></inputEntry>
+        <inputEntry id="ae_bare_mix_ci_force_push"><text>-</text></inputEntry>
+        <inputEntry id="ae_bare_mix_ecto_drop"><text>-</text></inputEntry>
+        <inputEntry id="ae_bare_mix_own_database"><text>-</text></inputEntry>
+        <inputEntry id="ae_bare_mix_bare_mix"><text>true</text></inputEntry>
+        <inputEntry id="ae_bare_mix_in_devenv"><text>false</text></inputEntry>
+        <inputEntry id="ae_bare_mix_phx_server"><text>-</text></inputEntry>
+        <inputEntry id="ae_bare_mix_vendored_cdm"><text>-</text></inputEntry>
+        <inputEntry id="ae_bare_mix_generated_migration"><text>-</text></inputEntry>
+        <inputEntry id="ae_bare_mix_agents_md"><text>-</text></inputEntry>
+        <outputEntry id="ae_bare_mix_decision"><text>"deny"</text></outputEntry>
+        <outputEntry id="ae_bare_mix_rule_id"><text>"ae_bare_mix"</text></outputEntry>
+        <outputEntry id="ae_bare_mix_reason"><text>"Run mix inside the environment: devenv shell -- mix ..."</text></outputEntry>
+      </rule>
+
+      <rule id="ae_phx_server">
+        <description>CLAUDE.md:27: mix phx.server holds the _build lock and blocks every other mix command; start the app with iex-server.</description>
+        <inputEntry id="ae_phx_server_tool"><text>"bash"</text></inputEntry>
+        <inputEntry id="ae_phx_server_repo_kind"><text>-</text></inputEntry>
+        <inputEntry id="ae_phx_server_ci_force_push"><text>-</text></inputEntry>
+        <inputEntry id="ae_phx_server_ecto_drop"><text>-</text></inputEntry>
+        <inputEntry id="ae_phx_server_own_database"><text>-</text></inputEntry>
+        <inputEntry id="ae_phx_server_bare_mix"><text>-</text></inputEntry>
+        <inputEntry id="ae_phx_server_in_devenv"><text>-</text></inputEntry>
+        <inputEntry id="ae_phx_server_phx_server"><text>true</text></inputEntry>
+        <inputEntry id="ae_phx_server_vendored_cdm"><text>-</text></inputEntry>
+        <inputEntry id="ae_phx_server_generated_migration"><text>-</text></inputEntry>
+        <inputEntry id="ae_phx_server_agents_md"><text>-</text></inputEntry>
+        <outputEntry id="ae_phx_server_decision"><text>"ask"</text></outputEntry>
+        <outputEntry id="ae_phx_server_rule_id"><text>"ae_phx_server"</text></outputEntry>
+        <outputEntry id="ae_phx_server_reason"><text>"mix phx.server holds the _build lock and blocks every other mix command: prefer devenv shell -- iex-server."</text></outputEntry>
+      </rule>
+
+      <rule id="ae_vendored_cdm">
+        <description>CLAUDE.md:54-55 (non-negotiable 6): priv/cdm/schemaDocuments/ is vendored third-party content (Microsoft CDM, CC-BY-4.0); never edit it.</description>
+        <inputEntry id="ae_vendored_cdm_tool"><text>"edit","write"</text></inputEntry>
+        <inputEntry id="ae_vendored_cdm_repo_kind"><text>-</text></inputEntry>
+        <inputEntry id="ae_vendored_cdm_ci_force_push"><text>-</text></inputEntry>
+        <inputEntry id="ae_vendored_cdm_ecto_drop"><text>-</text></inputEntry>
+        <inputEntry id="ae_vendored_cdm_own_database"><text>-</text></inputEntry>
+        <inputEntry id="ae_vendored_cdm_bare_mix"><text>-</text></inputEntry>
+        <inputEntry id="ae_vendored_cdm_in_devenv"><text>-</text></inputEntry>
+        <inputEntry id="ae_vendored_cdm_phx_server"><text>-</text></inputEntry>
+        <inputEntry id="ae_vendored_cdm_vendored_cdm"><text>true</text></inputEntry>
+        <inputEntry id="ae_vendored_cdm_generated_migration"><text>-</text></inputEntry>
+        <inputEntry id="ae_vendored_cdm_agents_md"><text>-</text></inputEntry>
+        <outputEntry id="ae_vendored_cdm_decision"><text>"deny"</text></outputEntry>
+        <outputEntry id="ae_vendored_cdm_rule_id"><text>"ae_vendored_cdm"</text></outputEntry>
+        <outputEntry id="ae_vendored_cdm_reason"><text>"priv/cdm/schemaDocuments/ is vendored CDM content: change the generated resource instead."</text></outputEntry>
+      </rule>
+
+      <rule id="ae_generated_migration">
+        <description>CLAUDE.md:52 (non-negotiable 5): do not hand-write migrations; CLAUDE.md:43-44: mix ash.codegen derives them from the resource snapshots.</description>
+        <inputEntry id="ae_generated_migration_tool"><text>"edit","write"</text></inputEntry>
+        <inputEntry id="ae_generated_migration_repo_kind"><text>-</text></inputEntry>
+        <inputEntry id="ae_generated_migration_ci_force_push"><text>-</text></inputEntry>
+        <inputEntry id="ae_generated_migration_ecto_drop"><text>-</text></inputEntry>
+        <inputEntry id="ae_generated_migration_own_database"><text>-</text></inputEntry>
+        <inputEntry id="ae_generated_migration_bare_mix"><text>-</text></inputEntry>
+        <inputEntry id="ae_generated_migration_in_devenv"><text>-</text></inputEntry>
+        <inputEntry id="ae_generated_migration_phx_server"><text>-</text></inputEntry>
+        <inputEntry id="ae_generated_migration_vendored_cdm"><text>-</text></inputEntry>
+        <inputEntry id="ae_generated_migration_generated_migration"><text>true</text></inputEntry>
+        <inputEntry id="ae_generated_migration_agents_md"><text>-</text></inputEntry>
+        <outputEntry id="ae_generated_migration_decision"><text>"deny"</text></outputEntry>
+        <outputEntry id="ae_generated_migration_rule_id"><text>"ae_generated_migration"</text></outputEntry>
+        <outputEntry id="ae_generated_migration_reason"><text>"Migrations and resource snapshots are generated: change the resource and run mix ash.codegen &lt;name&gt;."</text></outputEntry>
+      </rule>
+
+      <rule id="ae_agents_md">
+        <description>CLAUDE.md:86-87: AGENTS.md is generated by mix usage_rules.sync; do not edit its generated sections.</description>
+        <inputEntry id="ae_agents_md_tool"><text>"edit","write"</text></inputEntry>
+        <inputEntry id="ae_agents_md_repo_kind"><text>-</text></inputEntry>
+        <inputEntry id="ae_agents_md_ci_force_push"><text>-</text></inputEntry>
+        <inputEntry id="ae_agents_md_ecto_drop"><text>-</text></inputEntry>
+        <inputEntry id="ae_agents_md_own_database"><text>-</text></inputEntry>
+        <inputEntry id="ae_agents_md_bare_mix"><text>-</text></inputEntry>
+        <inputEntry id="ae_agents_md_in_devenv"><text>-</text></inputEntry>
+        <inputEntry id="ae_agents_md_phx_server"><text>-</text></inputEntry>
+        <inputEntry id="ae_agents_md_vendored_cdm"><text>-</text></inputEntry>
+        <inputEntry id="ae_agents_md_generated_migration"><text>-</text></inputEntry>
+        <inputEntry id="ae_agents_md_agents_md"><text>true</text></inputEntry>
+        <outputEntry id="ae_agents_md_decision"><text>"ask"</text></outputEntry>
+        <outputEntry id="ae_agents_md_rule_id"><text>"ae_agents_md"</text></outputEntry>
+        <outputEntry id="ae_agents_md_reason"><text>"AGENTS.md is generated by mix usage_rules.sync: edit only outside its generated sections."</text></outputEntry>
+      </rule>
+
+      <rule id="ae_no_rule">
+        <description>No rule of this repository's spoke: the gate goes on to the generic seed table. This rule makes the table complete.</description>
+        <inputEntry id="ae_no_rule_tool"><text>-</text></inputEntry>
+        <inputEntry id="ae_no_rule_repo_kind"><text>-</text></inputEntry>
+        <inputEntry id="ae_no_rule_ci_force_push"><text>-</text></inputEntry>
+        <inputEntry id="ae_no_rule_ecto_drop"><text>-</text></inputEntry>
+        <inputEntry id="ae_no_rule_own_database"><text>-</text></inputEntry>
+        <inputEntry id="ae_no_rule_bare_mix"><text>-</text></inputEntry>
+        <inputEntry id="ae_no_rule_in_devenv"><text>-</text></inputEntry>
+        <inputEntry id="ae_no_rule_phx_server"><text>-</text></inputEntry>
+        <inputEntry id="ae_no_rule_vendored_cdm"><text>-</text></inputEntry>
+        <inputEntry id="ae_no_rule_generated_migration"><text>-</text></inputEntry>
+        <inputEntry id="ae_no_rule_agents_md"><text>-</text></inputEntry>
+        <outputEntry id="ae_no_rule_decision"><text>"defer"</text></outputEntry>
+        <outputEntry id="ae_no_rule_rule_id"><text>"ae_no_rule"</text></outputEntry>
+        <outputEntry id="ae_no_rule_reason"><text>"No repository rule applies."</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

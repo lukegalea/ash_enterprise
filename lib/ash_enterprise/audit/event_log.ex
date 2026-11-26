@@ -361,6 +361,30 @@ defmodule AshEnterprise.Audit.EventLog do
 
       filter expr(organization_id == ^arg(:organization_id))
     end
+
+    read :for_record do
+      description """
+      The newest event that changed one attribute of one record: what an
+      explanation (ADR 0078) reads, as its reader. An attribute an action
+      took as input is keyed in `data`; the rest is in `changed_attributes`,
+      so both are asked. One event, chain order's last.
+      """
+
+      get? true
+
+      argument :resource, :string, allow_nil?: false
+      argument :record_id, :uuid, allow_nil?: false
+      argument :attribute, :string, allow_nil?: false
+
+      prepare build(sort: [sequence: :desc], limit: 1)
+
+      filter expr(
+               resource == ^arg(:resource) and
+                 record_id == ^arg(:record_id) and
+                 (fragment("jsonb_exists(?, ?)", changed_attributes, ^arg(:attribute)) or
+                    fragment("jsonb_exists(?, ?)", data, ^arg(:attribute)))
+             )
+    end
   end
 
   policies do

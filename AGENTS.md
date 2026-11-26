@@ -2860,6 +2860,12 @@ _Declarative user journeys for Ash: one declaration, proven by runs, published a
 
 [ash_journeys usage rules](deps/ash_journeys/usage-rules.md)
 <!-- ash_journeys-end -->
+<!-- ash_versions-start -->
+## ash_versions usage
+_Versions of Ash records: a registry of versioned artifacts with semantic diffs, and every version of a temporal record through as-of reads._
+
+[ash_versions usage rules](deps/ash_versions/usage-rules.md)
+<!-- ash_versions-end -->
 <!-- phoenix:ecto-start -->
 ## phoenix:ecto usage
 ## Ecto Guidelines

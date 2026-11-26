@@ -399,6 +399,13 @@
     {
       "action": null,
       "kind": "live",
+      "module": "AshEnterpriseWeb.SurfaceLive.MdmMatchRules",
+      "path": "/app/mdm/match-rules",
+      "verb": "GET"
+    },
+    {
+      "action": null,
+      "kind": "live",
       "module": "AshEnterpriseWeb.PinnedAppLive",
       "path": "/app/mine/:id",
       "verb": "GET"
@@ -485,6 +492,13 @@
       "kind": "live",
       "module": "AshEnterpriseWeb.ShowcaseLive.Credentialing",
       "path": "/app/showcase/credentialing",
+      "verb": "GET"
+    },
+    {
+      "action": null,
+      "kind": "live",
+      "module": "AshEnterpriseWeb.ShowcaseLive.Search",
+      "path": "/app/showcase/search",
       "verb": "GET"
     },
     {
