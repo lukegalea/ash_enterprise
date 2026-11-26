@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+The pre-flight gate's System One banding table for this repository (AST-79).
+
+AshAgentTools.Gate asks it only about a tool call every rules table deferred,
+with the readings AshEnterprise.Quality.ToolCalls gave: for each question,
+"yes" or "no" when the family's band table admitted the answer, "unsure"
+otherwise. It answers allow, ask or deny like the rules tables.
+
+The gate lets this table make a call stricter, never let one through on its
+own: an allow while the band tables are not certified is an ask, and a deny
+is an ask (a model never refuses on its own). See
+docs/system-one/pre-flight-gate-system-one.md.
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="agent_gate"
+             name="Agent gate System One (ash_enterprise)"
+             namespace="https://github.com/lukegalea/ash_enterprise/gate"
+             expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+             typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+  <inputData id="input_destructive" name="destructive"><variable id="var_destructive" name="destructive" typeRef="string"/></inputData>
+  <inputData id="input_out_of_scope" name="out_of_scope"><variable id="var_out_of_scope" name="out_of_scope" typeRef="string"/></inputData>
+  <decision id="decision_agent_gate" name="AgentGate">
+    <variable id="var_agent_gate" name="AgentGate"/>
+    <informationRequirement id="req_destructive"><requiredInput href="#input_destructive"/></informationRequirement>
+    <informationRequirement id="req_out_of_scope"><requiredInput href="#input_out_of_scope"/></informationRequirement>
+    <decisionTable id="table_agent_gate" hitPolicy="FIRST">
+      <input id="clause_destructive" label="Destructive or irreversible (agent_gate_destructive)">
+        <inputExpression id="expr_destructive" typeRef="string"><text>destructive</text></inputExpression>
+        <inputValues id="values_destructive"><text>"yes","no","unsure"</text></inputValues>
+      </input>
+      <input id="clause_out_of_scope" label="Reaches outside the repository (agent_gate_scope)">
+        <inputExpression id="expr_out_of_scope" typeRef="string"><text>out_of_scope</text></inputExpression>
+        <inputValues id="values_out_of_scope"><text>"yes","no","unsure"</text></inputValues>
+      </input>
+      <output id="out_decision" name="decision" typeRef="string"/>
+      <output id="out_rule_id" name="rule_id" typeRef="string"/>
+      <output id="out_reason" name="reason" typeRef="string"/>
+      <rule id="s1_destructive">
+        <description>The destructive family admitted a yes.</description>
+        <inputEntry id="r1_destructive"><text>"yes"</text></inputEntry>
+        <inputEntry id="r1_out_of_scope"><text>-</text></inputEntry>
+        <outputEntry id="r1_decision"><text>"deny"</text></outputEntry>
+        <outputEntry id="r1_rule"><text>"s1_destructive"</text></outputEntry>
+        <outputEntry id="r1_reason"><text>"System One reads this call as destructive or irreversible."</text></outputEntry>
+      </rule>
+      <rule id="s1_out_of_scope">
+        <description>The scope family admitted a yes.</description>
+        <inputEntry id="r2_destructive"><text>-</text></inputEntry>
+        <inputEntry id="r2_out_of_scope"><text>"yes"</text></inputEntry>
+        <outputEntry id="r2_decision"><text>"deny"</text></outputEntry>
+        <outputEntry id="r2_rule"><text>"s1_out_of_scope"</text></outputEntry>
+        <outputEntry id="r2_reason"><text>"System One reads this call as reaching outside the repository."</text></outputEntry>
+      </rule>
+      <rule id="s1_benign">
+        <description>Both families admitted a no.</description>
+        <inputEntry id="r3_destructive"><text>"no"</text></inputEntry>
+        <inputEntry id="r3_out_of_scope"><text>"no"</text></inputEntry>
+        <outputEntry id="r3_decision"><text>"allow"</text></outputEntry>
+        <outputEntry id="r3_rule"><text>"s1_benign"</text></outputEntry>
+        <outputEntry id="r3_reason"><text>"System One reads this call as reversible and inside the repository."</text></outputEntry>
+      </rule>
+      <rule id="s1_unsure">
+        <description>Anything else: a review band, an omission, no published band table.</description>
+        <inputEntry id="r4_destructive"><text>-</text></inputEntry>
+        <inputEntry id="r4_out_of_scope"><text>-</text></inputEntry>
+        <outputEntry id="r4_decision"><text>"ask"</text></outputEntry>
+        <outputEntry id="r4_rule"><text>"s1_unsure"</text></outputEntry>
+        <outputEntry id="r4_reason"><text>"System One is not sure about this call: a person decides."</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

@@ -3423,6 +3423,25 @@
       "secured_attributes": []
     },
     {
+      "resource": "AshEnterprise.Quality.ToolCall",
+      "domain": "AshEnterprise.Quality",
+      "data_layer": "Ash.DataLayer.Simple",
+      "table": null,
+      "platform_resource": true,
+      "ownership": "none",
+      "tenancy": "global",
+      "tenant_option": false,
+      "audit": false,
+      "archival": false,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [],
+      "sealed_attributes": [],
+      "personal_looking_attributes": [],
+      "secured_attributes": []
+    },
+    {
       "resource": "AshEnterprise.Reference.Currency",
       "domain": "AshEnterprise.Reference",
       "data_layer": "AshPostgres.DataLayer",
@@ -4237,6 +4256,7 @@
       "modules": [
         "AshEnterprise.Licences.Rungs",
         "AshEnterprise.Quality.Grader",
+        "AshEnterprise.Quality.ToolCalls",
         "AshEnterprise.Standards.Standing",
         "AshEnterprise.SystemOne",
         "AshEnterprise.SystemOne.DecisionWire"
