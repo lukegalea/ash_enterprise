@@ -193,7 +193,7 @@
       "adr": "0009",
       "declared": "direct",
       "only": null,
-      "ref": "0daf09f9d04ce8b478b5f95890e745c9aac5f348",
+      "ref": "61f0b9172fa2741c6e15e84eb39d643e4bd033d1",
       "version": "0.1.0",
       "stated_status": "0.1.0. The approval layer and the engine are tested against real Postgres.",
       "maturity": "used-and-tested-here",
@@ -414,6 +414,7 @@
         "ash_bpmn",
         "ash_decisions",
         "ash_a2ui",
+        "ash_provenance",
         "ash_events"
       ],
       "hex_name": "free",

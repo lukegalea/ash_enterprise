@@ -201,6 +201,10 @@ config :ash_bpmn,
   # published, enabled subscription. Evaluated per call; see
   # `AshEnterprise.Bpmn.Subscription.trigger_tenants/0`.
   trigger_tenants: {AshEnterprise.Bpmn.Subscription, :trigger_tenants, []},
+  # How the people a task's timer names are told: a reminder, an escalation that added
+  # people, an expiry. Without it, a draft with a reminder or an escalation is refused at
+  # publish (ash_bpmn DESIGN.md §11.8). `AshEnterprise.Process.TaskNotices`.
+  task_notifier: AshEnterprise.Process.TaskNotices,
   # Token movement is broadcast here after each step commits
   # (`AshBpmn.FlightView`): the flight views listen, and refresh their markers
   # by reading again as the viewer. A broadcast carries ids and statuses only.

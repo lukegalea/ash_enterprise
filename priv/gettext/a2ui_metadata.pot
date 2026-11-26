@@ -371,6 +371,10 @@ msgid "Assign to business unit"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Attach job"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Attach timers"
 msgstr ""
 
@@ -1441,6 +1445,10 @@ msgctxt "one_of:outcome"
 msgid "Follow up"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Follow up due"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Follow-up"
 msgstr ""
@@ -1978,6 +1986,10 @@ msgstr ""
 msgid "Mark failed"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Mark mailed"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
 msgid "Mark unsure"
 msgstr ""
@@ -2344,6 +2356,10 @@ msgstr ""
 msgid "Outline"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Overdue"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/team_ui.ex:1
 msgid "Owner"
 msgstr ""
@@ -2669,7 +2685,15 @@ msgid "Record"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Record cancelled"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Record failure"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Record fired"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
@@ -3513,6 +3537,10 @@ msgid "Task detail"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Task notice"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/team_ui.ex:1
 msgid "Team"
 msgstr ""
@@ -3600,6 +3628,10 @@ msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Time zone definition"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Timer job"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1

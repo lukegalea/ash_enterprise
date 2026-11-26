@@ -186,9 +186,15 @@ defmodule AshEnterprise.Audit.Package.Build do
       )
 
     decided = decided_at(tasks, to, host)
+    on_escalation = decided_on_escalation(tasks, host)
 
     %{
-      "tasks" => Enum.map(tasks, &review(&1, Map.get(decided, &1.id), to))
+      "tasks" =>
+        Enum.map(tasks, fn task ->
+          task
+          |> review(Map.get(decided, task.id), to)
+          |> put_authority(task, on_escalation)
+        end)
     }
   end
 
@@ -248,6 +254,31 @@ defmodule AshEnterprise.Audit.Package.Build do
 
   # When each task ended (decided or cancelled) before `to`, from the audit log, hot and
   # archived, keyed by task id. A task with no such event is absent.
+  # On what authority a decision was made (`ash_bpmn` DESIGN.md §11.6). An escalation adds
+  # people, and can reach past the role a control names: a decision by someone who was a
+  # candidate only because an escalation added them is reported as `"escalation"`, so an
+  # auditor does not read it as a decision by a designated candidate. `"candidate"` otherwise,
+  # and nil for a task the period did not see decided.
+  defp put_authority(%{"decided_at" => nil} = row, _task, _on_escalation),
+    do: Map.put(row, "decided_on_authority_of", nil)
+
+  defp put_authority(row, task, on_escalation) do
+    authority = if MapSet.member?(on_escalation, task.id), do: "escalation", else: "candidate"
+    Map.put(row, "decided_on_authority_of", authority)
+  end
+
+  defp decided_on_escalation([], _host), do: MapSet.new()
+
+  defp decided_on_escalation(tasks, host) do
+    ids = Enum.map(tasks, & &1.id)
+
+    AshEnterprise.Bpmn.ProcessEvent
+    |> Ash.Query.filter(task_id in ^ids and kind == :task_completed)
+    |> Ash.read!(host)
+    |> Enum.filter(&(get_in(&1.data || %{}, ["authority"]) == "escalation"))
+    |> MapSet.new(& &1.task_id)
+  end
+
   defp decided_at([], _to, _host), do: %{}
 
   defp decided_at(tasks, to, host) do

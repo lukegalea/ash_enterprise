@@ -277,6 +277,33 @@ gateway conditions, never in resolver specs, never in the invoker.
     from the moment the event happened. Implement `AshBpmn.EventSource.event/2`
     with one indexed read. Prefer this to calling
     `Correlator.dispatch_event/4` with `redrive: true` yourself.
+34. **Compute a deadline from the case, in the diagram.** A timer's moment may be
+    an expression (`date="= subject.notice_at"`, `duration="= ..."`, a `timeDate`
+    or `timeDuration` beginning `=`). It is evaluated once, when the timer is
+    armed, and recorded as an instant; declare every subject path it reads in the
+    node's `ash:load`. Missing data is a timer incident (`:timer_unresolved`, the
+    instance failed at the node), never a default: write the fallback into the
+    expression. A literal date is refused. Deduplicate notices on the firing's
+    `key`, never on the event id: delivery is at least once. `until="claimed"`
+    for "nobody picked it up", the default for "nobody finished it".
+35. **Call `reschedule_timers/2` from the change that moves a date.** An armed
+    timer's instant is a fact and does not follow the data. When a host changes a
+    field a timer expression reads, it calls `AshBpmn.reschedule_timers(subject)`
+    in the same transaction and fails the change on `{:error, _}`. Repeat with a
+    bounded `cycle` on a reminder or a non-interrupting boundary, never with a
+    host-side loop of reminders; an unbounded clock belongs in the host's
+    scheduler.
+36. **A notifier says what happened to each recipient.** `deliver/2` answers
+    `:ok` only when every recipient was handed the notice. A recipient the host
+    will not try again (suppressed, rejected, no address, an ambiguous send) goes
+    in `{:ok, %{not_reached: [{principal, reason}]}}`; when nobody was reached and
+    nobody will be retried, answer `{:error, {:final, reason}}`. Answer
+    `{:error, reason}` only for what a retry can fix. Tell every recipient you
+    can before answering: one failed address must not silence the rest. On a
+    claimed task `notice.holder` holds it, and the people an escalation added can
+    act only if the holder delegates: write that, not "the task is yours". An
+    escalated person's claim or decision carries `"authority" => "escalation"`;
+    show it wherever the decision is shown as evidence.
 
 ## Testing
 

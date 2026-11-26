@@ -1443,11 +1443,6 @@ msgstr ""
 msgid "Every version of what is authored here, what it references, whether it checks out and what changed."
 msgstr ""
 
-#: lib/ash_enterprise/surfaces.ex:685
-#, elixir-autogen, elixir-format
-msgid "Reviews and other process tasks you can see that have waited more than two days."
-msgstr ""
-
 #: lib/ash_enterprise/surfaces.ex:683
 #, elixir-autogen, elixir-format
 msgid "Stalled reviews"
@@ -1479,7 +1474,7 @@ msgid "Data read at %{time}, over %{minutes} minutes ago"
 msgstr ""
 
 #: lib/ash_enterprise_web/live/pinned_app_live.ex:271
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Definition invalid"
 msgstr ""
 
@@ -1489,7 +1484,7 @@ msgid "Definition not checked yet"
 msgstr ""
 
 #: lib/ash_enterprise_web/live/pinned_app_live.ex:270
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Definition valid"
 msgstr ""
 
@@ -1679,7 +1674,7 @@ msgid "By choosing \"I agree\" you agree to acknowledge these documents electron
 msgstr ""
 
 #: lib/ash_enterprise/signatures/calculations/policy_documents.ex:58
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Document %{sha}"
 msgstr ""
 
@@ -1776,4 +1771,9 @@ msgstr ""
 #: lib/ash_enterprise/surfaces.ex:1359
 #, elixir-autogen, elixir-format
 msgid "Three-valued search"
+msgstr ""
+
+#: lib/ash_enterprise/surfaces.ex:685
+#, elixir-autogen, elixir-format
+msgid "Reviews and other process tasks you can see that are past their due date, or have waited more than two days with none."
 msgstr ""

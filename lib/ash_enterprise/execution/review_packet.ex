@@ -356,25 +356,89 @@ defmodule AshEnterprise.Execution.ReviewPacket do
   defp due(task, invocation),
     do: %{due_at: task.due_at, expires_at: invocation.approval_expires_at}
 
+  @escalation_kinds [
+    :timer_fired,
+    :task_escalated,
+    :task_claimed,
+    :task_completed,
+    :escalation_reached_nobody,
+    :escalation_failed,
+    :notice_undelivered,
+    :notice_failed
+  ]
+
   defp escalation(task) do
     ProcessEvent
-    |> Ash.Query.filter(task_id == ^task.id and kind in [:timer_fired, :escalation_failed])
+    |> Ash.Query.filter(task_id == ^task.id and kind in ^@escalation_kinds)
     |> Ash.Query.sort(inserted_at: :asc)
     |> Ash.read(authorize?: false, tenant: task.organization_id)
     |> case do
-      {:ok, events} ->
-        for %{data: %{"timer_kind" => "escalate"} = data} = event <- events do
-          %{at: event.inserted_at, kind: escalation_kind(event.kind, data)}
-        end
-
-      {:error, _error} ->
-        :unreadable
+      {:ok, events} -> escalation_events(events)
+      {:error, _error} -> :unreadable
     end
   end
 
-  defp escalation_kind(:escalation_failed, _data), do: :failed
-  defp escalation_kind(:timer_fired, %{"handler" => "none"}), do: :no_handler
-  defp escalation_kind(:timer_fired, _data), do: :escalated
+  # What the engine recorded about escalating the task (`ash_bpmn` DESIGN.md §11.6, §11.7),
+  # one entry per fact: whom it added, that it reached nobody or failed, and whether the
+  # people were told. An escalation answered by the resolver writes a `:task_escalated` and
+  # a `:timer_fired` with one key; the first says whom it added, so the second is not shown
+  # again. A `:timer_fired` with no such partner was written before escalations added
+  # people, and reads as it always did.
+  defp escalation_events(events) do
+    escalated_keys =
+      for %{kind: :task_escalated, data: %{"key" => key}} <- events, into: MapSet.new(), do: key
+
+    for event <- events,
+        kind = escalation_kind(event.kind, event.data || %{}, escalated_keys),
+        kind != nil,
+        do: %{at: event.inserted_at, kind: kind}
+  end
+
+  # Escalation only adds people (DESIGN.md §11.6). On a claimed task the people added cannot
+  # act until the holder delegates to one of them, so the line says it was held.
+  defp escalation_kind(:task_escalated, %{"held_by" => %{}} = data, _keys),
+    do: {:escalated_while_held, length(data["added"] || [])}
+
+  defp escalation_kind(:task_escalated, data, _keys),
+    do: {:escalated, length(data["added"] || [])}
+
+  # A claim or decision by someone who could act only because an escalation added them.
+  defp escalation_kind(:task_claimed, %{"authority" => "escalation"}, _keys),
+    do: :claimed_on_escalation
+
+  defp escalation_kind(:task_completed, %{"authority" => "escalation"}, _keys),
+    do: :decided_on_escalation
+
+  defp escalation_kind(kind, _data, _keys) when kind in [:task_claimed, :task_completed],
+    do: nil
+
+  defp escalation_kind(:escalation_reached_nobody, _data, _keys), do: :reached_nobody
+
+  defp escalation_kind(:escalation_failed, %{"timer_kind" => "escalate"}, _keys), do: :failed
+
+  defp escalation_kind(:notice_undelivered, %{"notice" => "escalated"}, _keys),
+    do: :not_delivered
+
+  defp escalation_kind(:notice_failed, %{"notice" => "escalated"}, _keys), do: :notice_failed
+
+  defp escalation_kind(:timer_fired, %{"timer_kind" => "escalate"} = data, keys) do
+    case data do
+      %{"handler" => "signal"} ->
+        :signalled
+
+      # Before escalations added people, a host without a handler fired with "none".
+      %{"handler" => "none"} ->
+        :reached_nobody
+
+      %{"key" => key} when is_binary(key) ->
+        if MapSet.member?(keys, key), do: nil, else: :escalated
+
+      _legacy ->
+        :escalated
+    end
+  end
+
+  defp escalation_kind(_kind, _data, _keys), do: nil
 
   # --- questions ---------------------------------------------------------------------
 
