@@ -702,15 +702,19 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
       })
     end
 
-    test "per family and week: the live bandings admitted, sent to review and omitted", ctx do
-      # A family with a run and no bandings yet, and one with bandings and no run.
+    test "per family and week: the live answers admitted, sent to review and omitted", ctx do
+      # A family with a run and no live answers yet, and one with bandings and no run.
       proposed_run!(ctx.org)
 
       for band <- [:admit, :admit, :review] do
         review_banding!(record!(tenant: ctx.org), ctx.org, band: band)
       end
 
-      review_banding!(record!(tenant: ctx.org), ctx.org, band: :admit, mode: :shadow)
+      review_banding!(record!(tenant: ctx.org, mode: :shadow), ctx.org,
+        band: :admit,
+        mode: :shadow
+      )
+
       week = Date.utc_today() |> Date.beginning_of_week() |> Date.to_iso8601()
 
       assert {:ok, rows} = automated_share(ctx.actor, ctx.org)
@@ -718,21 +722,74 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
       assert rows == [
                %{
                  family: @family,
-                 week: "no bandings yet",
-                 bandings: 0,
+                 week: "no live answers yet",
+                 answers: 0,
                  admitted: "—",
                  review: "—",
-                 omitted: "—"
+                 omitted: "—",
+                 not_banded: "—"
                },
                %{
                  family: "system_one_notes",
                  week: week,
-                 bandings: 3,
+                 answers: 3,
                  admitted: "2 (67%)",
                  review: "1 (33%)",
-                 omitted: "0 (0%)"
+                 omitted: "0 (0%)",
+                 not_banded: "0 (0%)"
                }
              ]
+    end
+
+    test "live answers the band table refused are counted, not dropped from the share", ctx do
+      question =
+        AshJudgments.Registry.Info.question(
+          AshEnterprise.SystemOne.TestSupport.Note,
+          :notes_follow_up
+        )
+
+      for _ <- 1..3, do: review_banding!(record!(tenant: ctx.org), ctx.org, band: :admit)
+
+      # No rule matched: the step refuses and writes no banding row.
+      refuse = fn _family, _tenant, _inputs ->
+        {:ok,
+         %{
+           band_table: %{
+             "definition_key" => "judgments_band_system_one_notes",
+             "definition_version" => "1"
+           },
+           outputs: %{"band" => "admit"},
+           matched_rule_ids: [],
+           decision_evaluation_id: Ash.UUID.generate()
+         }}
+      end
+
+      for _ <- 1..2 do
+        judgment = record!(tenant: ctx.org)
+
+        assert {:refusal, _refusal} =
+                 Banding.Step.band(
+                   [%{question: question, answer: nil, observation_id: judgment.id}],
+                   family: "system_one_notes",
+                   tenant: ctx.org,
+                   subject: %{"type" => "note", "id" => judgment.subject_id},
+                   predicate: question.question_id,
+                   resolver: refuse
+                 )
+      end
+
+      week = Date.utc_today() |> Date.beginning_of_week() |> Date.to_iso8601()
+
+      assert {:ok,
+              [
+                %{
+                  family: "system_one_notes",
+                  week: ^week,
+                  answers: 5,
+                  admitted: "3 (60%)",
+                  not_banded: "2 (40%)"
+                }
+              ]} = automated_share(ctx.actor, ctx.org)
     end
 
     test "the surface shows each run's coverage and runs the report", ctx do
@@ -763,7 +820,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
                )
 
       assert [
-               %{"family" => @family, "week" => "no bandings yet"},
+               %{"family" => @family, "week" => "no live answers yet"},
                %{"family" => "system_one_notes", "review" => "1 (100%)"}
              ] = rows
     end

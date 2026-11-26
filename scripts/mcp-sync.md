@@ -5,14 +5,14 @@ Two project-scoped MCP configs live at the repo root and must not drift silently
 | server | `.mcp.json` (Claude Code & friends) | `opencode.json` (opencode) | notes |
 |---|---|---|---|
 | `tidewave` | `http://localhost:4000/tidewave/mcp` | same | needs the dev server running (`iex-server`); shows disconnected otherwise. mix.lock holds tidewave 0.9.2; 0.9.0 removed the `get_*_schema` family (incl. `get_ash_resources`), see `docs/research/beam-observer-tooling.md`. |
-| `ash-agent` | `http://127.0.0.1:4197` | same | read-only introspection MCP (`ash_describe`, `ash_validate`, `ash_search`, `ash_context`, `ash_forbidden`, `ash_daemon_status`, `ash_reload` + concept tools). **No auth by design** (loopback-only, POST-only). |
+| `ash-agent` | `http://127.0.0.1:4197` | same | read-only introspection MCP (`ash_describe`, `ash_validate`, `ash_search`, `ash_context`, `ash_forbidden`, `ash_laws`, `ash_daemon_status`, `ash_reload` + concept tools). **No auth by design** (loopback-only, POST-only). |
 | `serena` | not configured (optional) | local: `uvx --from git+https://github.com/oraios/serena serena start-mcp-server --context ide-assistant` | symbolic Ash-DSL edits. Needs `uv`/`uvx` on PATH (host also has `~/.local/bin/uvx`). |
 
 ## In-app alternative: `/ash_agent/mcp`
 
 `lib/ash_enterprise_web/router.ex` mounts ash_agent_tools' ash_ai adapter at
-`http://localhost:4000/ash_agent/mcp` (dev routes only). It serves six of the daemon's tools
-(`ash_describe`, `ash_validate`, `ash_can`, `ash_forbidden`, `ash_context`, `ash_search`)
+`http://localhost:4000/ash_agent/mcp` (dev routes only). It serves seven of the daemon's tools
+(`ash_describe`, `ash_validate`, `ash_can`, `ash_forbidden`, `ash_context`, `ash_search`, `ash_laws`)
 inside the running dev server, so it needs `iex-server` but no separate daemon. The names
 match the daemon's, so it is deliberately in neither config: to use it, point `ash-agent` at
 that URL in both files instead of `:4197`. ash_ai wraps tool arguments in an `input` object.

@@ -85,24 +85,28 @@ defmodule AshBrowserTests.RowActions do
         fill_prompt(acc, field, Map.fetch!(inputs || %{}, field.name))
       end)
 
-    case row_action[:confirm_label] do
-      nil -> conn
-      label -> confirm(conn, label)
-    end
+    confirm(conn, row_action)
   end
 
   @doc """
-  Clicks the confirm control named `label` of the prompt or confirmation dialog a
-  row action opened. `perform/3` calls it for a row action with a `confirm_label`.
-
-  Only a visible control counts: a card with several actions (the tasks board
-  renders Complete and Delegate together) keeps every prompt's confirm in the DOM,
-  closed dialogs included. Among the visible ones, a control inside an open dialog
-  wins: a destructive confirmation's control carries the row button's own label,
-  and the row button stays visible behind the dialog.
+  Confirms `row_action`'s open prompt or confirmation dialog through its
+  `confirm_label` control. Does nothing for an action that declares none.
   """
-  @spec confirm(struct(), String.t()) :: struct()
-  def confirm(conn, label) do
+  @spec confirm(struct(), map()) :: struct()
+  def confirm(conn, row_action) do
+    case row_action[:confirm_label] do
+      nil -> conn
+      label -> click_confirm(conn, label)
+    end
+  end
+
+  # The prompt's confirm control, clicked by its accessible name — but only
+  # the visible one: a card with several actions (the tasks board renders
+  # Complete and Delegate together) keeps every prompt's confirm in the DOM,
+  # closed dialogs included, and a text-only click lands in the first of
+  # them. Only the clicked action's prompt is open, so the visible confirm
+  # is the right one.
+  defp click_confirm(conn, label) do
     expression = """
     (() => {
       #{Browser.walker()}
@@ -110,18 +114,20 @@ defmodule AshBrowserTests.RowActions do
       const visible = (el) => !!(el.offsetParent || el.getClientRects().length)
       const named = (el) =>
         (el.getAttribute("aria-label") || el.textContent || "").trim() === label
-      const inDialog = (el) => {
-        for (let node = el; node; node = node.parentElement || node.getRootNode().host) {
-          if (node.matches('[role="dialog"], [role="alertdialog"], dialog[open]')) return true
-        }
-        return false
-      }
       const candidates = deep(document, "button, atlas-button").filter(
         (el) =>
           named(el) &&
           (visible(el) ||
             (el.shadowRoot && [...el.shadowRoot.querySelectorAll("button")].some(visible)))
       )
+      // A confirmation dialog's control before a same-named one behind it (the
+      // row's own button, for a destructive action confirmed under its name).
+      const inDialog = (el) => {
+        for (let node = el; node; node = node.parentNode || node.host) {
+          if (node.matches && node.matches('[role="dialog"], [role="alertdialog"], dialog[open]')) return true
+        }
+        return false
+      }
       const el = candidates.find(inDialog) || candidates[0]
       if (!el) return false
       const inner = el.shadowRoot && el.shadowRoot.querySelector("button")

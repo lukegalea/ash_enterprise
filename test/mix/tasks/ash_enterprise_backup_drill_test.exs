@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.AshEnterprise.Backup.DrillTest do
   # Dumps and restores the test database, so it needs pg_dump and pg_restore no older than
-  # the server and a role that can create databases: CI's backup-restore-drill job runs it
+  # the server and a role that can create databases: CI's `integration` job runs it
   # (`mix test --only backup_drill`). It does not use the sandbox: the drill opens its own
   # connections, as an operator's would.
   use ExUnit.Case, async: false

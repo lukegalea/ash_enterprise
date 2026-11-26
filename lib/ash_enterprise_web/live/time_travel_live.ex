@@ -30,9 +30,10 @@ defmodule AshEnterpriseWeb.TimeTravelLive do
   alias AshA2ui.{AsOf, TimeScrubber}
   alias AshEnterprise.Canonical.Person
   alias AshEnterprise.Mdm.Resolution
-  alias AshEnterprise.Platform.{LocalTime, TemporalHistory}
+  alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.SystemOne.FactHistory
+  alias AshVersions.TemporalHistory
 
   @people_limit 25
 

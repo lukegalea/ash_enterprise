@@ -30,6 +30,11 @@ config :ash_enterprise, AshEnterprise.Standards.StandingWorker,
   limit: nil,
   cron: standing_cron
 
+# The evaluation tenant (`AshEnterprise.Quality.Evaluation`): the `unique_name` of the one
+# synthetic organization whose suite runs' answers the in-zone judge grades. Unset, nothing
+# is graded anywhere. `config/runtime.exs` sets it from QUALITY_EVALUATION_TENANT.
+config :ash_enterprise, AshEnterprise.Quality.Evaluation, tenant: nil
+
 config :ash_enterprise, Oban,
   engine: Oban.Engines.Basic,
   notifier: Oban.Notifiers.Postgres,
@@ -215,6 +220,27 @@ config :ash_enterprise, AshEnterprise.Process.AssignmentResolver,
   no_eligible_candidate: [%{"kind" => "role", "of" => "Platform Operator"}]
 
 config :ash_decisions, ash_domains: [AshEnterprise.Decisions]
+
+# The paper clause tables' publish gate: a `paper.clause.*` table publishes
+# only when it is UNIQUE, answers a single boolean `include`, gives every rule
+# a reason, and verifies complete (`AshEnterprise.Documents.Paper.
+# ClauseTableVerifier`). Every other key is untouched.
+config :ash_decisions,
+  publish_verifiers: [AshEnterprise.Documents.Paper.ClauseTableVerifier]
+
+# The paper kernel's lock inputs: `mix paper.lock` hashes these and writes
+# `priv/paper.lock.json`; `mix paper.lock --check` fails when a schema or the
+# layout drifts without a version bump. The modules are the host's own — see
+# `AshEnterprise.Documents.Paper`.
+config :ash_paper,
+  schemas: [AshEnterprise.Credentialing.Paper.CredentialStatusLetter.Schema],
+  layouts: [AshEnterprise.Documents.Paper.Letter]
+
+# The document kinds this host issues (`AshEnterprise.Documents.Paper.Kind`):
+# the paper machinery names no business domain; each kind is a module the
+# host lists here. The host kinds live with the code they read.
+config :ash_enterprise, AshEnterprise.Documents.Paper,
+  kinds: [AshEnterprise.Credentialing.Paper.CredentialStatusLetter]
 
 # --- The compliance plane (ADR 0035) -------------------------------------------
 #
@@ -523,6 +549,10 @@ config :ash_judgments, :families, %{
   house_style: %{low_band: :admit_no},
   model_call_location: %{low_band: :admit_no},
   agent_reply_style: %{low_band: :admit_no},
+  # The pre-flight gate's System One questions (AST-79): a confident no is
+  # what lets the gate's banding table allow a deferred call.
+  agent_gate_destructive: %{low_band: :admit_no},
+  agent_gate_scope: %{low_band: :admit_no},
   mdm_matches: %{low_band: :omit}
 }
 
@@ -591,6 +621,7 @@ config :ash_enterprise,
     AshEnterprise.Automation,
     AshEnterprise.Quality,
     AshEnterprise.Planning,
+    AshEnterprise.Documents,
     AshEnterprise.Flags,
     AshEnterprise.Exports,
     AshEnterprise.Signatures
@@ -671,6 +702,13 @@ config :ash_enterprise, :planning,
 #     `requires_expansion: true` and the thinness is reported, never hidden.
 #     Retrieval economics, not admission policy — the disposition that comes
 #     out is whatever the evidence says.
+# The declared subject resources whose registry questions are queryable
+# predicates of the facts surface (S1-65): the filter vocabulary derives from
+# THESE declarations. The showcase's search beat declares its own.
+config :ash_enterprise, :system_one_subject_resources, [
+  AshEnterprise.SystemOne.ShowcaseSubject
+]
+
 config :ash_enterprise, :system_one_evidence,
   max_questions_per_call: 5,
   max_expansion_steps: 1

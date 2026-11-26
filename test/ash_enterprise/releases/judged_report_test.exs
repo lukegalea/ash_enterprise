@@ -8,8 +8,10 @@ defmodule AshEnterprise.Releases.JudgedReportTest do
   table is published and certified (by a person in their own tenant), and one answer
   violates hs5: the family's report fails. The release manifest carries that report, and
   the release gate passes on the deterministic results exactly as it would without it.
-  The facts are written straight through the materialiser; no judge is asked. Every name
-  and sentence is synthetic.
+  The facts are written straight through the materialiser; no judge is asked. The clinic
+  is the evaluation tenant, so its grading job is enqueued and never run here
+  (`AshEnterprise.Quality.EvaluationGradingTest` runs it). Every name and sentence is
+  synthetic.
   """
 
   use AshEnterprise.DataCase, async: false
@@ -32,6 +34,7 @@ defmodule AshEnterprise.Releases.JudgedReportTest do
     :ok = NoNetwork.block!()
     clinic = clinic!()
     Authority.start_grant!(clinic.admin, clinic.admin, @agent)
+    AshEnterprise.Test.Quality.SuiteRuns.designate!(clinic.admin.organization.unique_name)
     %{clinic: clinic}
   end
 
@@ -152,6 +155,7 @@ defmodule AshEnterprise.Releases.JudgedReportTest do
     assert judged["verdict"] == "fail"
     assert judged["verdict_reasons"] == ["violation:hs5_promise_only_agreed_to"]
     assert judged["gates"] == false
+    assert judged["grading"] == %{"status" => "pending"}
     assert judged["per_question"]["hs5_promise_only_agreed_to"]["violating"] == 1
     assert judged["replies"] == %{"compliant" => 0, "violating" => 1, "unknown" => 1}
 

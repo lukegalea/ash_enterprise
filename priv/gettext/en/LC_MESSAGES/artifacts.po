@@ -26,7 +26,7 @@ msgstr ""
 msgid "Added"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts.ex:53
+#: lib/ash_enterprise/artifacts.ex:57
 #, elixir-autogen, elixir-format
 msgid "Agent version"
 msgstr ""
@@ -115,7 +115,7 @@ msgstr ""
 msgid "Copied from"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts.ex:85
+#: lib/ash_enterprise/artifacts.ex:91
 #, elixir-autogen, elixir-format
 msgid "Decision definition"
 msgstr ""
@@ -135,7 +135,7 @@ msgstr ""
 msgid "Evaluation"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts.ex:116
+#: lib/ash_enterprise/artifacts.ex:123
 #, elixir-autogen, elixir-format
 msgid "Evaluation suite"
 msgstr ""
@@ -321,7 +321,7 @@ msgstr ""
 msgid "Primary metric"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts.ex:70
+#: lib/ash_enterprise/artifacts.ex:75
 #, elixir-autogen, elixir-format
 msgid "Process definition"
 msgstr ""
@@ -341,7 +341,7 @@ msgstr ""
 msgid "References"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts.ex:130
+#: lib/ash_enterprise/artifacts.ex:138
 #, elixir-autogen, elixir-format
 msgid "Release manifest"
 msgstr ""
@@ -357,7 +357,7 @@ msgstr ""
 msgid "Routing"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts.ex:154
+#: lib/ash_enterprise/artifacts.ex:163
 #, elixir-autogen, elixir-format
 msgid "Rule set"
 msgstr ""
@@ -369,12 +369,12 @@ msgstr ""
 msgid "Rules"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts.ex:178
+#: lib/ash_enterprise/artifacts.ex:187
 #, elixir-autogen, elixir-format
 msgid "Saved surface"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts.ex:100
+#: lib/ash_enterprise/artifacts.ex:107
 #, elixir-autogen, elixir-format
 msgid "Schema mapping"
 msgstr ""
@@ -495,7 +495,7 @@ msgstr ""
 msgid "none recorded"
 msgstr ""
 
-#: lib/ash_enterprise/artifacts.ex:458
+#: lib/ash_enterprise/artifacts.ex:238
 #, elixir-autogen, elixir-format
 msgid "the system"
 msgstr ""

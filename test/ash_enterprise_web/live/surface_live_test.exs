@@ -31,6 +31,7 @@ defmodule AshEnterpriseWeb.SurfaceLiveTest do
     /app/compliance/findings /app/compliance/evaluations /app/compliance/bundles
     /app/compliance/rule-sets /app/compliance/catalogs /app/compliance/profiles
     /app/deliveries /app/webhook-endpoints /app/webhook-deliveries
+    /app/documents/paper-questions /app/documents/document-wording /app/documents/clause-tables
   )
 
   @specialists ~w(
@@ -100,7 +101,7 @@ defmodule AshEnterpriseWeb.SurfaceLiveTest do
   describe "the generated pages" do
     test "each renders its entry's UI, named after its key, with deep links" do
       generated = Surfaces.generated()
-      assert length(generated) == 26
+      assert length(generated) == 29
 
       for surface <- generated do
         config = surface.live.__ash_a2ui_config__()

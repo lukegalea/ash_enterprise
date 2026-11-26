@@ -44,7 +44,7 @@ defmodule AshEnterpriseWeb.E2E.UsersRowActionsTest do
     assert Ash.get!(User, row.id, authorize?: false).lifecycle_status == :active
 
     conn
-    |> RowActions.confirm("Deactivate")
+    |> RowActions.confirm(deactivate)
     |> Browser.assert_deep(~s([data-a2ui-row-id="#{row.id}"]), text: "Inactive", timeout: 15_000)
 
     assert Ash.get!(User, row.id, authorize?: false).lifecycle_status == :inactive

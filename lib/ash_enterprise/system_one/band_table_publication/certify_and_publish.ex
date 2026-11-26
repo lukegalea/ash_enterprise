@@ -46,6 +46,7 @@ defmodule AshEnterprise.SystemOne.BandTablePublication.CertifyAndPublish do
   alias AshEnterprise.SystemOne.Banding.Resolver
   alias AshEnterprise.SystemOne.BandTableCertification
   alias AshEnterprise.SystemOne.BandTablePublication
+  alias AshEnterprise.SystemOne.CalibrationInput
   alias AshJudgments.Calibration.FamilyConfig
   alias AshJudgments.Calibration.ProposalDmn
 
@@ -83,15 +84,15 @@ defmodule AshEnterprise.SystemOne.BandTablePublication.CertifyAndPublish do
   @doc """
   The score inputs a run's band table gates on: `"<question>__p_true"` for
   each yes/no question the run calibrated (its `question_hashes`), found
-  among this application's declared questions. They are the names
-  `AshJudgments.Bridge.Dmn.inputs/2` flattens those questions' answers to.
+  among the questions this application declares in the run's family. They
+  are the names `AshJudgments.Bridge.Dmn.inputs/2` flattens those
+  questions' answers to.
   """
   @spec score_inputs(map()) :: [String.t()]
-  def score_inputs(%{question_hashes: hashes}) do
+  def score_inputs(%{family: family, question_hashes: hashes}) do
     hashes = MapSet.new(hashes || [])
 
-    for module <- Application.spec(:ash_enterprise, :modules) || [],
-        question <- AshJudgments.Registry.Info.questions(module),
+    for question <- CalibrationInput.family_questions(family),
         MapSet.member?(hashes, question.question_hash),
         question.type == AshAi.Evaluate.Noul,
         uniq: true do
