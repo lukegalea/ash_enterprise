@@ -9,11 +9,11 @@ defmodule AshEnterprise.Artifacts.Differs.SurfaceSpec do
   (`component`, `query`, `field`, ...) and whose subject is its path.
   """
 
-  @behaviour AshEnterprise.Artifacts.Differ
+  @behaviour AshVersions.Differ
 
   use Gettext, backend: AshEnterpriseWeb.Gettext
 
-  alias AshEnterprise.Artifacts.Change
+  alias AshVersions.Change
 
   @impl true
   def aspects do

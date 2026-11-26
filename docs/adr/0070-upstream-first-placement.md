@@ -148,7 +148,7 @@ Moving code down is one loop, done in this order:
 
 1. **Prove it locally first.** Point the host at the package checkout with a `path:` dependency. Make the package
    change and the host change together, and get both test suites green. Do not commit the `path:` dependency (the
-   `cold-clone` CI job fails on it).
+   cold-clone check in CI fails on it).
 2. **Open the upstream PR** with a package-side test for each new capability. Its description lists the gap-map rows
    it closes.
 3. **While it waits, the host may pin the PR's commit.** A fork branch, or a first-party package pinned off `main`,

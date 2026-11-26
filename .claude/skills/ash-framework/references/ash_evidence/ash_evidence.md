@@ -129,3 +129,11 @@ layer (`AshEvidence.EvalSet`, `AshEvidence.EvalItem`,
   `migration_default_prefix:` (same repo config) to it and puts it first on
   the repo's `search_path`; a migration resolves a foreign key with
   `prefix()`, never a literal `"public"`.
+
+## Explaining cited atoms
+
+- `AshEvidence.Explanation.provenance(derived_address, atom_ids, opts)` returns steps and gaps for the atoms an
+  observation cited. Pass the reader's `:actor`/`:tenant`; the read is theirs.
+- Pass `existence_opts: [authorize?: false]` only when the host wants an atom the reader may not read reported as
+  `:unreadable`. Without it every id that does not resolve is `:erased`.
+- Pass `receipts: %{atom_id => "<type>:<id>"}` to attach the erasure receipt to an erased atom.
