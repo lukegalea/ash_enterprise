@@ -811,6 +811,54 @@ defmodule AshEnterprise.Surfaces do
       path: "/app/artifacts",
       live: AshEnterpriseWeb.ArtifactLive
     },
+    %Surface{
+      key: :paper_questions,
+      audience: [:member],
+      label: dgettext_noop("default", "Document questions"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "What a requirement still needs you to answer before one of your documents can be issued."
+        ),
+      group: :processes,
+      order: 50,
+      icon: "hero-question-mark-circle",
+      path: "/app/documents/paper-questions",
+      ui: A2ui.PaperQuestionsUI,
+      resource: AshEnterprise.Documents.PaperQuestion
+    },
+    %Surface{
+      key: :paper_clause_review,
+      audience: [:reviewer],
+      label: dgettext_noop("default", "Document wording"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "The clauses documents may carry, and what admitting a draft would change in documents already issued."
+        ),
+      group: :processes,
+      order: 51,
+      icon: "hero-document-text",
+      path: "/app/documents/document-wording",
+      ui: A2ui.PaperClauseReviewUI,
+      resource: AshEnterprise.Documents.PaperClause
+    },
+    %Surface{
+      key: :paper_table_review,
+      audience: [:reviewer],
+      label: dgettext_noop("default", "Clause tables"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "The tables that put clauses in documents, and which issued documents a draft would gain or lose them for."
+        ),
+      group: :processes,
+      order: 52,
+      icon: "hero-table-cells",
+      path: "/app/documents/clause-tables",
+      ui: A2ui.PaperTableReviewUI,
+      resource: AshEnterprise.Decisions.Definition
+    },
 
     # --- Compliance (ADR 0035) -----------------------------------------------
     %Surface{
@@ -1270,6 +1318,23 @@ defmodule AshEnterprise.Surfaces do
       live: AshEnterpriseWeb.ShowcaseLive.Credentialing,
       resource: AshEnterprise.Credentialing.Credential,
       acp: %{command: "credentialing tour", aliases: ["tour"]}
+    },
+    %Surface{
+      key: :three_valued_search,
+      audience: [:member, :builder],
+      label: dgettext_noop("default", "Three-valued search"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Search invented clinicians and see what is in, what is out, and what is unknown, with the reason for each unknown."
+        ),
+      group: :credentialing,
+      order: 20,
+      icon: "hero-magnifying-glass",
+      path: "/app/showcase/search",
+      live: AshEnterpriseWeb.ShowcaseLive.Search,
+      resource: AshEnterprise.SystemOne.ShowcaseSubject,
+      acp: %{command: "three-valued search", aliases: ["search demo"]}
     },
 
     # --- Legacy ------------------------------------------------------------------

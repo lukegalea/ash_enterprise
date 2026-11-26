@@ -654,7 +654,8 @@
       "mission": "Declared questions, the append-only judgment ledger, banding, admitted facts, human verdicts; evidence adjudication as assertions.",
       "packages": [
         "ash_judgments",
-        "ash_evidence"
+        "ash_evidence",
+        "ash_provenance"
       ],
       "adrs": [
         38,
@@ -1415,7 +1416,9 @@
       "domain": null,
       "plane": "experience",
       "mission": "The artifact registry: every versioned thing a person authors, reviews or releases, declared once.",
-      "packages": [],
+      "packages": [
+        "ash_versions"
+      ],
       "adrs": [],
       "terms": [
         {
@@ -1433,6 +1436,42 @@
         {
           "term": "header",
           "definition": "Identity, version, lifecycle, content hash, provenance and who published it, with the run it was opened from."
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "documents",
+      "name": "Documents",
+      "domain": "AshEnterprise.Documents",
+      "plane": "experience",
+      "mission": "The documents surface: issuing real documents from the host's own data through the paper kernel (`github.com/lukegalea/ash_paper`).",
+      "packages": [],
+      "adrs": [],
+      "terms": [
+        {
+          "term": "Paper binding",
+          "definition": "What a document kind is rendered with (ADR 0062's binding, on the paper kernel's vocabulary): `AshPlanning.Fragment.Binding` on the platform base, in table `paper_bindings`, one temporal row per (organization, kind)."
+        },
+        {
+          "term": "Paper run",
+          "definition": "One attempt to produce a document: `AshPaper.Fragment.Run` on the platform base, in table `paper_runs`, tenant-scoped in the `AshEnterprise.Documents` domain."
+        },
+        {
+          "term": "Paper draft",
+          "definition": "A rendered document waiting for a person (R10): `AshPlanning.Fragment.Candidate` on the platform base, in table `paper_drafts`."
+        },
+        {
+          "term": "Paper clause",
+          "definition": "One wording clause a document may carry, per locale: tenant data, drafted and admitted by people, in the table `paper_clauses`."
+        },
+        {
+          "term": "Paper question",
+          "definition": "The questions a requirement is still asking the signed-in person, one row per fact one of their blocked runs is missing (R1)."
+        },
+        {
+          "term": "Paper answer",
+          "definition": "A person's answer to a question a requirement asked (R1, R8): the record of who answered what, on which blocked run, and the fact it admitted."
         }
       ],
       "edges": []
@@ -1524,11 +1563,11 @@
     {
       "package": "ash_provenance",
       "repo": "lukegalea/ash_provenance",
-      "kind": "transitive",
+      "kind": "first-party",
       "context": [
         "system-one"
       ],
-      "role": "The explanation contract a materialised fact is explained on."
+      "role": "Plain-data contract that explains a value: steps, typed gaps, PROV-O export."
     },
     {
       "package": "ash_rules",
@@ -1633,6 +1672,7 @@
       "package": "battery",
       "repo": "in-repo",
       "kind": "in-repo",
+      "path": "battery",
       "context": [
         "platform"
       ],
@@ -1664,6 +1704,24 @@
         "signatures"
       ],
       "role": "The signature and acknowledgement fragments the host instantiates (ADR 0074)."
+    },
+    {
+      "package": "ash_versions",
+      "repo": "lukegalea/ash_versions",
+      "kind": "first-party",
+      "context": [
+        "artifacts"
+      ],
+      "role": "The version registry the artifact pages read through, and temporal history."
+    },
+    {
+      "package": "ash_paper",
+      "repo": "lukegalea/ash_paper",
+      "kind": "first-party",
+      "context": [
+        "documents"
+      ],
+      "role": "Deterministic PDF documents from Ash data (early; the API may change)."
     }
   ],
   "adopted": [
@@ -1759,5 +1817,39 @@
       "package": "igniter",
       "role": "Code generation and project patching."
     }
+  ],
+  "first_party_orgs": [
+    "lukegalea"
+  ],
+  "vendor_tokens": [
+    "Nango",
+    "Meltano",
+    "Airbyte",
+    "Marquez",
+    "OpenMetadata",
+    "Superset",
+    "Metabase",
+    "Grafana",
+    "Unleash",
+    "FunWithFlags",
+    "Kafka",
+    "Elasticsearch",
+    "DataHub",
+    "Slack",
+    "Gmail",
+    "GitHub",
+    "daisyUI",
+    "Phoenix",
+    "Elixir",
+    "Postgres",
+    "PostgreSQL",
+    "Oban",
+    "Google",
+    "Microsoft",
+    "Outlook",
+    "Zoom",
+    "Notion",
+    "Dropbox",
+    "Teams"
   ]
 }

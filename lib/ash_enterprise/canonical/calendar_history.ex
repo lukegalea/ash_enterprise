@@ -7,7 +7,7 @@ defmodule AshEnterprise.Canonical.CalendarHistory do
   reschedule, a cancellation or a rename closes the version valid until
   then and opens a new one, so the week as it was known at an instant is an
   as-of read, and an event's reschedules are where its consecutive versions
-  disagree on `starts_at` or `ends_at` (`AshEnterprise.Platform.TemporalHistory`).
+  disagree on `starts_at` or `ends_at` (`AshVersions.TemporalHistory`).
 
   Every read is the caller's, under the event's policies: an event the
   caller cannot read has no versions here, now or then. The actor is not
@@ -20,7 +20,8 @@ defmodule AshEnterprise.Canonical.CalendarHistory do
   require Ash.Query
 
   alias AshEnterprise.Canonical.CalendarEvent
-  alias AshEnterprise.Platform.{LocalTime, TemporalHistory}
+  alias AshEnterprise.Platform.LocalTime
+  alias AshVersions.TemporalHistory
 
   @events 200
   @max_versions 50

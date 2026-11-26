@@ -107,7 +107,7 @@ defmodule AshEnterprise.Assistant.DailyQuestionsTest do
 
   describe "meeting_prep" do
     setup %{alice: alice, me: me, quinn: quinn, rory: rory, robin: robin} do
-      review = D.event!(alice, "SYNTHETIC contract review", 0, 30, starts_at: tomorrow(10))
+      review = D.event!(alice, "SYNTHETIC design review", 0, 30, starts_at: tomorrow(10))
       Enum.each([me, quinn], &D.attendee!(alice, review, &1))
 
       intro = D.event!(alice, "SYNTHETIC intro call", 0, 30, starts_at: tomorrow(14))
@@ -181,10 +181,10 @@ defmodule AshEnterprise.Assistant.DailyQuestionsTest do
     end
 
     test "narrowed by title and window", %{alice: alice, review: review} do
-      assert [%{"ref" => ref}] = F.tool!(alice, :meeting_prep, %{text: "contract"})
+      assert [%{"ref" => ref}] = F.tool!(alice, :meeting_prep, %{text: "design"})
       assert ref == "calendar:#{review.id}"
 
-      assert [] = F.tool!(alice, :meeting_prep, %{window: "yesterday", text: "contract"})
+      assert [] = F.tool!(alice, :meeting_prep, %{window: "yesterday", text: "design"})
       assert F.refusal(alice, :meeting_prep, %{window: "SYNTHETIC-BAD"}) =~ "not a window"
     end
 

@@ -64,6 +64,8 @@ defmodule AshEnterprise.Planning.Candidate do
     change {AshEnterprise.Erasure.Changes.SealUnderScope, fields: [:assignments]},
       on: [:create, :update]
 
+    change AshEnterprise.Planning.Changes.StampExecutionContext
+
     change AshEnterprise.Planning.Changes.ApplyCandidate,
       on: [:update],
       where: action_is(:apply)

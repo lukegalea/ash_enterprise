@@ -26,8 +26,8 @@ else
   # `:durability` runs only under `mix test.durability`, which switches the
   # whole run off the sandbox (docs/DURABILITY-TESTS.md).
   # `:backup_drill` dumps and restores the test database, which needs pg_dump no older than
-  # the server; CI runs it in the backup-restore-drill job with `mix test --only backup_drill`.
-  # `:scale` seeds 50,000 rows to hold the page budget; CI runs it as its own job
+  # the server; CI runs it in the `integration` job with `mix test --only backup_drill`.
+  # `:scale` seeds 50,000 rows to hold the page budget; CI runs it in the `integration` job
   # with `mix test --only scale` (test/ash_enterprise/scale/).
   # `:e2e` is the browser tier (test/e2e), which needs a served endpoint and a
   # Chromium. Excluded unless `mix test.browser` asked for it, so `mix test`

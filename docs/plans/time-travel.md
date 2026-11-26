@@ -11,7 +11,7 @@ works, and which resources should become temporal next.
 | Piece | Where | Proven by |
 |---|---|---|
 | `?as_of=` grammar, view-only pinned surfaces, `time_travel: true` on `LiveRenderer`, the scrubber | ash_a2ui (`AshA2ui.AsOf`, `AshA2ui.TimeScrubber`, `:as_of` on `Info` and `ActionHandler`) | ash_a2ui `test/time_travel_test.exs`, `test/time_travel_live_test.exs` |
-| Every version of a temporal record, through as-of reads | `AshEnterprise.Platform.TemporalHistory` | the two suites below |
+| Every version of a temporal record, through as-of reads | `AshVersions.TemporalHistory`, in the [ash_versions](https://github.com/lukegalea/ash_versions) package (moved out of this app 2026-11-21) | the package's `test/ash_versions/temporal_history_test.exs`, and the two suites below |
 | Who a person resolved to, and when | `AshEnterprise.Mdm.Resolution` | `test/ash_enterprise/mdm/resolution_test.exs` |
 | What was true about a subject at T | `AshEnterprise.SystemOne.FactHistory` | `test/ash_enterprise/system_one/fact_history_test.exs` |
 | The Time travel app (`/app/time-travel`, a person, a subject) | `AshEnterpriseWeb.TimeTravelLive` | `test/ash_enterprise_web/time_travel_live_test.exs` |
