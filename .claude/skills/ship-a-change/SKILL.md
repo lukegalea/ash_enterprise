@@ -130,3 +130,18 @@ Other sessions, long-running services and their databases run on the same machin
   (`pkill`, `killall`).
 - Never stop services you did not create.
 - Remove your worktree when your work has landed, and drop the test databases it created.
+
+## 6. The pre-flight gate (opt-in)
+
+`priv/decisions/agent_gate_rules.dmn` holds this page's rules as data: force only your own `ci/`
+branch, `mix` only inside `devenv shell --`, no `ecto.drop` without your own `DB_NAME`, no
+hand-edited migrations, no edits to the vendored CDM corpus, no killing by pattern. Its hook is not
+enabled in `.claude/settings.json`. To check your own calls against it, start
+`devenv shell -- mix ash_agent.serve --port 4197` and add to `.claude/settings.local.json`:
+
+```json
+{"hooks": {"PreToolUse": [{"hooks": [{"type": "command", "timeout": 5,
+  "command": "\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/pretooluse-gate.sh\""}]}]}}
+```
+
+While the daemon is down every call except a read is asked. See `docs/system-one/pre-flight-gate.md`.

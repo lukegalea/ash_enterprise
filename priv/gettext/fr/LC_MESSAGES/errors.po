@@ -393,3 +393,8 @@ msgstr "la relation n’est pas modifiable"
 #: lib/ash/type/tuple.ex:235
 msgid "value must not be nil"
 msgstr "la valeur doit être renseignée"
+
+#: lib/ash_enterprise/accounts/validations/not_self.ex:21
+#, elixir-autogen, elixir-format
+msgid "You cannot deactivate your own account. Ask another administrator to do it."
+msgstr "Vous ne pouvez pas désactiver votre propre compte. Demandez à un autre administrateur de le faire."

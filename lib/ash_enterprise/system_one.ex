@@ -26,10 +26,17 @@ defmodule AshEnterprise.SystemOne do
   use Ash.Domain, otp_app: :ash_enterprise
 
   resources do
-    resource AshEnterprise.SystemOne.Judgment
+    resource AshEnterprise.SystemOne.Judgment do
+      define :list_judgments, action: :read
+    end
+
     resource AshEnterprise.SystemOne.HumanVerdict
     resource AshEnterprise.SystemOne.QuestionProposal
-    resource AshEnterprise.SystemOne.Banding
+
+    resource AshEnterprise.SystemOne.Banding do
+      define :get_banding, action: :read, get_by: [:id], not_found_error?: false
+    end
+
     resource AshEnterprise.SystemOne.EvidenceAssertion
 
     resource AshEnterprise.SystemOne.BandTableCertification do

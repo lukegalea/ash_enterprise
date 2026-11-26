@@ -473,6 +473,14 @@ defmodule AshEnterprise.Accounts.User do
     end
   end
 
+  # The deactivation is generated per lifecycle transition by the platform base, so its
+  # guard is declared here rather than inside an action block.
+  validations do
+    validate AshEnterprise.Accounts.Validations.NotSelf,
+      on: :update,
+      where: action_is(:deactivate)
+  end
+
   changes do
     change AshEnterprise.Accounts.Changes.RevokeTokensOnDeactivation,
       on: :update,

@@ -61,11 +61,12 @@ flowchart LR
     ctx_ledger["Change ledger"]
     ctx_canonical["Canonical store<br/>10 resources"]
     ctx_business-events["Business events<br/>2 resources"]
-    ctx_mdm["Master data<br/>11 resources"]
+    ctx_mdm["Master data<br/>12 resources"]
     ctx_lineage["Lineage<br/>4 resources"]
     ctx_exports["Exports<br/>1 resources"]
   end
   subgraph knowledge["Evidence & judgment"]
+    ctx_provenance["Provenance<br/>1 resources"]
     ctx_system-one["System One<br/>13 resources"]
     ctx_credentialing["Credentialing<br/>6 resources"]
     ctx_licences["Licences<br/>1 resources"]
@@ -114,6 +115,8 @@ flowchart LR
   ctx_lineage -->|"open host service"| ctx_canonical
   ctx_mdm -->|"conformist"| ctx_system-one
   ctx_planning -->|"customer–supplier"| ctx_canonical
+  ctx_provenance -->|"customer–supplier"| ctx_audit
+  ctx_provenance -->|"open host service"| ctx_canonical
   ctx_quality -->|"customer–supplier"| ctx_agents
   ctx_surfaces -->|"conformist"| ctx_platform
   ctx_system-one -->|"conformist"| ctx_canonical
@@ -169,6 +172,7 @@ flowchart LR
 | [Business events](#business-events) | Canonical record | `AshEnterprise.BusinessEvents` | The chained, commit-ordered discrete event ledger derived from canonical writes. |
 | [Master data](#mdm) | Canonical record | `AshEnterprise.Mdm` | Versioned mappings, deterministic entity resolution, survivorship, non-destructive merges over golden records. |
 | [Lineage](#lineage) | Canonical record | `AshEnterprise.Lineage` | Run-event lineage emitted from action notifications. |
+| [Provenance](#provenance) | Evidence & judgment | `AshEnterprise.Provenance` | Where a value came from (ADR 0078): one explain question over any readable value, answered as the reader through one dispatch, with steps and typed gaps and nothing the reader could not read one record at a time. |
 | [Exports](#exports) | Canonical record | `AshEnterprise.Exports` | Bulk export out: a tenant's data as CSV, under the same policies as every other read. |
 | [System One](#system-one) | Evidence & judgment | `AshEnterprise.SystemOne` | Declared questions, the append-only judgment ledger, banding, admitted facts, human verdicts; evidence adjudication as assertions. |
 | [Credentialing](#credentialing) | Evidence & judgment | `AshEnterprise.Credentialing` | The credentialing vertical slice composing evidence, judgment and process end to end. |
@@ -658,7 +662,7 @@ Versioned mappings, deterministic entity resolution, survivorship, non-destructi
 | **source identity** | The cross-reference registry: which external source identity points at which golden record, right now — temporal, one open period per identity. |
 | **golden record** | The survived, merged record the operational store reads; merges are non-destructive. |
 
-**Resources** — 11 introspected
+**Resources** — 12 introspected
 
 | Resource | Description | Aggregates | Calculations |
 |---|---|---|---|
@@ -669,6 +673,7 @@ Versioned mappings, deterministic entity resolution, survivorship, non-destructi
 | `AshEnterprise.Mdm.Mapping` | — | 0 | 2 |
 | `AshEnterprise.Mdm.MappingProposal` | — | 0 | 0 |
 | `AshEnterprise.Mdm.MatchCandidate` | — | 0 | 12 |
+| `AshEnterprise.Mdm.MatchRuleProposal` | — | 0 | 4 |
 | `AshEnterprise.Mdm.MatchRuleSet` | — | 0 | 0 |
 | `AshEnterprise.Mdm.SourceIdentity` | — | 0 | 0 |
 | `AshEnterprise.Mdm.SourceRecord` | — | 0 | 0 |
@@ -704,6 +709,32 @@ Run-event lineage emitted from action notifications.
 
 
 <!-- domain-map:context:lineage:end -->
+
+### Provenance
+
+<!-- domain-map:context:provenance:start -->
+
+Plane: **Evidence & judgment** · Domain: `AshEnterprise.Provenance` · Packages: `ash_provenance` · ADRs: [ADR 78](adr/0078-values-explain-themselves.md), [ADR 23](adr/0023-impersonation-is-attribution.md), [ADR 52](adr/0052-self-service-actions.md), [ADR 73](adr/0073-secured-columns-are-grants.md)
+
+Where a value came from (ADR 0078): one explain question over any readable value, answered as the reader through one dispatch, with steps and typed gaps and nothing the reader could not read one record at a time.
+
+**Ubiquitous language**
+
+| Term | Meaning |
+|---|---|
+| **address** | Where a value lives: <base>/<type>/<id>#<attribute>; the type token is declared in the explainer registry, never derived from a module name. |
+| **explainer** | One answerer in the dispatch (package explainers, derived values, the audit log, the record columns); the first that does not pass answers, and each antecedent it names is asked again. |
+| **gap** | Where an answer stops, and why: unreadable, failed, erased, not recorded, or archived — never read as empty or as a clean answer. |
+| **masked** | What a step shows of a value the reader may not see; never empty, which would read as a known, empty value. |
+
+**Resources** — 1 introspected
+
+| Resource | Description | Aggregates | Calculations |
+|---|---|---|---|
+| `AshEnterprise.Provenance.Explanation` | — | 0 | 0 |
+
+
+<!-- domain-map:context:provenance:end -->
 
 ### Exports
 
@@ -1477,8 +1508,8 @@ The documents surface: issuing real documents from the host's own data through t
 | `ash_planning` | first-party | git @ 6aab92f2 | [Planning](#planning) | Planning fragments, IR, validators; solver backend. |
 | `ash_agent` | first-party | git @ c3bd9892 | [Agents](#agents) | Governed invocations and durable agent runs (host-instantiated). |
 | `ash_acp` | first-party | git @ 536a404d | [Agent protocol](#acp) | The agent-client wire adapter; no second authorization model. |
-| `ash_a2ui` | first-party | git @ f9f8036e | [Surfaces](#surfaces) | Agent-renderable payloads generated from resources. |
-| `ash_agent_tools` | first-party dev | git @ fc7aa130 | [Standards](#standards) | Read-only introspection CLI + the iron laws. |
+| `ash_a2ui` | first-party | git @ e417c6e7 | [Surfaces](#surfaces) | Agent-renderable payloads generated from resources. |
+| `ash_agent_tools` | first-party dev | git @ 07f800fc | [Standards](#standards) | Read-only introspection CLI + the iron laws. |
 | `battery` | in-repo | in-repo (`battery/`) | [Platform](#platform) | Cross-substrate integration battery over its own reference instantiation. |
 | `ash_events_chain` | first-party | git @ cd122991 | [Audit](#audit) | The audit log's hash chain: immutability triggers, the verifier over hot log and archive as one chain, the verified move to the archive. |
 | `ash_greenmask` | first-party | git @ 24b0c882 | [Erasure](#erasure) | Masking blocks for sensitive attributes; the generated config's drift gate. |
@@ -1536,6 +1567,8 @@ table the day one does.
 | [Business events](#business-events) | customer–supplier | [Master data](#mdm) | Temporal SourceRecord landing feeds resolution. |
 | [Master data](#mdm) | conformist | [System One](#system-one) | Stewardship is System One machinery (ADR 0054). |
 | [Lineage](#lineage) | open host service | [Canonical store](#canonical) | Observes action notifications, emits run events. |
+| [Provenance](#provenance) | customer–supplier | [Audit](#audit) | Reads the newest event that changed the attribute, as the reader, hot log then archive. |
+| [Provenance](#provenance) | open host service | [Canonical store](#canonical) | Explains canonical values through their own registry tokens. |
 | [System One](#system-one) | conformist | [Canonical store](#canonical) | Questions declared on canonical subjects; observations recorded, never authoritative. |
 | [System One](#system-one) | partnership | [Compliance](#compliance) | Judgments as predicates over sets (ADR 0048, proposed). |
 | [Planning](#planning) | customer–supplier | [Canonical store](#canonical) | Planning proposes; people commit (ADR 0062). |

@@ -198,7 +198,7 @@ msgstr "Connexion Internet introuvable"
 msgid "close"
 msgstr "fermer"
 
-#: lib/ash_enterprise/surfaces.ex:1310
+#: lib/ash_enterprise/surfaces.ex:1332
 #, elixir-autogen, elixir-format
 msgid "A guided tour of governed activation: ask, approve, and what happens when the world changes in between."
 msgstr "Une visite guidée de l’activation encadrée : demander, approuver, et ce qui se passe quand la situation change entre-temps."
@@ -299,12 +299,12 @@ msgstr "Catalogues de conformité et documents OSCAL dont ils proviennent."
 msgid "Credentialing"
 msgstr "Justificatifs"
 
-#: lib/ash_enterprise/surfaces.ex:1308
+#: lib/ash_enterprise/surfaces.ex:1330
 #, elixir-autogen, elixir-format
 msgid "Credentialing tour"
 msgstr "Visite des justificatifs"
 
-#: lib/ash_enterprise/surfaces.ex:1285
+#: lib/ash_enterprise/surfaces.ex:1307
 #, elixir-autogen, elixir-format
 msgid "Credentials"
 msgstr "Justificatifs"
@@ -354,7 +354,7 @@ msgstr "Chaque processus BPMN que cette organisation peut exécuter : les modèl
 msgid "Every calibration run: what it measured and the threshold it earned."
 msgstr "Chaque exécution d’étalonnage : ce qu’elle a mesuré et le seuil obtenu."
 
-#: lib/ash_enterprise/surfaces.ex:1265
+#: lib/ash_enterprise/surfaces.ex:1287
 #, elixir-autogen, elixir-format
 msgid "Every import by status, with its counts and its staged rows."
 msgstr "Chaque importation par statut, avec ses totaux et ses lignes en transit."
@@ -424,7 +424,7 @@ msgstr "Enregistrements de référence"
 msgid "Import CSV"
 msgstr "Importer un CSV"
 
-#: lib/ash_enterprise/surfaces.ex:1263
+#: lib/ash_enterprise/surfaces.ex:1285
 #, elixir-autogen, elixir-format
 msgid "Import batches"
 msgstr "Lots d’importation"
@@ -449,7 +449,7 @@ msgstr "Jugements que la table de bandes a envoyés en revue, en attente de votr
 msgid "Legacy"
 msgstr "Ancien système"
 
-#: lib/ash_enterprise/surfaces.ex:1344
+#: lib/ash_enterprise/surfaces.ex:1366
 #, elixir-autogen, elixir-format
 msgid "Legacy users"
 msgstr "Utilisateurs de l’ancien système"
@@ -612,7 +612,7 @@ msgstr "Le journal en ajout seul de ce que le moteur a décidé, et sur quels fa
 msgid "The band tables in force, with who certified them."
 msgstr "Les tables de bandes en vigueur, avec la personne qui les a certifiées."
 
-#: lib/ash_enterprise/surfaces.ex:1287
+#: lib/ash_enterprise/surfaces.ex:1309
 #, elixir-autogen, elixir-format
 msgid "The clinic's credentials: ask to activate one, and see what the registry holds."
 msgstr "Les justificatifs de la clinique : demandez-en l’activation et consultez ce que contient le registre."
@@ -642,7 +642,7 @@ msgstr "La chaîne de versions de correspondance : intégration sans déploiemen
 msgid "The merged view of the customer, with merge lineage."
 msgstr "La vue fusionnée du client, avec la filiation des fusions."
 
-#: lib/ash_enterprise/surfaces.ex:1346
+#: lib/ash_enterprise/surfaces.ex:1368
 #, elixir-autogen, elixir-format
 msgid "The old system's people, read live through a compatibility view."
 msgstr "Les personnes de l’ancien système, lues en direct par une vue de compatibilité."
@@ -742,7 +742,7 @@ msgstr "Vos comptes liés et l’état de leurs synchronisations."
 msgid "Your morning brief, today's agenda and the day's pulse."
 msgstr "Votre synthèse du matin, l’ordre du jour d’aujourd’hui et le pouls de la journée."
 
-#: lib/ash_enterprise/surfaces.ex:1370
+#: lib/ash_enterprise/surfaces.ex:1392
 #, elixir-autogen, elixir-format
 msgid "Builders"
 msgstr "Constructeurs"
@@ -762,7 +762,7 @@ msgstr "Appuyer sur Entrée sur un numéro de licence ou un identifiant d’exé
 msgid "Everyone"
 msgstr "Tout le monde"
 
-#: lib/ash_enterprise/surfaces.ex:1368
+#: lib/ash_enterprise/surfaces.ex:1390
 #, elixir-autogen, elixir-format
 msgid "Members"
 msgstr "Membres"
@@ -772,7 +772,7 @@ msgstr "Membres"
 msgid "No app or record matches “%{query}”."
 msgstr "Aucune application ou enregistrement ne correspond à « %{query} »."
 
-#: lib/ash_enterprise/surfaces.ex:1371
+#: lib/ash_enterprise/surfaces.ex:1393
 #, elixir-autogen, elixir-format
 msgid "Operators"
 msgstr "Opérateurs"
@@ -782,7 +782,7 @@ msgstr "Opérateurs"
 msgid "Records"
 msgstr "Enregistrements"
 
-#: lib/ash_enterprise/surfaces.ex:1369
+#: lib/ash_enterprise/surfaces.ex:1391
 #, elixir-autogen, elixir-format
 msgid "Reviewers"
 msgstr "Réviseurs"
@@ -1733,12 +1733,22 @@ msgstr "Propositions de questions"
 msgid "Questions drafted from policy text, awaiting a person's confirmation."
 msgstr "Questions rédigées à partir du texte d’une politique, en attente de la confirmation d’une personne."
 
-#: lib/ash_enterprise/surfaces.ex:1327
+#: lib/ash_enterprise/surfaces.ex:1349
 #, elixir-autogen, elixir-format
 msgid "Search invented clinicians and see what is in, what is out, and what is unknown, with the reason for each unknown."
 msgstr "Cherchez parmi des cliniciens inventés et voyez ce qui est dedans, ce qui est dehors et ce qui est inconnu, avec la raison de chaque inconnu."
 
-#: lib/ash_enterprise/surfaces.ex:1325
+#: lib/ash_enterprise/surfaces.ex:1347
 #, elixir-autogen, elixir-format
 msgid "Three-valued search"
 msgstr "Recherche à trois valeurs"
+
+#: lib/ash_enterprise/surfaces.ex:1217
+#, elixir-autogen, elixir-format
+msgid "Match-rule weights learned from steward verdicts, replayed over them, for a person to activate."
+msgstr "Poids des règles d’appariement appris des verdicts des gardiens, rejoués sur ces verdicts, à activer par une personne."
+
+#: lib/ash_enterprise/surfaces.ex:1215
+#, elixir-autogen, elixir-format
+msgid "Proposed match rules"
+msgstr "Règles d’appariement proposées"
