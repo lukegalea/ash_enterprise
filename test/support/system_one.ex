@@ -378,7 +378,8 @@ defmodule AshEnterprise.SystemOne.Support do
         :probabilities,
         :model_digest,
         :runtime_version,
-        :mode
+        :mode,
+        :atom_ids
       ])
 
     Judgment

@@ -85,9 +85,18 @@ defmodule AshBrowserTests.RowActions do
         fill_prompt(acc, field, Map.fetch!(inputs || %{}, field.name))
       end)
 
+    confirm(conn, row_action)
+  end
+
+  @doc """
+  Confirms `row_action`'s open prompt or confirmation dialog through its
+  `confirm_label` control. Does nothing for an action that declares none.
+  """
+  @spec confirm(struct(), map()) :: struct()
+  def confirm(conn, row_action) do
     case row_action[:confirm_label] do
       nil -> conn
-      label -> confirm(conn, label)
+      label -> click_confirm(conn, label)
     end
   end
 
@@ -97,7 +106,7 @@ defmodule AshBrowserTests.RowActions do
   # closed dialogs included, and a text-only click lands in the first of
   # them. Only the clicked action's prompt is open, so the visible confirm
   # is the right one.
-  defp confirm(conn, label) do
+  defp click_confirm(conn, label) do
     expression = """
     (() => {
       #{Browser.walker()}
@@ -111,7 +120,15 @@ defmodule AshBrowserTests.RowActions do
           (visible(el) ||
             (el.shadowRoot && [...el.shadowRoot.querySelectorAll("button")].some(visible)))
       )
-      const el = candidates[0]
+      // A confirmation dialog's control before a same-named one behind it (the
+      // row's own button, for a destructive action confirmed under its name).
+      const inDialog = (el) => {
+        for (let node = el; node; node = node.parentNode || node.host) {
+          if (node.matches && node.matches('[role="dialog"], [role="alertdialog"], dialog[open]')) return true
+        }
+        return false
+      }
+      const el = candidates.find(inDialog) || candidates[0]
       if (!el) return false
       const inner = el.shadowRoot && el.shadowRoot.querySelector("button")
       ;(inner || el).click()

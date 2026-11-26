@@ -9,10 +9,11 @@ defmodule AshEnterprise.Provenance.Registry do
   one token for two resources, fails compilation.
 
   The dispatch order (ADR 0078, section 4) is `explainers_for/2`: package
-  explainers declared for the resource and field first, then the derived-value
-  explainer, the audit explainer and the record columns. Package explainers
-  (MDM statements, judged facts, decisions) are a later change; the slot is the
-  empty `@package_explainers` list.
+  explainers declared for the resource and field first, then the
+  ontology-facade explainer for a resource that carries `AshStrangler.Facade`,
+  then the derived-value explainer, the audit explainer and the record columns.
+  Package explainers (judged facts so far) are the `@package_explainers` list. A
+  facade needs no entry of its own to be explained, only a type token in `@pairs`.
   """
 
   @pairs [
@@ -23,7 +24,8 @@ defmodule AshEnterprise.Provenance.Registry do
     {"audit_event", AshEnterprise.Audit.EventLog},
     {"person_erasure", AshEnterprise.Erasure.PersonErasure},
     {"dispatch", AshEnterprise.Bpmn.Dispatch},
-    {"agent_start_grant", AshEnterprise.Security.AgentStartGrant}
+    {"agent_start_grant", AshEnterprise.Security.AgentStartGrant},
+    {"fact", AshEnterprise.SystemOne.Fact}
   ]
 
   # One token for two resources would answer one address two ways; two tokens
@@ -46,9 +48,11 @@ defmodule AshEnterprise.Provenance.Registry do
   @resources Map.new(@pairs, fn {token, resource} -> {resource, token} end)
 
   # Package explainers declared for a resource and field (MDM statements,
-  # judged facts, decisions): none yet. Each entry is
-  # `{resource, field, module}` and runs before the generic explainers.
-  @package_explainers []
+  # decisions still to come). Each entry is `{resource, field, module}` and
+  # runs before the generic explainers.
+  @package_explainers [
+    {AshEnterprise.SystemOne.Fact, :value, AshEnterprise.Provenance.Explainers.JudgedFact}
+  ]
 
   @doc "The resource a type token addresses."
   @spec resource(String.t()) :: {:ok, Ash.Resource.t()} | :error
@@ -70,10 +74,19 @@ defmodule AshEnterprise.Provenance.Registry do
       end
 
     package ++
+      facade(resource) ++
       [
         AshEnterprise.Provenance.Explainers.Derived,
         AshEnterprise.Provenance.Explainers.Audit,
         AshEnterprise.Provenance.Explainers.RecordColumns
       ]
+  end
+
+  # The facade explainer answers for any resource that has a source, so a
+  # facade is found by what it is and never listed one by one.
+  defp facade(resource) do
+    if AshStrangler.Facade.Info.source(resource),
+      do: [AshEnterprise.Provenance.Explainers.Facade],
+      else: []
   end
 end
