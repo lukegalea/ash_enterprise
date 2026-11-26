@@ -1,10 +1,11 @@
 defmodule AshEnterprise.Assistant.Lookups.StalledReviews do
   @moduledoc """
   `Lookup.StalledReview.stalled_reviews`: `HumanTask.stalled` (open or claimed tasks
-  that opened more than two days ago, oldest first) as the person reads it, the
-  oldest #{25} listed with a ref each, how many there are, and the same read composed
-  for the person's screen (`AshEnterprise.Assistant.Composer`, `"stalled_reviews"`),
-  which the page renders in the answer as it renders `compose_surface`'s.
+  past their due date, or, with no due date, opened more than two days ago; oldest
+  first) as the person reads it, the oldest #{25} listed with a ref each, how many there
+  are, and the same read composed for the person's screen
+  (`AshEnterprise.Assistant.Composer`, `"stalled_reviews"`), which the page renders in the
+  answer as it renders `compose_surface`'s.
 
   The view is also a declared surface, `/app/reviews/stalled`, reached without chat.
   """
@@ -47,7 +48,7 @@ defmodule AshEnterprise.Assistant.Lookups.StalledReviews do
   end
 
   defp compose do
-    case Composer.compose(%{show: "stalled_reviews", title: "Reviews waiting over two days"}) do
+    case Composer.compose(%{show: "stalled_reviews", title: "Reviews waiting too long"}) do
       {:ok, composed} -> {:ok, composed}
       {:error, reasons} -> {:error, "Not shown: " <> Enum.join(reasons, "; ")}
     end
@@ -67,7 +68,8 @@ defmodule AshEnterprise.Assistant.Lookups.StalledReviews do
 
   defp note(0),
     do:
-      "None of the tasks this person may read has waited more than two days. Say so; the " <>
+      "None of the tasks this person may read is past its due date, or has waited more than " <>
+        "two days with none. Say so; the " <>
         "view on screen is empty."
 
   defp note(count) when count > @shown,

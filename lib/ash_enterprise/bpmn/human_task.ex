@@ -260,9 +260,19 @@ defmodule AshEnterprise.Bpmn.HumanTask do
 
     # Stalled reviews: what the stalled-reviews surface and the assistant's
     # `stalled_reviews` tool both read, so the chat and the page show one set.
+    #
+    # A task with a due date is stalled once that date has passed, whatever its age; a
+    # task due next week is not stalled because it opened three days ago. Only a task
+    # with no due date falls back to the two-day rule.
     read :stalled do
-      description "Open and claimed tasks the reader may read that opened more than two days ago, oldest first."
-      filter expr(status in [:open, :claimed] and inserted_at < ago(2, :day))
+      description "Open and claimed tasks the reader may read that are past their due date, or, with no due date, opened more than two days ago; oldest first."
+
+      filter expr(
+               status in [:open, :claimed] and
+                 ((not is_nil(due_at) and due_at < now()) or
+                    (is_nil(due_at) and inserted_at < ago(2, :day)))
+             )
+
       prepare build(sort: [inserted_at: :asc, id: :asc])
     end
 

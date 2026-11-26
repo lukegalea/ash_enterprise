@@ -672,7 +672,7 @@ defmodule AshEnterprise.Surfaces do
       blurb:
         dgettext_noop(
           "default",
-          "Reviews and other process tasks you can see that have waited more than two days."
+          "Reviews and other process tasks you can see that are past their due date, or have waited more than two days with none."
         ),
       group: :processes,
       order: 2,

@@ -74,9 +74,12 @@ defmodule AshBrowserTests.RowActions do
   (values by field name; a choice picker selects the option whose value it
   is), and confirms through the prompt's `confirm_label` when one is
   declared.
+
+  `confirm: false` stops before confirming, leaving the prompt or confirmation
+  dialog open (to capture it, say); `confirm/2` then confirms it.
   """
-  @spec perform(struct(), map(), map()) :: struct()
-  def perform(conn, %{id: row_id, text: row_text, inputs: inputs}, row_action) do
+  @spec perform(struct(), map(), map(), keyword()) :: struct()
+  def perform(conn, %{id: row_id, text: row_text, inputs: inputs}, row_action, opts \\ []) do
     conn = wait_for_row(conn, row_id, row_text, row_action)
     conn = click(conn, row_id, row_text, row_action)
 
@@ -85,7 +88,7 @@ defmodule AshBrowserTests.RowActions do
         fill_prompt(acc, field, Map.fetch!(inputs || %{}, field.name))
       end)
 
-    confirm(conn, row_action)
+    if Keyword.get(opts, :confirm, true), do: confirm(conn, row_action), else: conn
   end
 
   @doc """

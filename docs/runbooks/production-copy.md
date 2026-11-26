@@ -29,7 +29,7 @@ lists everything that passes through and why. In short:
 | Tables no resource declares (`schema_migrations`, Oban's jobs, a package's own tables) | as they are |
 | Process and decision definitions | as they are: a tenant's own design, not personal data |
 | MDM raw landings (`mdm_source_records.raw_payload`), staged rows (`mdm_staged_records.mapped` and `validation_findings`), a mapping's findings and its proposer's raw output | replaced with an empty JSON object: a landed row's keys are a spreadsheet's own headers, so no column transform can name the values inside. The rows, their identities, periods and links stay |
-| Other free-form JSON columns no resource positions (92 on 2026-11-18, 9 document columns on 2026-11-21 and a match candidate's second opinion on 2026-11-26, which holds ids, a probability and a band, never a record's values; listed in `greenmask_config_test.exs`) | as they are, until each gets a transform or a stated reason. The name heuristic below cannot see inside a JSON value, so a test lists them and fails on a new one that has neither |
+| Other free-form JSON columns no resource positions (92 on 2026-11-18, 9 document columns on 2026-11-21, and on 2026-11-26 the timer ledger's `data` and a match candidate's second opinion, which holds ids, a probability and a band, never a record's values; listed in `greenmask_config_test.exs`) | as they are, until each gets a transform or a stated reason. The name heuristic below cannot see inside a JSON value, so a test lists them and fails on a new one that has neither |
 
 The tenant keys, ids and timestamps are copied unchanged. A copy is therefore linkable to production row for row by
 anyone who holds both.

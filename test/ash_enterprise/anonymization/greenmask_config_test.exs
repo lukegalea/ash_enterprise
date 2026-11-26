@@ -135,6 +135,7 @@ defmodule AshEnterprise.Anonymization.GreenmaskConfigTest do
     AshEnterprise.Bpmn.ProcessEvent.data
     AshEnterprise.Bpmn.Subscription.compiled
     AshEnterprise.Bpmn.Subscription.variable_mapping
+    AshEnterprise.Bpmn.TimerJob.data
     AshEnterprise.Bpmn.Token.routing
     AshEnterprise.Canonical.Task.judgment_digests
     AshEnterprise.Credentialing.DocumentEvent.data

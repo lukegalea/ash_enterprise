@@ -76,7 +76,15 @@ defmodule AshBrowserTests.MixProject do
       # Deliberately a dependency of the *test harness* on the UI library, never
       # the reverse: `ash_a2ui` must not grow a dependency on
       # `phoenix_test_playwright` and `bandit` in order to be testable.
-      {:ash_a2ui, github: "lukegalea/ash_a2ui", optional: true, only: :test}
+      {:ash_a2ui, github: "lukegalea/ash_a2ui", optional: true, only: :test},
+
+      # --- Journeys, optional --------------------------------------------------------
+      # `AshBrowserTests.Journeys` runs the journeys a host declares with
+      # `ash_journeys` and writes its run manifests. A host with journeys declares
+      # `ash_journeys` itself (its journeys live in its own code); a host without
+      # them never compiles a journey test and needs nothing here. The dependency
+      # points one way: `ash_journeys` never depends on this package.
+      {:ash_journeys, github: "lukegalea/ash_journeys", optional: true, only: :test}
     ] ++ telemetry_dep() ++ fixture_deps()
   end
 

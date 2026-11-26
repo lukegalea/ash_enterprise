@@ -23,13 +23,29 @@ defmodule AshEnterprise.Process.AccessRequestDemoTest do
 
   use AshEnterprise.DataCase, async: false
 
-  require Ash.Query
+  import Swoosh.TestAssertions
 
-  alias AshEnterprise.Bpmn.{Cursor, Dispatch, HumanTask, Instance, ProcessEvent, Subscription}
+  require Ash.Query
+  require Ecto.Query
+
+  alias AshEnterprise.Bpmn.{
+    Cursor,
+    Dispatch,
+    HumanTask,
+    Instance,
+    ProcessEvent,
+    Subscription,
+    TimerJob
+  }
+
+  alias AshBpmn.Runtime.Oban.TestJobs
+  alias AshEnterprise.Bpmn.Changes.RecordUnassignableFinding
   alias AshEnterprise.Decisions
   alias AshEnterprise.Platform.{Seeder, SystemActor}
-  alias AshEnterprise.Process.Resolver
+  alias AshEnterprise.Process.{Resolver, TaskNotice}
   alias AshEnterprise.Security.{AccessRequest, Role, UserRole}
+  alias AshEnterprise.Test.AssistantFixtures
+  alias AshEnterprise.Test.Process.FlakyMailer
 
   setup do
     platform = Seeder.seed_platform_organization()
@@ -344,6 +360,307 @@ defmodule AshEnterprise.Process.AccessRequestDemoTest do
     end
   end
 
+  # The timer ledger (`AshEnterprise.Bpmn.TimerJob`): Oban forgets a job within days and never
+  # says why one was cancelled, so the engine records each armed timer in the tenant's own
+  # table. The executive approval's 24-hour escalation is the timer this diagram declares.
+  describe "the timer ledger" do
+    test "a waiting approval's escalation is armed on the ledger, in its own tenant", ctx do
+      submit!(%{requested_role_tier: :privileged}, ctx)
+      sweep!(ctx.tenant)
+
+      [task] = tasks(ctx.tenant)
+
+      assert [row] = timer_rows(ctx.tenant)
+      assert row.task_id == task.id
+      assert row.node_id == "ExecutiveApproval"
+      assert row.kind == :escalate
+      assert row.status == :scheduled
+      assert row.organization_id == ctx.tenant
+      # The firing's stable key, `<task>/<node>/<timer index>/<repetition>`.
+      assert [task_id, "ExecutiveApproval", _index, "1"] = String.split(row.data["key"], "/")
+      assert task_id == task.id
+
+      # Armed for 24 hours after the task opened: an instant, recorded once.
+      assert_in_delta DateTime.diff(row.due_at, task.inserted_at, :second), 24 * 3600, 5
+
+      # Another organization reads none of it.
+      %{organization: other} =
+        Seeder.seed_tenant(
+          unique_name: "other-#{System.unique_integer([:positive])}",
+          email: "other-#{System.unique_integer([:positive])}@example.com"
+        )
+
+      assert timer_rows(other.id) == []
+    end
+
+    test "cancelling the instance cancels the armed timer, with the reason", ctx do
+      submit!(%{requested_role_tier: :privileged}, ctx)
+      sweep!(ctx.tenant)
+      [instance] = instances(ctx.tenant)
+
+      AshBpmn.cancel_instance!(instance, actor: SystemActor.process(), tenant: ctx.tenant)
+
+      assert [row] = timer_rows(ctx.tenant)
+      assert row.status == :cancelled
+      assert row.cancel_reason == :instance_cancelled
+      assert [%{status: :cancelled}] = tasks(ctx.tenant)
+    end
+
+    test "no person writes a ledger row, not even the tenant's administrator", ctx do
+      submit!(%{requested_role_tier: :privileged}, ctx)
+      sweep!(ctx.tenant)
+      [task] = tasks(ctx.tenant)
+
+      assert {:error, %Ash.Error.Forbidden{}} =
+               TimerJob
+               |> Ash.Changeset.for_create(
+                 :create,
+                 %{task_id: task.id, kind: :escalate, due_at: DateTime.utc_now()},
+                 actor: ctx.admin,
+                 tenant: ctx.tenant
+               )
+               |> Ash.create()
+
+      [row] = timer_rows(ctx.tenant)
+
+      assert {:error, %Ash.Error.Forbidden{}} =
+               row
+               |> Ash.Changeset.for_update(:record_cancelled, %{cancel_reason: :host_request},
+                 actor: ctx.admin,
+                 tenant: ctx.tenant
+               )
+               |> Ash.update()
+    end
+  end
+
+  # `HumanTask.stalled`, the read behind the stalled-reviews page and the assistant's
+  # `stalled_reviews` tool: past its due date when it has one, two days old when it has none.
+  describe "a stalled task" do
+    test "is past its due date, or two days old with none; a task not yet due is not", ctx do
+      for _ <- 1..4, do: submit!(%{requested_role_tier: :privileged}, ctx)
+      sweep!(ctx.tenant)
+
+      assert [overdue, not_yet_due, old_undated, fresh_undated] = tasks(ctx.tenant)
+
+      now = DateTime.utc_now()
+      days = fn n -> DateTime.add(now, n * 86_400, :second) end
+
+      # Opened an hour ago, due an hour ago: stalled, though young.
+      set_task!(overdue, inserted_at: DateTime.add(now, -3600, :second), due_at: days.(0))
+      # Opened five days ago and due tomorrow: not stalled, however old.
+      set_task!(not_yet_due, inserted_at: days.(-5), due_at: days.(1))
+      # No due date: the two-day rule.
+      set_task!(old_undated, inserted_at: days.(-3), due_at: nil)
+      set_task!(fresh_undated, inserted_at: days.(-1), due_at: nil)
+
+      stalled =
+        HumanTask
+        |> Ash.Query.for_read(:stalled, %{}, actor: SystemActor.process(), tenant: ctx.tenant)
+        |> Ash.read!()
+        |> Enum.map(& &1.id)
+
+      assert Enum.sort(stalled) == Enum.sort([overdue.id, old_undated.id])
+
+      # A decided task is never stalled, even past its due date.
+      set_task!(overdue, status: "cancelled")
+
+      assert [%{id: id}] =
+               HumanTask
+               |> Ash.Query.for_read(:stalled, %{},
+                 actor: SystemActor.process(),
+                 tenant: ctx.tenant
+               )
+               |> Ash.read!()
+
+      assert id == old_undated.id
+    end
+  end
+
+  # The diagram's 24-hour escalation, end to end (ash_bpmn DESIGN.md §11.6, §11.7): the
+  # engine asks `AssignmentResolver.escalate/2` whom to add, adds them, and tells everyone
+  # through `TaskNotices`. The requester (`ctx.admin`) is excluded from the review, so the
+  # reviewer is a second administrator.
+  describe "an escalation reaches people" do
+    setup ctx do
+      TestJobs.clear()
+      on_exit(&TestJobs.clear/0)
+      flush_mail()
+      ctx
+    end
+
+    test "the reviewer's manager is added, and both are told; the requester never is", ctx do
+      manager = person!(ctx)
+      reviewer = person!(ctx, manager: manager, admin?: true)
+
+      submit!(%{requested_role_tier: :privileged}, ctx)
+      sweep!(ctx.tenant)
+      [task] = tasks(ctx.tenant)
+      assert candidate_ids(task, ctx.tenant) == [reviewer.id]
+
+      TestJobs.fire!("escalate", task.id)
+
+      # Added, never replacing: the reviewer is still a candidate.
+      assert Enum.sort(candidate_ids(task, ctx.tenant)) == Enum.sort([reviewer.id, manager.id])
+
+      assert [escalated] = process_events(task.instance_id, :task_escalated, ctx.tenant)
+      assert escalated.data["added"] == [%{"type" => "user", "id" => manager.id}]
+
+      assert [delivered] = process_events(task.instance_id, :notice_delivered, ctx.tenant)
+      assert delivered.data["key"] == escalated.data["key"]
+
+      notices = task_notices(ctx.tenant)
+      assert Enum.sort(Enum.map(notices, & &1.user_id)) == Enum.sort([reviewer.id, manager.id])
+      assert Enum.all?(notices, &(&1.key == escalated.data["key"] and &1.kind == :escalated))
+
+      assert_email_sent(to: to_string(reviewer.email))
+      assert_email_sent(to: to_string(manager.email))
+      refute_email_sent()
+
+      assert [%{status: :fired}] = timer_rows(ctx.tenant)
+    end
+
+    test "a manager who is the requester is not added; the fallback pool is", ctx do
+      reviewer = person!(ctx, manager: ctx.admin, admin?: true)
+      operator = operator!(ctx)
+
+      submit!(%{requested_role_tier: :privileged}, ctx)
+      sweep!(ctx.tenant)
+      [task] = tasks(ctx.tenant)
+      assert ctx.admin.id in task.excluded_principal_ids
+
+      TestJobs.fire!("escalate", task.id)
+
+      ids = candidate_ids(task, ctx.tenant)
+      assert operator.id in ids
+      refute ctx.admin.id in ids
+
+      # The task's candidates first, then the people the escalation added.
+      assert_email_sent(to: to_string(reviewer.email))
+      assert_email_sent(to: to_string(operator.email))
+      refute_email_sent()
+    end
+
+    test "with no manager and nobody to fall back to, it reaches nobody, and a finding says so",
+         ctx do
+      reviewer = person!(ctx, admin?: true)
+
+      submit!(%{requested_role_tier: :privileged}, ctx)
+      sweep!(ctx.tenant)
+      [task] = tasks(ctx.tenant)
+
+      TestJobs.fire!("escalate", task.id)
+
+      assert candidate_ids(task, ctx.tenant) == [reviewer.id]
+      assert [_nobody] = process_events(task.instance_id, :escalation_reached_nobody, ctx.tenant)
+      assert process_events(task.instance_id, :task_escalated, ctx.tenant) == []
+      assert task_notices(ctx.tenant) == []
+      refute_email_sent()
+
+      {:ok, findings} =
+        AshCompliance.Domain.findings_for_organization(ctx.tenant, authorize?: false)
+
+      subject_type = RecordUnassignableFinding.subject_type(:escalation_reached_nobody)
+      assert [finding] = Enum.filter(findings, &(&1.subject_type == subject_type))
+      assert finding.subject_id == task.id
+      assert finding.gap == "escalation_reached_nobody"
+      assert finding.severity == :medium
+      assert finding.explanation =~ "reached nobody"
+    end
+
+    test "a notice whose mail fails is retried under its key: one row and one message each",
+         ctx do
+      manager = person!(ctx)
+      reviewer = person!(ctx, manager: manager, admin?: true)
+
+      submit!(%{requested_role_tier: :privileged}, ctx)
+      sweep!(ctx.tenant)
+      [task] = tasks(ctx.tenant)
+      job = stored_job!("escalate", task.id)
+
+      start_supervised!({FlakyMailer, failures: 1})
+      FlakyMailer.install()
+
+      # The escalation commits; the notice fails, and the job fails so Oban retries it.
+      assert {:error, _} = perform(job)
+      assert [_] = process_events(task.instance_id, :task_escalated, ctx.tenant)
+      assert process_events(task.instance_id, :notice_delivered, ctx.tenant) == []
+
+      assert {:ok, _} = perform(job)
+
+      assert [_] = process_events(task.instance_id, :task_escalated, ctx.tenant)
+      assert [_] = process_events(task.instance_id, :notice_delivered, ctx.tenant)
+      assert length(task_notices(ctx.tenant)) == 2
+
+      # The first attempt's failure silenced nobody after it: each person was mailed once,
+      # one on the first attempt and the other on the retry.
+      assert Enum.sort(mailed_to()) ==
+               Enum.sort([to_string(reviewer.email), to_string(manager.email)])
+    end
+
+    test "a cancelled task is told nothing", ctx do
+      manager = person!(ctx)
+      _reviewer = person!(ctx, manager: manager, admin?: true)
+
+      submit!(%{requested_role_tier: :privileged}, ctx)
+      sweep!(ctx.tenant)
+      [task] = tasks(ctx.tenant)
+      [instance] = instances(ctx.tenant)
+      job = stored_job!("escalate", task.id)
+
+      AshBpmn.cancel_instance!(instance, actor: SystemActor.process(), tenant: ctx.tenant)
+
+      perform(job)
+
+      assert process_events(instance.id, :task_escalated, ctx.tenant) == []
+      assert task_notices(ctx.tenant) == []
+      refute_email_sent()
+    end
+
+    test "on a claimed task, a reminder tells only the person holding it", ctx do
+      publish_with_reminder!(ctx)
+      holder = person!(ctx, admin?: true)
+      other = person!(ctx, admin?: true)
+
+      submit!(%{requested_role_tier: :privileged}, ctx)
+      sweep!(ctx.tenant)
+      [task] = tasks(ctx.tenant)
+      assert Enum.sort(candidate_ids(task, ctx.tenant)) == Enum.sort([holder.id, other.id])
+
+      {:ok, _claimed} =
+        AshBpmn.claim_task(task,
+          actor: AssistantFixtures.actor(holder, ctx.tenant),
+          tenant: ctx.tenant
+        )
+
+      TestJobs.fire!("remind", task.id)
+
+      assert [%{user_id: user_id, kind: :remind}] = task_notices(ctx.tenant)
+      assert user_id == holder.id
+      assert_email_sent(to: to_string(holder.email))
+      refute_email_sent()
+    end
+
+    test "without a notifier, a draft of the diagram is refused", ctx do
+      previous = Application.get_env(:ash_bpmn, :task_notifier)
+      Application.put_env(:ash_bpmn, :task_notifier, nil)
+      on_exit(fn -> Application.put_env(:ash_bpmn, :task_notifier, previous) end)
+
+      draft =
+        AshEnterprise.Bpmn.Definition.create!(
+          %{
+            key: "access_request.grant",
+            name: "access_request.grant",
+            xml: File.read!("priv/bpmn/access_request_grant.bpmn")
+          },
+          actor: SystemActor.process(),
+          tenant: ctx.tenant
+        )
+
+      assert draft.errors not in [nil, []]
+      assert Enum.any?(draft.errors, &(inspect(&1) =~ "task_notifier"))
+    end
+  end
+
   describe "attribution" do
     # The reason the bypass ordering was chosen over an engine actor: the human survives.
     test "the process runs as a named non-human actor, and names the human who caused it", ctx do
@@ -456,6 +773,144 @@ defmodule AshEnterprise.Process.AccessRequestDemoTest do
     end
   end
 
+  defp tasks(tenant) do
+    HumanTask
+    |> Ash.Query.for_read(:read)
+    |> Ash.Query.sort(inserted_at: :asc, id: :asc)
+    |> Ash.read!(actor: SystemActor.process(), tenant: tenant)
+  end
+
+  defp timer_rows(tenant) do
+    TimerJob
+    |> Ash.Query.for_read(:read)
+    |> Ash.read!(actor: SystemActor.process(), tenant: tenant)
+  end
+
+  # Moves a task's clock without waiting for it: the test's only direct write.
+  defp set_task!(task, fields) do
+    {1, _} =
+      AshEnterprise.Repo.update_all(
+        Ecto.Query.from(t in "bpmn_human_tasks", where: t.id == type(^task.id, Ecto.UUID)),
+        set: fields
+      )
+  end
+
+  defp task_notices(tenant) do
+    TaskNotice
+    |> Ash.Query.for_read(:read)
+    |> Ash.read!(actor: SystemActor.process(), tenant: tenant)
+  end
+
+  defp candidate_ids(task, tenant) do
+    AshEnterprise.Bpmn.TaskCandidate
+    |> Ash.Query.for_read(:read)
+    |> Ash.Query.filter(task_id == ^task.id)
+    |> Ash.read!(actor: SystemActor.process(), tenant: tenant)
+    |> Enum.map(& &1.principal_id)
+  end
+
+  # A person at home in the tenant's root unit, with a manager or the Administrator role.
+  defp person!(ctx, opts \\ []) do
+    n = System.unique_integer([:positive])
+
+    user =
+      "person-#{n}@example.test"
+      |> Seeder.provision_user!("password-#{n}-long")
+      |> Ash.Changeset.for_update(
+        :assign_to_business_unit,
+        %{owning_business_unit_id: ctx.unit.id},
+        authorize?: false
+      )
+      |> Ash.update!()
+
+    user =
+      case opts[:manager] do
+        nil ->
+          user
+
+        manager ->
+          user
+          |> Ash.Changeset.for_update(:assign_manager, %{manager_id: manager.id},
+            authorize?: false
+          )
+          |> Ash.update!()
+      end
+
+    if opts[:admin?], do: give_role!(ctx, user, "Administrator")
+    user
+  end
+
+  # The fallback pool `AssignmentResolver.fallback_specs/0` names by default.
+  defp operator!(ctx) do
+    operator = person!(ctx)
+    give_role!(ctx, operator, "Platform Operator")
+    operator
+  end
+
+  defp give_role!(ctx, user, name) do
+    role =
+      Role
+      |> Ash.Query.filter(name == ^name)
+      |> Ash.read_one!(authorize?: false, tenant: ctx.tenant) ||
+        Role
+        |> Ash.Changeset.for_create(:create, %{name: name},
+          actor: SystemActor.seed(),
+          tenant: ctx.tenant
+        )
+        |> Ash.create!()
+
+    UserRole
+    |> Ash.Changeset.for_create(
+      :assign,
+      %{user_id: user.id, role_id: role.id, scoping_business_unit_id: ctx.unit.id},
+      tenant: ctx.tenant,
+      authorize?: false
+    )
+    |> Ash.create!()
+  end
+
+  # The tenant's next version of the process, with a four-hour reminder on the executive
+  # approval beside its escalation.
+  defp publish_with_reminder!(ctx) do
+    xml =
+      "priv/bpmn/access_request_grant.bpmn"
+      |> File.read!()
+      |> String.replace(
+        ~s|<ash:timer kind="escalate" hours="24"/>|,
+        ~s|<ash:timer kind="remind" hours="4"/>\n            <ash:timer kind="escalate" hours="24"/>|
+      )
+
+    opts = [actor: SystemActor.process(), tenant: ctx.tenant]
+
+    %{key: "access_request.grant", name: "access_request.grant", xml: xml}
+    |> AshEnterprise.Bpmn.Definition.create!(opts)
+    |> AshEnterprise.Bpmn.Definition.publish!(opts)
+  end
+
+  defp stored_job!(kind, task_id) do
+    Enum.find(TestJobs.all(), &(&1.args["kind"] == kind and &1.args["task_id"] == task_id)) ||
+      flunk("no #{kind} timer stored for #{task_id}")
+  end
+
+  # What Oban does with a stored job: perform it, as often as it is retried.
+  defp perform(record) do
+    record.worker.perform(%Oban.Job{
+      id: record.id,
+      args: record.args,
+      scheduled_at: record[:scheduled_at],
+      attempt: 1,
+      max_attempts: 5
+    })
+  end
+
+  defp flush_mail do
+    receive do
+      {:email, _email} -> flush_mail()
+    after
+      0 -> :ok
+    end
+  end
+
   defp reload(request, tenant) do
     AccessRequest
     |> Ash.Query.for_read(:read)
@@ -507,6 +962,14 @@ defmodule AshEnterprise.Process.AccessRequestDemoTest do
     |> case do
       [%{sequence: sequence}] -> sequence
       [] -> 0
+    end
+  end
+
+  defp mailed_to(acc \\ []) do
+    receive do
+      {:email, email} -> mailed_to(Enum.map(email.to, &elem(&1, 1)) ++ acc)
+    after
+      0 -> acc
     end
   end
 end

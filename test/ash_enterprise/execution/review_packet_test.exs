@@ -242,6 +242,84 @@ defmodule AshEnterprise.Execution.ReviewPacketTest do
       assert packet.due_label =~ "Due #{AshEnterprise.Platform.LocalTime.stamp(due_at)}"
       assert packet.escalation_label =~ "Escalated"
     end
+
+    # What the engine records since an escalation adds people (ash_bpmn DESIGN.md §11.6,
+    # §11.7), each said for what it is.
+    test "says whom an escalation added, that one reached nobody, and that a notice did not go",
+         ctx do
+      row = request!(ctx)
+      task = approval_task(row, ctx.tenant)
+      key = "#{task.id}/#{task.node_id}/0/1"
+      added = [%{"type" => "user", "id" => Ecto.UUID.generate()}]
+
+      for {kind, data} <- [
+            {:task_escalated, %{"key" => key, "added" => added}},
+            {:timer_fired, %{"key" => key, "timer_kind" => "escalate", "handler" => "resolver"}},
+            {:notice_undelivered, %{"key" => key, "notice" => "escalated"}},
+            {:escalation_reached_nobody, %{"key" => "#{key}2", "timer_kind" => "escalate"}},
+            {:escalation_failed, %{"key" => "#{key}3", "timer_kind" => "escalate"}},
+            {:notice_failed, %{"key" => "#{key}4", "notice" => "escalated"}},
+            # A reminder's notice is not an escalation.
+            {:notice_undelivered, %{"key" => "#{key}5", "notice" => "remind"}}
+          ] do
+        Ash.create!(ProcessEvent, %{task_id: task.id, kind: kind, data: data},
+          action: :create,
+          authorize?: false,
+          tenant: ctx.tenant
+        )
+      end
+
+      packet = packet!(approval_task(row, ctx.tenant), ctx.lead, ctx)
+      lines = String.split(packet.escalation_label, "\n")
+
+      assert [
+               "Escalated to 1 more person" <> _,
+               "Escalation notice not delivered: no notifier is configured," <> _,
+               "Escalation reached nobody" <> _,
+               "Escalation failed" <> _,
+               "Escalation notice failed" <> _
+             ] = lines
+
+      refute packet.escalation_label =~ "nobody to escalate to"
+    end
+
+    # Escalation only adds people (ash_bpmn DESIGN.md §11.6): on a held task the people added
+    # cannot act until the holder delegates, and a decision on an escalation's authority is
+    # not a decision by a candidate the control named.
+    test "says an escalation left the task with its holder, and on what authority it was decided",
+         ctx do
+      row = request!(ctx)
+      task = approval_task(row, ctx.tenant)
+      key = "#{task.id}/#{task.node_id}/0/1"
+      holder = %{"type" => "user", "id" => Ecto.UUID.generate()}
+      added = [%{"type" => "user", "id" => Ecto.UUID.generate()}]
+
+      for {kind, data} <- [
+            {:task_escalated, %{"key" => key, "added" => added, "held_by" => holder}},
+            # An ordinary claim says nothing here.
+            {:task_claimed, %{"assignee_id" => holder["id"]}},
+            {:task_claimed,
+             %{"assignee_id" => "x", "authority" => "escalation", "escalation_keys" => [key]}},
+            {:task_completed,
+             %{"outcome" => "approved", "authority" => "escalation", "escalation_keys" => [key]}}
+          ] do
+        Ash.create!(ProcessEvent, %{task_id: task.id, kind: kind, data: data},
+          action: :create,
+          authorize?: false,
+          tenant: ctx.tenant
+        )
+      end
+
+      packet = packet!(approval_task(row, ctx.tenant), ctx.lead, ctx)
+      lines = String.split(packet.escalation_label, "\n")
+
+      assert [
+               "Escalated while held by its claimant: 1 more person added, who can act only " <>
+                 "if the claimant delegates it," <> _,
+               "Claimed by a person added by escalation" <> _,
+               "Decided by a person added by escalation" <> _
+             ] = lines
+    end
   end
 
   describe "a request for more information" do
