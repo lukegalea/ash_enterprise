@@ -37,7 +37,7 @@ permissions:
 jobs:
   sbom:
     name: SBOM covers every locked dependency, and advisories
-    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'sbom') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
+    runs-on: ${{ github.event_name == 'push' && github.repository == 'lukegalea/ash_enterprise' && github.actor == 'lukegalea' && contains(fromJSON(vars.SELF_HOSTED_JOBS || '[]'), 'sbom') && fromJSON('["self-hosted","homelab"]') || 'ubuntu-latest' }}
     # The SBOM gate and the advisories check, on every push and on the daily
     # schedule. They were two jobs of about a minute each until 2026-11-26, each
     # with its own runner and dependency fetch. The advisories run whether or
