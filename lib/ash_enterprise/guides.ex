@@ -6,8 +6,11 @@ defmodule AshEnterprise.Guides do
 
   `AshJourneys`' rule holds here as on the site pages (`mix ash_journeys.export`):
   a guide shows only what a passing run of the same journey version recorded. A
-  journey with no approved run in the locale, or whose declaration is newer than
-  its approved run, is not shown: the page says so, and the reason is logged.
+  journey whose approved run in the locale does not prove it now
+  (`AshJourneys.Lock.verify/6`: none approved, a newer declaration or browser
+  pin, approved files or a lock entry that are not what approval wrote, or text
+  and labels that resolve differently than the run recorded) is not shown: the
+  page says so, and the reason is logged.
 
   The page is the steps, numbered, each with its narration (every `ui/1` label in
   bold, in the reader's locale), its figures and its notes, then the outcome. The
@@ -66,9 +69,9 @@ defmodule AshEnterprise.Guides do
   """
   @spec messages(journey(), String.t()) :: {:ok, [map()]} | {:error, [String.t()]}
   def messages({module, id}, locale) do
-    with {:ok, %{ir: ir, hash: hash}} <- declared(module, id),
+    with {:ok, %{ir: ir} = journey} <- declared(module, id),
          locale = if(locale in ir["locales"], do: locale, else: hd(ir["locales"])),
-         {:ok, entry} <- approved(ir, hash, locale),
+         {:ok, entry} <- approved(journey, locale),
          {:ok, components} <- components(module, ir, entry, locale) do
       messages = [create(id, components)]
 
@@ -114,30 +117,16 @@ defmodule AshEnterprise.Guides do
     end
   end
 
-  defp approved(ir, hash, locale) do
-    where = "#{ir["id"]} (#{locale})"
-
+  defp approved(%{ir: ir} = journey, locale) do
     with {:ok, lock} <- Lock.read(root()) do
-      lock.journeys |> get_in([ir["id"], locale]) |> approved_entry(ir, hash, where)
+      case Lock.verify(root(), lock, ir["id"], journey, locale) do
+        {:ok, entry, _manifest} ->
+          {:ok, entry}
+
+        {:error, _refusal, reasons} ->
+          {:error, Enum.map(reasons, &"#{ir["id"]} (#{locale}): #{&1}")}
+      end
     end
-  end
-
-  defp approved_entry(nil, _ir, _hash, where), do: {:error, ["#{where}: no run is approved"]}
-
-  defp approved_entry(%{hash: approved}, _ir, hash, where) when approved != hash,
-    do: {:error, ["#{where}: the approved run proves another declaration"]}
-
-  defp approved_entry(entry, ir, _hash, where) do
-    case Enum.reject(figure_keys(ir), &Map.has_key?(entry.figures, &1)) do
-      [] -> {:ok, entry}
-      missing -> {:error, Enum.map(missing, &"#{where}: the approved run has no figure #{&1}")}
-    end
-  end
-
-  defp figure_keys(ir) do
-    for step <- ir["steps"],
-        %{"type" => "figure"} = figure <- step["body"],
-        do: Manifest.figure_key(step["name"], figure["name"])
   end
 
   # The lock's own record of where the approved file is: `digest` only selects it.

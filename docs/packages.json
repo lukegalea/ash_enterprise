@@ -538,7 +538,7 @@
       ],
       "hex_name": "free (checked on hex.pm 2026-11-26).",
       "hex_path": "After ash_a2ui, an optional dependency, reaches Hex.",
-      "carry": "Pinned by `ref:`; the declarations live in lib/ash_enterprise/journeys/, and `mix ash_journeys.lock --check` fails when a declaration is newer than its approved run, so a change to a journey or to the surface it walks needs a re-approved run."
+      "carry": "Pinned by `ref:`; the declarations live in lib/ash_enterprise/journeys/, and `mix ash_journeys.lock --check` fails when a journey is newer than its approved run (its declaration, the pinned browser build, or a text or label of the surface it walks), so such a change needs a re-approved run."
     },
     {
       "name": "ash_planning",

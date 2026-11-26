@@ -103,9 +103,11 @@ say which conclusions a span supports. As built on 2026-11-26:
 - the generated row-action test in `ash_browser_tests` passes the `ash.correlation_id` of the step's `handle_event`
   span to the host's `assert_audit/2`, and this repository's e2e wiring (`test/support/e2e/surfaces.ex`) asserts an
   audit row with that correlation id, for the record and the action the test ran;
-- a journey step that declares `expect audit: true` asserts one correlation id across its server spans, then the host
-  (`test/support/e2e/journey_host.ex`) asserts an audit row with that correlation id about a record the journey bound.
-  It does not yet check which action wrote the row.
+- a journey step that declares `expect audit: true` asserts one correlation id across its server spans, then, for
+  each row action of the step, the host (`test/support/e2e/journey_host.ex`, `assert_audit/3`) asserts the audit row
+  with that correlation id written by that action of its resource, about the record it acted on, no earlier than the
+  step began. A LiveView keeps one correlation id for its whole life, so the action, the record and the time are what
+  keep an earlier step's rows from proving a later one.
 
 1. **A span is a link and never evidence.** A step is proved by audit rows: rows in `audit_events` that carry the
    step's correlation id, written by the action the step names, about the record it names. Those rows are

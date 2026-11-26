@@ -6,7 +6,7 @@ kind: "how-to"
 locale: "en"
 version: 1
 declaration: "c779dc4d3696347b659685c6678a60aa30062636325456583844c87b38e0240d"
-commit: "b2ec361936a5f3e7aa63823efea1a7b2c5dc97df"
+commit: "9bd2f0b1523fe9fcd85629806d01283d68f8efcb"
 ---
 
 # Revoke a leaver's access

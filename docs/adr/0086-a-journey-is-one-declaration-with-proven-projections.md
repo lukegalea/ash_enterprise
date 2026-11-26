@@ -65,8 +65,10 @@ English and French.
 - **Expectations are observable facts:** the page a step lands on, a record's state after it, and the trace and audit
   facts of the [ADR 0065 amendment](0065-signoz-and-glitchtip-observability-backends.md).
 - **Narration is authored, never generated.** Each string is a Gettext msgid in a `journeys` domain, translated by
-  the existing loop (ADR 0060). `ui/1` interpolates the label the manifest resolves for the locale being rendered, so
-  a renamed button changes every locale's text on the next run, and an unknown reference fails verification. A model
+  the existing loop (ADR 0060). `ui/1` interpolates the label the manifest resolves for the locale being rendered.
+  A run records every text it resolved (`texts` in the run manifest), and a projection shows text only while it
+  still resolves the same, so a renamed button or a changed translation reaches a page only with a new approved run
+  whose figures show it; an unknown reference fails verification. A model
   may draft narration for a person to accept, as ADR 0038 allows; a model's critique of a figure or a sentence is
   advisory and never gates.
 - **Kinds are `:tutorial` and `:how_to` only.** Reference pages come from the resource and action declarations, and
@@ -106,9 +108,12 @@ figure is a change for a person to review, read as a hash diff.
 Here, figures are approved only from the artifact of CI's "Journeys" job, which runs on the Chromium bundled with the
 pinned Playwright release; the lock records that build.
 
-`mix ash_journeys.lock --check` runs in `check`, `scripts/pre-ci` and CI, with no browser. It fails when a
-declaration's hash differs from the hash of its approved run, that is, when the documentation is older than its proof.
-It does not fail because a figure would look different today; that is found by the next run and reviewed at approval.
+`mix ash_journeys.lock --check` runs in `check`, `scripts/pre-ci` and CI, with no browser. It reads each approved run
+through `AshJourneys.Lock.verify/6`, the gate every projection also passes through, and fails when the documentation
+is older than its proof: the declaration's hash is not the approved run's, the lock pins another browser build, an
+approved file or the lock entry is not what approval wrote (a hand edit to the lock cannot make another run current),
+or a text or label resolves differently than the run recorded. It does not fail because a figure would look
+different today; that is found by the next run and reviewed at approval.
 This is the shape of the judgment lock (`priv/judgments/lock.json`, ADR 0039) and the paper layout lock (ADR 0068).
 
 The projections read the lock and the approved files, never a run in progress:
@@ -146,9 +151,12 @@ in-app help ship in a release while the browser runner stays test-only.
 
 1. **A run manifest records** the commit, journey version, declaration hash and locale; the **environment class**
    (`:test`, `:staging` or `:operated`); the browser and framing profile; and per step its status, attempts,
-   correlation id, span ids, figure SHA-256 and highlight box.
+   correlation id, span ids, figure SHA-256 and highlight box, and the texts the run resolved.
 2. **A pass after a retry is flaky and never evidence.** It is reported as flaky, it cannot be approved, and it
-   counts toward neither documentation nor a control.
+   counts toward neither documentation nor a control. A retry is an earlier attempt of the same run: CI passes its
+   attempt number (`JOURNEYS_RUN_ATTEMPT`), and a local run is keyed on its commit, so a re-run job or a second
+   `mix test` at one commit is a retry. A step's browser failures (a console error, page error or 5xx in any
+   persona's context) fail the step, so a run the browser failed is never recorded as passed.
 3. **Only `:operated` runs count toward a control's freshness.** A run against the test sandbox and fakes proves the
    code, not that the control operates in a deployment we run. The compliance store has no environment class today;
    it is added there and in the host's sink before any run is counted.
@@ -187,8 +195,9 @@ or a bypass.
 
 ## Consequences
 
-- A rename fails the build or the run instead of leaving the docs wrong. Documentation can no longer be older than
-  its proof without `check` saying so.
+- A rename fails the build or the run instead of leaving the docs wrong: a reference that no longer exists fails
+  verification, and a label or translation that changed fails `lock --check`, the guide and the export until a run
+  that shows it is approved. Documentation can no longer be older than its proof without `check` saying so.
 - One walk replaces several: the screenshot script, the walkthrough prose and the paths in `assets/e2e/` that a
   journey covers retire as journeys cover them.
 - A journey run is slow (a real browser, often two contexts) and can flake. Under rule 5.2 flake costs coverage and
