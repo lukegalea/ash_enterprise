@@ -462,7 +462,9 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" \
             --jq '.jobs[] | select(.name | startswith("Test shard ")) | .id' |
             while read -r id; do
-              gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$id/logs" > "$logs/$id.log"
+              # curl, not `gh api`: newer gh refuses a body with terminal escapes.
+              curl -sSfL -H "Authorization: Bearer $GH_TOKEN" \
+                "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/jobs/$id/logs" -o "$logs/$id.log"
             done
           {
             echo "### Shard timings"
@@ -587,8 +589,8 @@ jobs:
 
       # The seeded estate the e2e job also starts from: the example tenant, the legacy
       # estate and their audit chains.
-      - id: drill-seed
-        name: "Drill: create and seed the database"
+      - name: "Drill: create and seed the database"
+        id: drill-seed
         if: ${{ !cancelled() && steps.deps-compile.outcome == 'success' }}
         env:
           MIX_TEST_PARTITION: _drill
@@ -618,8 +620,8 @@ jobs:
 
       # q55 (ADR 0032): the pseudonymised copy. greenmask is a 0.x binary from a small
       # team, so it is pinned by version and sha256 rather than installed by name.
-      - id: greenmask
-        name: Install greenmask v0.2.23
+      - name: Install greenmask v0.2.23
+        id: greenmask
         if: ${{ !cancelled() && steps.drill-seed.outcome == 'success' }}
         run: |
           curl -sSfL -o "${{ runner.temp }}/greenmask.tar.gz" \
@@ -868,15 +870,15 @@ jobs:
           key: ${{ runner.os }}-telemetry-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('telemetry/mix.lock') }}
           restore-keys: ${{ runner.os }}-telemetry-${{ steps.beam.outputs.elixir-version }}-
 
-      - id: telemetry-deps
-        name: "Telemetry: fetch dependencies"
+      - name: "Telemetry: fetch dependencies"
+        id: telemetry-deps
         if: ${{ !cancelled() }}
         working-directory: telemetry
         run: mix deps.get
 
       # Dependencies first, so a dependency's warning never fails the gate below.
-      - id: telemetry-setup
-        name: "Telemetry: compile dependencies"
+      - name: "Telemetry: compile dependencies"
+        id: telemetry-setup
         if: ${{ !cancelled() && steps.telemetry-deps.outcome == 'success' }}
         working-directory: telemetry
         run: mix deps.compile
@@ -914,15 +916,15 @@ jobs:
           key: ${{ runner.os }}-browser-tests-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('ash_browser_tests/mix.lock', 'ash_browser_tests/test/playwright/package-lock.json') }}
           restore-keys: ${{ runner.os }}-browser-tests-${{ steps.beam.outputs.elixir-version }}-
 
-      - id: browser-tests-deps
-        name: "Browser tests: fetch dependencies"
+      - name: "Browser tests: fetch dependencies"
+        id: browser-tests-deps
         if: ${{ !cancelled() }}
         working-directory: ash_browser_tests
         run: mix deps.get
 
       # Dependencies first, so a dependency's warning never fails the gate below.
-      - id: browser-tests-setup
-        name: "Browser tests: compile dependencies"
+      - name: "Browser tests: compile dependencies"
+        id: browser-tests-setup
         if: ${{ !cancelled() && steps.browser-tests-deps.outcome == 'success' }}
         working-directory: ash_browser_tests
         run: mix deps.compile
@@ -937,16 +939,16 @@ jobs:
         working-directory: ash_browser_tests
         run: mix compile --warnings-as-errors
 
-      - id: browser-tests-driver
-        name: "Browser tests: install the Playwright driver"
+      - name: "Browser tests: install the Playwright driver"
+        id: browser-tests-driver
         if: ${{ !cancelled() && steps.browser-tests-setup.outcome == 'success' }}
         working-directory: ash_browser_tests
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
         run: npm ci --prefix test/playwright
 
-      - id: browser-tests-chromium
-        name: "Browser tests: locate Chromium"
+      - name: "Browser tests: locate Chromium"
+        id: browser-tests-chromium
         if: ${{ !cancelled() && steps.browser-tests-driver.outcome == 'success' }}
         run: echo "E2E_CHROMIUM=$(command -v chromium || command -v chromium-browser || command -v google-chrome)" >> "$GITHUB_ENV"
 
@@ -965,8 +967,8 @@ jobs:
           done
           echo "Chromium warm-up took $(( $(date +%s) - start )) s"
 
-      - id: browser-tests-test
-        name: "Browser tests: test"
+      - name: "Browser tests: test"
+        id: browser-tests-test
         if: ${{ !cancelled() && steps.browser-tests-chromium.outcome == 'success' }}
         working-directory: ash_browser_tests
         env:
@@ -987,8 +989,8 @@ jobs:
       # ships, and by 2026-10-29 sixteen shared lock entries said otherwise.
       # First, because it needs no compile and a drifted pin makes everything
       # after it test the wrong versions. The script prints the one-command fix.
-      - id: battery-pins
-        name: "Battery: pins match mix.lock"
+      - name: "Battery: pins match mix.lock"
+        id: battery-pins
         if: ${{ !cancelled() }}
         run: elixir scripts/battery-pins-check.exs
 
@@ -1007,21 +1009,21 @@ jobs:
 
       # The battery runs ash_decisions, so boxic_dmn shells out to `xmllint`
       # here too. Declared, not assumed -- see the main job's step.
-      - id: battery-xmllint
-        name: "Battery: install xmllint"
+      - name: "Battery: install xmllint"
+        id: battery-xmllint
         if: ${{ !cancelled() && steps.battery-pins.outcome == 'success' }}
         run: sudo apt-get update -y && sudo apt-get install -y libxml2-utils
 
-      - id: battery-deps
-        name: "Battery: fetch dependencies"
+      - name: "Battery: fetch dependencies"
+        id: battery-deps
         if: ${{ !cancelled() && steps.battery-xmllint.outcome == 'success' }}
         working-directory: battery
         run: mix deps.get
 
       # Dependencies first, so a dependency's warning never fails the gate
       # below -- the same split as the main job.
-      - id: battery-setup
-        name: "Battery: compile dependencies"
+      - name: "Battery: compile dependencies"
+        id: battery-setup
         if: ${{ !cancelled() && steps.battery-deps.outcome == 'success' }}
         working-directory: battery
         run: mix deps.compile
@@ -1045,8 +1047,8 @@ jobs:
 
       # ---- Site ---------------------------------------------------------------
 
-      - id: site-deps
-        name: "Site: install"
+      - name: "Site: install"
+        id: site-deps
         if: ${{ !cancelled() }}
         working-directory: site
         run: npm ci
@@ -1056,8 +1058,8 @@ jobs:
         working-directory: site
         run: node --test scripts/*.test.mjs
 
-      - id: site-build
-        name: "Site: build (docs sync, link check, Astro)"
+      - name: "Site: build (docs sync, link check, Astro)"
+        id: site-build
         if: ${{ !cancelled() && steps.site-deps.outcome == 'success' }}
         working-directory: site
         run: npm run build
