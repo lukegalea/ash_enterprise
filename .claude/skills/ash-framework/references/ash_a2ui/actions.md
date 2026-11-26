@@ -238,6 +238,11 @@ action :decline do
 end
 ```
 
+- `confirm :destructive` makes the admin grid ask through its
+  ConfirmDialog before invoking the row action, as it does for every
+  destroy. Use it for an update whose effect is drastic but reversible
+  (deactivating a person); the dialog does not say it cannot be undone.
+  Not with `prompt_fields`: the prompt already is the confirmation.
 - `label` is the text of the action's row, bulk and admin buttons, its
   prompt heading, its bulk status line and its success status ("Confirm
   match: done."; without a label, `Action "confirm_merge" completed.`). Use it instead of a thin
