@@ -128,10 +128,11 @@ defmodule AshEnterprise.Governance.DataFlows do
       id: :model_calls_judgment,
       name: "Judgment evaluations through the judgment model wire",
       recipient_class: :model_provider,
-      data_classes: [:model_prompts, :tenant_business_content],
+      data_classes: [:model_prompts, :tenant_business_content, :personal_data],
       modules: [
         AshEnterprise.SystemOne,
         AshEnterprise.SystemOne.DecisionWire,
+        AshEnterprise.Mdm.SecondOpinion,
         AshEnterprise.Licences.Rungs,
         AshEnterprise.Standards.Standing,
         AshEnterprise.Quality.Grader,
@@ -143,7 +144,9 @@ defmodule AshEnterprise.Governance.DataFlows do
         enforced_by: AshEnterprise.Zones.ResidencyPolicy
       },
       known_gap: nil,
-      notes: "Unknown tenants and unknown residency classes are refused."
+      notes:
+        "Unknown tenants and unknown residency classes are refused. The match second opinion sends a " <>
+          "staged and a golden record's names and emails, and runs on the in-zone profile."
     },
     %{
       id: :assistant_agent_runtime,

@@ -4265,7 +4265,8 @@
       "recipient_class": "model_provider",
       "data_classes": [
         "model_prompts",
-        "tenant_business_content"
+        "tenant_business_content",
+        "personal_data"
       ],
       "gate": {
         "name": "Residency policy: a sub-processor instrument is refused unless the tenant recorded an opt-in, and refused for everyone under the flow guard",
@@ -4274,13 +4275,14 @@
       "known_gap": null,
       "modules": [
         "AshEnterprise.Licences.Rungs",
+        "AshEnterprise.Mdm.SecondOpinion",
         "AshEnterprise.Quality.Grader",
         "AshEnterprise.Quality.ToolCalls",
         "AshEnterprise.Standards.Standing",
         "AshEnterprise.SystemOne",
         "AshEnterprise.SystemOne.DecisionWire"
       ],
-      "notes": "Unknown tenants and unknown residency classes are refused."
+      "notes": "Unknown tenants and unknown residency classes are refused. The match second opinion sends a staged and a golden record's names and emails, and runs on the in-zone profile."
     },
     {
       "id": "assistant_agent_runtime",
