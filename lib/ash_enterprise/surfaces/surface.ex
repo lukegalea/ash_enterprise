@@ -8,7 +8,7 @@ defmodule AshEnterprise.Surfaces.Surface do
   | `label` | Human name, used in nav, the launcher and page headers |
   | `blurb` | One on-screen sentence (launcher card, page header) |
   | `description` | Model-facing: when the helper should pick this surface. `nil` means the helper may not host it |
-  | `group` | `:day`, `:operator`, `:org`, `:processes`, `:data`, `:mdm`, `:compliance`, `:judgments`, `:credentialing` or `:legacy` |
+  | `group` | `:day`, `:operator`, `:org`, `:processes`, `:data`, `:mdm`, `:compliance`, `:judgments`, `:credentialing`, `:guides` or `:legacy` |
   | `order` | Position within its group |
   | `icon` | Heroicon name for the launcher card |
   | `path` | The web route (`/app/...`) |
@@ -22,6 +22,7 @@ defmodule AshEnterprise.Surfaces.Surface do
   | `audience` | Who the surface is for, one or more of `:member` (anyone signed in, about their own day), `:reviewer` (decides or checks what others did), `:builder` (shapes processes, rules and mappings) and `:operator` (runs the platform). The launcher's views filter by it. Not a door: it never refuses anybody |
   | `searchable` | Attributes of `resource` that identify one record to a person, a business reference such as a licence number, or `:id` for a run id. `AshEnterprise.Surfaces.Search` looks a typed value up in them; `[]` keeps the surface out of search. Needs a `context`, since a hit opens in detail |
   | `acp` | `nil` or the ACP command spec, see below |
+  | `journey` | For a guide, `{module, id}`: the journey (`AshJourneys.Journeys`) whose approved run the page shows. The registry gives it its page, see `renderer` |
 
   ## `acp`
 
@@ -53,6 +54,11 @@ defmodule AshEnterprise.Surfaces.Surface do
       not.
     * `nil`: a hand-written LiveView that is not a renderer (a designer, a
       wizard, the tour).
+
+  A guide names a `journey` and no `live`: the registry names its page
+  (`AshEnterpriseWeb.GuideLive.<Id>`), which `AshEnterpriseWeb.GuideLive`
+  defines as a renderer over `AshEnterprise.Guides`, so it is a
+  `:specialist` (the UI DSL cannot declare a page of text and figures).
   """
 
   @enforce_keys [:key, :label, :blurb, :group, :order, :path]
@@ -71,6 +77,7 @@ defmodule AshEnterprise.Surfaces.Surface do
     :context,
     :acp,
     :renderer,
+    :journey,
     record_match: [],
     audience: [],
     searchable: [],
@@ -91,6 +98,7 @@ defmodule AshEnterprise.Surfaces.Surface do
           | :compliance
           | :judgments
           | :credentialing
+          | :guides
           | :legacy
 
   @type t :: %__MODULE__{
@@ -112,6 +120,7 @@ defmodule AshEnterprise.Surfaces.Surface do
           audience: [audience(), ...],
           searchable: [atom()],
           acp: map() | nil,
-          renderer: renderer()
+          renderer: renderer(),
+          journey: {module(), atom()} | nil
         }
 end

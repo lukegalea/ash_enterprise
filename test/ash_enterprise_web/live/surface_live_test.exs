@@ -37,6 +37,7 @@ defmodule AshEnterpriseWeb.SurfaceLiveTest do
   @specialists ~w(
     today calendar inbox slack people action_items approvals accounts erasure
     lineage audit flight brief_flight steward_flight directory mdm_golden legacy_users
+    guide_revoke_a_leavers_access
   )a
 
   defp renderer?(module) do

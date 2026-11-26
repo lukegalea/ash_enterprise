@@ -176,6 +176,15 @@ export default defineConfig({
             { label: 'House style', link: '/docs/house-style/' },
           ],
         },
+        {
+          // Written by `mix ash_journeys.export`, one directory per locale.
+          label: 'Guides',
+          items: [
+            { label: 'All guides', link: '/docs/journeys/' },
+            { label: 'English', items: [{ autogenerate: { directory: 'docs/journeys/en' } }] },
+            { label: 'Français', items: [{ autogenerate: { directory: 'docs/journeys/fr' } }] },
+          ],
+        },
         { label: 'Decision records', items: adrSidebar() },
         { label: 'Plans', collapsed: true, items: [{ autogenerate: { directory: 'docs/plans' } }] },
       ],

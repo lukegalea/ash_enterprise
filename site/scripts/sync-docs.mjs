@@ -67,6 +67,18 @@ const DIRS = [
 ];
 
 /**
+ * Directories of pages another tool writes, one subdirectory per locale
+ * (`docs/journeys/<locale>/<journey>.md`, from `mix ash_journeys.export`). They
+ * carry their own frontmatter, whose title and description are kept, and their
+ * figures live under `site/src/assets/`, linked so that GitHub shows them too;
+ * on the site the links are made relative to the page, so Astro processes them.
+ */
+const EXPORTED = [{ dir: 'journeys', label: 'Guides', regenerate: 'mix ash_journeys.export' }];
+
+/** The locales an exported directory is written in, as the sidebar names them. */
+const LOCALE_LABELS = { en: 'English', fr: 'Français' };
+
+/**
  * Single files copied to the docs root, renamed to a lowercase route.
  * `docs/README.md` becomes the `/docs/` index when it exists; when it does not,
  * `landingPage()` below generates one.
@@ -118,6 +130,24 @@ async function buildManifest() {
         group: dir,
         order: leadingNumber(name),
       });
+    }
+  }
+
+  for (const { dir } of EXPORTED) {
+    const abs = path.join(DOCS_SRC, dir);
+    for (const locale of (await fs.readdir(abs)).sort()) {
+      const names = await fs.readdir(path.join(abs, locale));
+      for (const name of names.sort()) {
+        if (!name.toLowerCase().endsWith('.md')) continue;
+        entries.push({
+          srcRel: posix.join('docs', dir, locale, name),
+          outRel: posix.join(dir, locale, name),
+          group: dir,
+          locale,
+          exported: true,
+          order: null,
+        });
+      }
     }
   }
 
@@ -257,8 +287,11 @@ const ABSOLUTE_RE = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
  */
 const dirRoutes = new Map([
   ['docs', `${DOCS_ROUTE}/`],
-  ...DIRS.map(({ dir }) => [`docs/${dir}`, `${DOCS_ROUTE}/${dir}/`]),
+  ...[...DIRS, ...EXPORTED].map(({ dir }) => [`docs/${dir}`, `${DOCS_ROUTE}/${dir}/`]),
 ]);
+
+/** Site assets a page may link, as Astro-processed images: `site/src/assets/**`. */
+const SITE_ASSETS = 'site/src/assets/';
 
 function splitTarget(target) {
   const bare = target.startsWith('<') && target.endsWith('>') ? target.slice(1, -1) : target;
@@ -325,6 +358,12 @@ function rewriteTarget(target, srcRel, srcToOut, report) {
 
     report.dead.push({ srcRel, target, reason: `no page generated for ${resolved}` });
     return null;
+  }
+
+  // An image the site builds from its own assets: relative to the output page.
+  if (resolved.startsWith(SITE_ASSETS) && fileExistsSync(resolved)) {
+    const page = posix.join('site/src/content/docs/docs', srcToOut.get(srcRel));
+    return posix.relative(posix.dirname(page), resolved) + hash;
   }
 
   // Not markdown: a link into the source tree (`lib/…ex`, `docs/roadmap.json`).
@@ -488,7 +527,9 @@ async function main() {
   const report = { dead: [], repaired: [], externalised: [] };
 
   for (const entry of entries) {
-    const raw = await fs.readFile(path.join(REPO_ROOT, entry.srcRel), 'utf8');
+    let raw = await fs.readFile(path.join(REPO_ROOT, entry.srcRel), 'utf8');
+    let exported = null;
+    if (entry.exported) ({ frontmatter: exported, body: raw } = splitFrontmatter(entry.srcRel, raw));
     if (/^---\r?\n/.test(raw)) {
       // The source markdown is not supposed to carry frontmatter; if it starts
       // to, injecting ours would produce two blocks.
@@ -496,9 +537,10 @@ async function main() {
     }
 
     const { title, lines } = extractTitle(raw.split('\n'));
-    entry.title = title ?? titleFromFilename(entry.srcRel);
-    const description = extractDescription(lines);
-    const body = rewriteLinks(lines.join('\n').replace(/^\n+/, ''), entry.srcRel, srcToOut, report);
+    entry.title = exported?.title ?? title ?? titleFromFilename(entry.srcRel);
+    const description = exported?.description ?? extractDescription(lines);
+    let body = rewriteLinks(lines.join('\n').replace(/^\n+/, ''), entry.srcRel, srcToOut, report);
+    if (entry.exported) body = alertsToAsides(body);
 
     const fm = [`title: ${yamlString(entry.title)}`];
     if (description) fm.push(`description: ${yamlString(description)}`);
@@ -517,6 +559,11 @@ async function main() {
     const outPath = path.join(OUT_DIR, dir, 'index.md');
     if (await exists(outPath)) continue;
     await fs.writeFile(outPath, directoryIndex(dir, label, entries));
+    generatedIndexes.push(dir);
+  }
+
+  for (const { dir, label, regenerate } of EXPORTED) {
+    await fs.writeFile(path.join(OUT_DIR, dir, 'index.md'), exportedIndex(dir, label, regenerate, entries));
     generatedIndexes.push(dir);
   }
 
@@ -551,6 +598,78 @@ async function main() {
     process.exitCode = 1;
     return;
   }
+}
+
+/**
+ * An exported page's frontmatter (`key: "JSON string"` lines, as the exporter
+ * writes them) and the body after it. Only `title` and `description` reach the
+ * site; the rest (journey, declaration hash, commit) stays in the source.
+ */
+function splitFrontmatter(srcRel, raw) {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(raw);
+  if (!m) throw new Error(`${srcRel} is an exported page without frontmatter: regenerate it`);
+  const frontmatter = {};
+  for (const line of m[1].split(/\r?\n/)) {
+    const kv = /^(title|description):\s*(".*")\s*$/.exec(line);
+    if (kv) frontmatter[kv[1]] = JSON.parse(kv[2]);
+  }
+  if (!frontmatter.title) throw new Error(`${srcRel} has no title in its frontmatter`);
+  return { frontmatter, body: raw.slice(m[0].length) };
+}
+
+const ALERT_ASIDES = { NOTE: 'note', TIP: 'tip', IMPORTANT: 'note', WARNING: 'caution', CAUTION: 'danger' };
+
+/**
+ * GitHub's alert blockquotes (`> [!WARNING]`), which GitHub renders and Starlight
+ * does not, become Starlight asides (`:::caution`), at the same indent so an
+ * alert inside a list item stays in it.
+ */
+function alertsToAsides(body) {
+  const lines = body.split('\n');
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^(\s*)>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/.exec(lines[i]);
+    if (!m) {
+      out.push(lines[i]);
+      continue;
+    }
+    const indent = m[1];
+    out.push(`${indent}:::${ALERT_ASIDES[m[2]]}`);
+    while (i + 1 < lines.length && lines[i + 1].startsWith(`${indent}>`)) {
+      i++;
+      out.push(indent + lines[i].slice(indent.length).replace(/^>\s?/, ''));
+    }
+    out.push(`${indent}:::`);
+  }
+  return out.join('\n');
+}
+
+/** The landing page of an exported directory: its pages, by locale. */
+function exportedIndex(dir, label, regenerate, entries) {
+  const byLocale = new Map();
+  for (const e of entries.filter((e) => e.group === dir)) {
+    if (!byLocale.has(e.locale)) byLocale.set(e.locale, []);
+    byLocale.get(e.locale).push(`- [${e.title}](${routeFor(e.outRel)})`);
+  }
+  const sections = [...byLocale]
+    .map(([locale, rows]) => `## ${LOCALE_LABELS[locale] ?? locale}\n\n${rows.join('\n')}`)
+    .join('\n\n');
+
+  return `---
+title: ${yamlString(label)}
+description: ${yamlString('How to do a task in the application, step by step, as a passing run of it in the browser showed it.')}
+sidebar:
+  order: 0
+---
+
+${GENERATED_BANNER}
+
+Each page is written by \`${regenerate}\` from the run of its journey that the
+journey lock approves: the steps that run took, and what the browser showed.
+The same pages open in the application from \`/guide <journey>\`.
+
+${sections}
+`;
 }
 
 function titleFromFilename(srcRel) {

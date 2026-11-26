@@ -33,6 +33,8 @@ defmodule AshEnterpriseWeb.A2ui.Host do
 
   import Phoenix.LiveView, only: [push_event: 3]
 
+  require Logger
+
   alias AshEnterprise.Channels
   alias AshEnterprise.Surfaces
   alias AshEnterpriseWeb.Locale
@@ -180,8 +182,27 @@ defmodule AshEnterpriseWeb.A2ui.Host do
   (`AshEnterprise.Channels`): the same answer ACP gives for the same act. It is the
   `action_fn` of every surface page (`AshA2ui.LiveRenderer`), generated or hand-written,
   so no page writes feedback without them.
+
+  A static page, whose `ui` is not a DSL module (a guide's is its journey,
+  `AshEnterpriseWeb.GuideLive`), declares no actions: the renderer's errors and
+  function responses are handled as on any page, and anything else is refused with
+  no messages.
   """
-  @spec act(module(), map(), keyword()) :: {:ok | :error, [map()]}
+  @spec act(module() | term(), map(), keyword()) :: {:ok | :error, [map()]}
+  def act(ui, message, opts) when not is_atom(ui) do
+    case message do
+      %{"error" => _error} ->
+        AshA2ui.ActionHandler.handle(ui, message, opts)
+
+      %{"rendererFunctionResponse" => _response} ->
+        AshA2ui.ActionHandler.handle(ui, message, opts)
+
+      _call_or_event ->
+        Logger.warning("Refused an A2UI message on a static page: it declares no actions.")
+        {:error, []}
+    end
+  end
+
   def act(ui, message, opts) do
     {status, messages} = handled = AshA2ui.ActionHandler.handle(ui, message, opts)
     {result, blocked} = Channels.outcome(handled, Channels.message_target(ui, message))

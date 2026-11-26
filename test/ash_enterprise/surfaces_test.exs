@@ -101,7 +101,8 @@ defmodule AshEnterprise.SurfacesTest do
       names = Enum.map(Surfaces.candidate_actions(), & &1.name)
 
       assert ~w(today compose calendar inbox slack people todo done approvals approve reject accounts
-                sync erasure lineage open help) == names
+                sync erasure lineage) ++ ["guide revoke_a_leavers_access"] ++ ~w(open help) ==
+               names
     end
   end
 

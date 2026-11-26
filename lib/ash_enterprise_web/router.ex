@@ -213,6 +213,10 @@ defmodule AshEnterpriseWeb.Router do
     # (ADR 0074). 404 for anyone else. See AshEnterpriseWeb.AcknowledgementDocumentController.
     get "/app/acknowledgements/documents/:id", AcknowledgementDocumentController, :show
 
+    # A guide's figures, by the digest the journey lock records. See
+    # AshEnterpriseWeb.GuideFigureController.
+    get "/app/guide/figures/:file", GuideFigureController, :show
+
     # --- A2UI surfaces -------------------------------------------------------
     #
     # Declarative, agent-renderable screens derived from resource metadata. Each
@@ -239,6 +243,11 @@ defmodule AshEnterpriseWeb.Router do
       scope "/", alias: false do
         for surface <- AshEnterprise.Surfaces.generated() do
           live surface.path, surface.live
+        end
+
+        # A guide is a registry entry too: its page is AshEnterpriseWeb.GuideLive's.
+        for guide <- AshEnterprise.Surfaces.guides() do
+          live guide.path, guide.live
         end
       end
 
