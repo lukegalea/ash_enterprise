@@ -1,0 +1,190 @@
+{
+  "browser": {
+    "executable": "bundled",
+    "name": "chromium",
+    "version": "158.0.8127.18"
+  },
+  "commit": "b2ec361936a5f3e7aa63823efea1a7b2c5dc97df",
+  "declaration_hash": "c779dc4d3696347b659685c6678a60aa30062636325456583844c87b38e0240d",
+  "environment": "test",
+  "format": 1,
+  "framing": {
+    "color_scheme": "light",
+    "device_scale_factor": 1.0,
+    "locale": "en",
+    "reduced_motion": "reduce",
+    "timezone_id": "UTC",
+    "viewport": {
+      "height": 800,
+      "width": 1280
+    }
+  },
+  "journey": "revoke_a_leavers_access",
+  "locale": "en",
+  "retries": 0,
+  "run_id": "ci-45745817836-1",
+  "status": "passed",
+  "steps": [
+    {
+      "actor": "leaver",
+      "attempts": 1,
+      "correlation_id": null,
+      "cursor": {
+        "from": 5,
+        "to": 66
+      },
+      "error": null,
+      "figures": [],
+      "label": "01-leaver_is_signed_in",
+      "name": "leaver_is_signed_in",
+      "span_ids": [],
+      "status": "passed"
+    },
+    {
+      "actor": "admin",
+      "attempts": 1,
+      "correlation_id": null,
+      "cursor": {
+        "from": 66,
+        "to": 131
+      },
+      "error": null,
+      "figures": [
+        {
+          "file": "find_the_person.people.png",
+          "file_sha256": "593ff4adecb1e2ff97a3c5baf6a9682d1d2bd77c58f9ed9bed417d6d6ef75f3a",
+          "height": 800,
+          "highlight": {
+            "height": 47.5,
+            "width": 1212.0,
+            "x": 34.0,
+            "y": 414.5
+          },
+          "name": "people",
+          "raster_sha256": "1bdbe11576f173286f324dd7ee69f752a0ea9a61603e92888f1d71ef1a6bab9b",
+          "settled": true,
+          "width": 1280
+        }
+      ],
+      "label": "02-find_the_person",
+      "name": "find_the_person",
+      "span_ids": [],
+      "status": "passed"
+    },
+    {
+      "actor": "admin",
+      "attempts": 1,
+      "correlation_id": "143c3eb3-4bbc-453b-8da9-671041fc8965",
+      "cursor": {
+        "from": 131,
+        "to": 186
+      },
+      "error": null,
+      "figures": [
+        {
+          "file": "deactivate.confirm.png",
+          "file_sha256": "e920548e074525f1446f87179c5ef3680fcabf6e0f9d6fa7932178b8c1414823",
+          "height": 114,
+          "highlight": null,
+          "name": "confirm",
+          "raster_sha256": "163758297b88d53a77f7cd0858d2a70d4d954c9e503a47b466d34f7cfe8aa751",
+          "settled": true,
+          "width": 448
+        },
+        {
+          "file": "deactivate.deactivated.png",
+          "file_sha256": "700727557c9cfb133576cc1d416087701620631e7972bdbcacb301017fd7c0e7",
+          "height": 48,
+          "highlight": null,
+          "name": "deactivated",
+          "raster_sha256": "41bd3353c60a8ef388d2a878e5e11e1691c1f97ca3e98cf8fff2e8845635056b",
+          "settled": true,
+          "width": 1212
+        }
+      ],
+      "label": "03-deactivate",
+      "name": "deactivate",
+      "span_ids": [
+        "751a2b1d953cd49a",
+        "24782b0d49d5082e",
+        "85b13e5e1560efa1",
+        "032924deade69714",
+        "85f80fa5795f03d6",
+        "5d095171a3f10371",
+        "43a1cda60e550ddc",
+        "062766e320b858cc",
+        "fdc4bdcef80b8b8a",
+        "c65139d5f4735226",
+        "25cd30da455417b1",
+        "e0899f4cae3c8eba",
+        "4f57cb975ee6d02a",
+        "c8892f8d6de463a3",
+        "283d0adf78a29ff9",
+        "c9d407547e822389",
+        "7f966fda48c9df65",
+        "ed9bdd1c1beae095",
+        "c2fce2453e678fd3",
+        "025011bff26d1c12",
+        "598aee088145dad6",
+        "6f7da6a12dfacf21",
+        "f0dd270376838175",
+        "944bfe3d2e8f8663",
+        "54b61d53454eaef9",
+        "14025c28f5e82f66",
+        "6b78e7a575a57319",
+        "3ae39e54129d9ee7",
+        "12242666e3d2866e",
+        "dc516999395d81b9",
+        "5eb03619fc6670d4",
+        "c35d388d0a7b3c0f",
+        "5065b15847071c74",
+        "3fde6f1b01a71ab0",
+        "33fe767e21d8c446",
+        "e661a46417ccfb5f",
+        "8c3ed27771a15048",
+        "3f22be5f0fc7a64e",
+        "6654f7ad86a0ea73",
+        "8f7b192ef4592d72",
+        "1e3e3d75067bbd03",
+        "1f6ec3b4d66a1b60",
+        "1ceca93c8fdda23a",
+        "8bb3cabbdf6928b6",
+        "50964960d5030d8d",
+        "3d02c7649f8065e4",
+        "cba13d1fd98b046d",
+        "61daa476391e0d3e",
+        "20d8afb6cacaac28",
+        "befe7d4980bc902a",
+        "b16bdce2dc8e8dd9"
+      ],
+      "status": "passed"
+    },
+    {
+      "actor": "leaver",
+      "attempts": 1,
+      "correlation_id": null,
+      "cursor": {
+        "from": 186,
+        "to": 196
+      },
+      "error": null,
+      "figures": [
+        {
+          "file": "their_next_action_signs_them_out.sign_in.png",
+          "file_sha256": "2e9a62dd4bd868e88fb30ad5829715b7b46575cb70d224f962010609b662a30a",
+          "height": 800,
+          "highlight": null,
+          "name": "sign_in",
+          "raster_sha256": "20bdb38f38ff1ca0aff83f4db7c230e4555a1dbf9178369f2f43203c6744b132",
+          "settled": true,
+          "width": 1280
+        }
+      ],
+      "label": "04-their_next_action_signs_them_out",
+      "name": "their_next_action_signs_them_out",
+      "span_ids": [],
+      "status": "passed"
+    }
+  ],
+  "version": 1
+}
