@@ -1481,7 +1481,7 @@ The documents surface: issuing real documents from the host's own data through t
 | `ash_greenmask` | first-party | git @ 24b0c882 | [Erasure](#erasure) | Masking blocks for sensitive attributes; the generated config's drift gate. |
 | `ash_signatures` | first-party | git @ cb192d44 | [Signatures](#signatures) | The signature and acknowledgement fragments the host instantiates (ADR 0074). |
 | `ash_paper` | first-party | git @ e14889c9 | [Documents](#documents) | Deterministic PDF documents from Ash data (early; the API may change). |
-| `ash_journeys` | first-party | git @ 2e7d8f9b | [Surfaces](#surfaces) | User journeys declared once: walked by the browser tier, published from approved runs (early; the API may change). |
+| `ash_journeys` | first-party | git @ 3a0ee9fd | [Surfaces](#surfaces) | User journeys declared once: walked by the browser tier, published from approved runs (early; the API may change). |
 
 <!-- domain-map:substrates:end -->
 
