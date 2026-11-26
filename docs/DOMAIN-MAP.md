@@ -195,7 +195,7 @@ flowchart LR
 | [Localization](#l10n) | Surfaces | — | Gettext catalogs and library-shipped translations. |
 | [Telemetry](#telemetry) | Surfaces | — | Tracer → OpenTelemetry → OTLP wiring. |
 | [Artifacts](#artifacts) | Surfaces | — | The artifact registry: every versioned thing a person authors, reviews or releases, declared once. |
-| [Documents](#documents) | Surfaces | `AshEnterprise.Documents` | Issuing real documents from the host's own data through the paper kernel: a document is a pure function of recorded inputs. |
+| [Documents](#documents) | Surfaces | `AshEnterprise.Documents` | The documents surface: issuing real documents from the host's own data through the paper kernel (`github.com/lukegalea/ash_paper`). |
 
 <!-- domain-map:contexts:end -->
 
@@ -1417,21 +1417,24 @@ The artifact registry: every versioned thing a person authors, reviews or releas
 
 ### Documents
 
+<a name="documents"></a>
+
 <!-- domain-map:context:documents:start -->
 
-Plane: **Surfaces** · Domain: `AshEnterprise.Documents` · Packages: `ash_paper` · ADRs: [ADR 67](adr/0067-a-document-is-a-pure-function-of-recorded-inputs.md), [ADR 68](adr/0068-paper-separates-schema-layout-theme-and-wording.md)
+Plane: **Surfaces** · Domain: `AshEnterprise.Documents`
 
-Issuing real documents from the host's own data through the paper kernel: a document is a pure function of recorded inputs.
+The documents surface: issuing real documents from the host's own data through the paper kernel (`github.com/lukegalea/ash_paper`).
 
 **Ubiquitous language**
 
 | Term | Meaning |
 |---|---|
-| **binding** | What a document kind is rendered with, one temporal row per (organization, kind). |
-| **run** | One attempt to produce a document: the stored bytes are the record, the render and its read-back are its two status axes, and the payload it rendered is sealed. |
-| **clause** | The wording a document may carry, per locale: tenant data, drafted and admitted with maker-checker, pinned by a binding. |
-| **draft** | A rendered document waiting for a person: approved, then issued exactly as rendered while nothing it was made from has moved, or marked stale and never issued. |
-| **answer** | A person's answer to a question a requirement asked on a blocked run, admitted as a person-grade fact so the next document in the same scope is not asked again. |
+| **Paper binding** | What a document kind is rendered with (ADR 0062's binding, on the paper kernel's vocabulary): `AshPlanning.Fragment.Binding` on the platform base, in table `paper_bindings`, one temporal row per (organization, kind). |
+| **Paper run** | One attempt to produce a document: `AshPaper.Fragment.Run` on the platform base, in table `paper_runs`, tenant-scoped in the `AshEnterprise.Documents` domain. |
+| **Paper draft** | A rendered document waiting for a person (R10): `AshPlanning.Fragment.Candidate` on the platform base, in table `paper_drafts`. |
+| **Paper clause** | One wording clause a document may carry, per locale: tenant data, drafted and admitted by people, in the table `paper_clauses`. |
+| **Paper question** | The questions a requirement is still asking the signed-in person, one row per fact one of their blocked runs is missing (R1). |
+| **Paper answer** | A person's answer to a question a requirement asked (R1, R8): the record of who answered what, on which blocked run, and the fact it admitted. |
 
 **Resources** — 6 introspected
 
@@ -1472,11 +1475,12 @@ Issuing real documents from the host's own data through the paper kernel: a docu
 | `ash_agent` | first-party | git @ c3bd9892 | [Agents](#agents) | Governed invocations and durable agent runs (host-instantiated). |
 | `ash_acp` | first-party | git @ 536a404d | [Agent protocol](#acp) | The agent-client wire adapter; no second authorization model. |
 | `ash_a2ui` | first-party | git @ 9b1957cd | [Surfaces](#surfaces) | Agent-renderable payloads generated from resources. |
-| `ash_agent_tools` | first-party dev | git @ 0171a910 | [Standards](#standards) | Read-only introspection CLI + the iron laws. |
+| `ash_agent_tools` | first-party dev | git @ fc7aa130 | [Standards](#standards) | Read-only introspection CLI + the iron laws. |
 | `battery` | in-repo | in-repo (`battery/`) | [Platform](#platform) | Cross-substrate integration battery over its own reference instantiation. |
 | `ash_events_chain` | first-party | git @ cd122991 | [Audit](#audit) | The audit log's hash chain: immutability triggers, the verifier over hot log and archive as one chain, the verified move to the archive. |
 | `ash_greenmask` | first-party | git @ 24b0c882 | [Erasure](#erasure) | Masking blocks for sensitive attributes; the generated config's drift gate. |
 | `ash_signatures` | first-party | git @ cb192d44 | [Signatures](#signatures) | The signature and acknowledgement fragments the host instantiates (ADR 0074). |
+| `ash_paper` | first-party | git @ e14889c9 | [Documents](#documents) | Deterministic PDF documents from Ash data (early; the API may change). |
 
 <!-- domain-map:substrates:end -->
 

@@ -1442,34 +1442,33 @@
       "name": "Documents",
       "domain": "AshEnterprise.Documents",
       "plane": "experience",
-      "mission": "Issuing real documents from the host's own data through the paper kernel: a document is a pure function of recorded inputs.",
-      "packages": [
-        "ash_paper"
-      ],
-      "adrs": [
-        67,
-        68
-      ],
+      "mission": "The documents surface: issuing real documents from the host's own data through the paper kernel (`github.com/lukegalea/ash_paper`).",
+      "packages": [],
+      "adrs": [],
       "terms": [
         {
-          "term": "binding",
-          "definition": "What a document kind is rendered with, one temporal row per (organization, kind)."
+          "term": "Paper binding",
+          "definition": "What a document kind is rendered with (ADR 0062's binding, on the paper kernel's vocabulary): `AshPlanning.Fragment.Binding` on the platform base, in table `paper_bindings`, one temporal row per (organization, kind)."
         },
         {
-          "term": "run",
-          "definition": "One attempt to produce a document: the stored bytes are the record, the render and its read-back are its two status axes, and the payload it rendered is sealed."
+          "term": "Paper run",
+          "definition": "One attempt to produce a document: `AshPaper.Fragment.Run` on the platform base, in table `paper_runs`, tenant-scoped in the `AshEnterprise.Documents` domain."
         },
         {
-          "term": "clause",
-          "definition": "The wording a document may carry, per locale: tenant data, drafted and admitted with maker-checker, pinned by a binding."
+          "term": "Paper draft",
+          "definition": "A rendered document waiting for a person (R10): `AshPlanning.Fragment.Candidate` on the platform base, in table `paper_drafts`."
         },
         {
-          "term": "draft",
-          "definition": "A rendered document waiting for a person: approved, then issued exactly as rendered while nothing it was made from has moved, or marked stale and never issued."
+          "term": "Paper clause",
+          "definition": "One wording clause a document may carry, per locale: tenant data, drafted and admitted by people, in the table `paper_clauses`."
         },
         {
-          "term": "answer",
-          "definition": "A person's answer to a question a requirement asked on a blocked run, admitted as a person-grade fact so the next document in the same scope is not asked again."
+          "term": "Paper question",
+          "definition": "The questions a requirement is still asking the signed-in person, one row per fact one of their blocked runs is missing (R1)."
+        },
+        {
+          "term": "Paper answer",
+          "definition": "A person's answer to a question a requirement asked (R1, R8): the record of who answered what, on which blocked run, and the fact it admitted."
         }
       ],
       "edges": []
@@ -1661,6 +1660,7 @@
       "package": "battery",
       "repo": "in-repo",
       "kind": "in-repo",
+      "path": "battery",
       "context": [
         "platform"
       ],
@@ -1692,6 +1692,15 @@
         "signatures"
       ],
       "role": "The signature and acknowledgement fragments the host instantiates (ADR 0074)."
+    },
+    {
+      "package": "ash_paper",
+      "repo": "lukegalea/ash_paper",
+      "kind": "first-party",
+      "context": [
+        "documents"
+      ],
+      "role": "Deterministic PDF documents from Ash data (early; the API may change)."
     }
   ],
   "adopted": [
@@ -1787,5 +1796,39 @@
       "package": "igniter",
       "role": "Code generation and project patching."
     }
+  ],
+  "first_party_orgs": [
+    "lukegalea"
+  ],
+  "vendor_tokens": [
+    "Nango",
+    "Meltano",
+    "Airbyte",
+    "Marquez",
+    "OpenMetadata",
+    "Superset",
+    "Metabase",
+    "Grafana",
+    "Unleash",
+    "FunWithFlags",
+    "Kafka",
+    "Elasticsearch",
+    "DataHub",
+    "Slack",
+    "Gmail",
+    "GitHub",
+    "daisyUI",
+    "Phoenix",
+    "Elixir",
+    "Postgres",
+    "PostgreSQL",
+    "Oban",
+    "Google",
+    "Microsoft",
+    "Outlook",
+    "Zoom",
+    "Notion",
+    "Dropbox",
+    "Teams"
   ]
 }
