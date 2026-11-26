@@ -194,6 +194,10 @@ msgstr "Réponse"
 msgid "Answer the question"
 msgstr "Répondre à la question"
 
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "Answers"
+msgstr "Réponses"
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Api key"
 msgstr "Clé d'API"
@@ -427,10 +431,6 @@ msgstr "Bande"
 #: lib/ash_enterprise_web/a2ui/judgments/band_tables_ui.ex:1
 msgid "Band tables to certify"
 msgstr "Tables de bandes à certifier"
-
-#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
-msgid "Bandings"
-msgstr "Classements en bande"
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 msgid "Batch detail"
@@ -2146,6 +2146,10 @@ msgstr "Aucune"
 msgctxt "one_of:outcome"
 msgid "Not applicable"
 msgstr "Sans objet"
+
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "Not banded"
+msgstr "Non classées en bande"
 
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "one_of:outcome"

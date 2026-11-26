@@ -30,6 +30,11 @@ config :ash_enterprise, AshEnterprise.Standards.StandingWorker,
   limit: nil,
   cron: standing_cron
 
+# The evaluation tenant (`AshEnterprise.Quality.Evaluation`): the `unique_name` of the one
+# synthetic organization whose suite runs' answers the in-zone judge grades. Unset, nothing
+# is graded anywhere. `config/runtime.exs` sets it from QUALITY_EVALUATION_TENANT.
+config :ash_enterprise, AshEnterprise.Quality.Evaluation, tenant: nil
+
 config :ash_enterprise, Oban,
   engine: Oban.Engines.Basic,
   notifier: Oban.Notifiers.Postgres,
@@ -544,6 +549,10 @@ config :ash_judgments, :families, %{
   house_style: %{low_band: :admit_no},
   model_call_location: %{low_band: :admit_no},
   agent_reply_style: %{low_band: :admit_no},
+  # The pre-flight gate's System One questions (AST-79): a confident no is
+  # what lets the gate's banding table allow a deferred call.
+  agent_gate_destructive: %{low_band: :admit_no},
+  agent_gate_scope: %{low_band: :admit_no},
   mdm_matches: %{low_band: :omit}
 }
 

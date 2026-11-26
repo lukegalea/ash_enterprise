@@ -2,7 +2,7 @@
   "format": "ash_enterprise.data_inventory/1",
   "note": "Generated from the resource declarations by `mix ash_enterprise.data_inventory`; do not edit. It describes the code, names no data steward, and attests nothing about a running deployment.",
   "summary": {
-    "resources": 195,
+    "resources": 196,
     "global_tables": 45,
     "egress_paths": 17,
     "tenant_scoped": 114,
@@ -3404,6 +3404,25 @@
       "secured_attributes": []
     },
     {
+      "resource": "AshEnterprise.Quality.ToolCall",
+      "domain": "AshEnterprise.Quality",
+      "data_layer": "Ash.DataLayer.Simple",
+      "table": null,
+      "platform_resource": true,
+      "ownership": "none",
+      "tenancy": "global",
+      "tenant_option": false,
+      "audit": false,
+      "archival": false,
+      "lifecycle": false,
+      "cdm_entity": null,
+      "api_type": null,
+      "sensitive_attributes": [],
+      "sealed_attributes": [],
+      "personal_looking_attributes": [],
+      "secured_attributes": []
+    },
+    {
       "resource": "AshEnterprise.Reference.Currency",
       "domain": "AshEnterprise.Reference",
       "data_layer": "AshPostgres.DataLayer",
@@ -4218,6 +4237,7 @@
       "modules": [
         "AshEnterprise.Licences.Rungs",
         "AshEnterprise.Quality.Grader",
+        "AshEnterprise.Quality.ToolCalls",
         "AshEnterprise.Standards.Standing",
         "AshEnterprise.SystemOne",
         "AshEnterprise.SystemOne.DecisionWire"
@@ -4319,20 +4339,20 @@
     },
     {
       "id": "standards_runtime_probe",
-      "name": "Standards check: model runtime version probe",
+      "name": "Judge instrument identity: model runtime version probe",
       "recipient_class": "in_zone_model_runtime",
       "data_classes": [
         "none"
       ],
       "gate": {
-        "name": "Off unless the standing job is enabled; the target is the configured in-zone profile's own host",
-        "enforced_by": "AshEnterprise.Standards.StandingWorker"
+        "name": "Asked only by the standards standing job when it is enabled and by the evaluation tenant's grading job; the target is the configured in-zone profile's own host",
+        "enforced_by": "AshEnterprise.SystemOne.Instrument"
       },
       "known_gap": null,
       "modules": [
-        "AshEnterprise.Standards.StandingWorker"
+        "AshEnterprise.SystemOne.Instrument"
       ],
-      "notes": "A GET of the runtime's version. No tenant data."
+      "notes": "A GET of the runtime's version, for the instrument identity a judgment records (AshEnterprise.Standards.StandingWorker, AshEnterprise.Quality.SuiteRun.GradeWorker). No tenant data."
     },
     {
       "id": "observability_exporter",

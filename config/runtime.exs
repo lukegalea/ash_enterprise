@@ -105,6 +105,21 @@ if config_env() == :dev do
   end
 end
 
+# The pre-flight gate's System One rung (AST-79; docs/system-one/pre-flight-gate-system-one.md),
+# dev only and off by default. AGENT_GATE_TENANT names the organisation whose judgment ledger
+# records the gate's questions; setting it turns the rung on in the gate daemon. A deferred
+# call is then put to the in-zone model, and answered ask until a person certifies the
+# agent_gate_* band tables. The adapter's ASH_AGENT_GATE_TIMEOUT must exceed the timeout here.
+if config_env() == :dev do
+  if gate_tenant = System.get_env("AGENT_GATE_TENANT") do
+    config :ash_enterprise, AshEnterprise.Quality.ToolCalls.Rung, tenant: gate_tenant
+
+    config :ash_agent_tools, :gate,
+      system_one: AshEnterprise.Quality.ToolCalls.Rung,
+      system_one_timeout: 8_000
+  end
+end
+
 # The deployment's OpenID Connect identity provider (ADR 0071): its issuer URL, this
 # application's client id and secret there, and the callback it redirects to
 # (`<origin>/auth/user/oidc/callback`). Used only when the build declared the strategy
@@ -464,6 +479,16 @@ if config_env() != :test do
       |> System.get_env("")
       |> String.split(",", trim: true)
       |> Enum.map(&String.trim/1)
+end
+
+# The evaluation tenant (`AshEnterprise.Quality.Evaluation`, ADR 0058):
+#
+#   * QUALITY_EVALUATION_TENANT   the `unique_name` of the one synthetic organization whose
+#                                 suite runs' answers the in-zone judge grades. Unset, none is.
+#                                 Never a tenant whose answers a real person wrote or reads.
+if config_env() != :test do
+  config :ash_enterprise, AshEnterprise.Quality.Evaluation,
+    tenant: System.get_env("QUALITY_EVALUATION_TENANT")
 end
 
 # The inbound alert webhook (`POST /webhooks/alerts-signoz`, `/webhooks/alerts-glitchtip`,

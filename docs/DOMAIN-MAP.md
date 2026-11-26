@@ -89,7 +89,7 @@ flowchart LR
     ctx_zones["Residency zones"]
     ctx_assistant["Assistant<br/>18 resources"]
     ctx_legacy-agent["Legacy agent"]
-    ctx_quality["Quality<br/>4 resources"]
+    ctx_quality["Quality<br/>5 resources"]
     ctx_acp["Agent protocol"]
   end
   subgraph experience["Surfaces"]
@@ -1266,7 +1266,7 @@ Agent-quality suites and gated, attested releases.
 | **suite run** | One run of a published suite against a candidate agent: running, then finished. |
 | **case result** | What one case of a suite run scored, at one epoch; written once, never changed. |
 
-**Resources** — 4 introspected
+**Resources** — 5 introspected
 
 | Resource | Description | Aggregates | Calculations |
 |---|---|---|---|
@@ -1274,6 +1274,7 @@ Agent-quality suites and gated, attested releases.
 | `AshEnterprise.Quality.CaseResult` | — | 0 | 0 |
 | `AshEnterprise.Quality.Suite` | — | 0 | 1 |
 | `AshEnterprise.Quality.SuiteRun` | — | 0 | 2 |
+| `AshEnterprise.Quality.ToolCall` | — | 0 | 0 |
 
 
 <!-- domain-map:context:quality:end -->
@@ -1464,7 +1465,7 @@ The documents surface: issuing real documents from the host's own data through t
 | `ash_discrete_business_events` | first-party | git @ 4badc1c3 | [Business events](#business-events) | SourceRecord landing + chained event ledger. |
 | `ash_mdm` | first-party | git @ f8db5fb3 | [Master data](#mdm) | Mappings-as-data, resolution, survivorship, merge. |
 | `ash_open_lineage` | first-party | git @ c35de0bc | [Lineage](#lineage) | Run events from action notifications. |
-| `ash_judgments` | first-party | git @ 89219338 | [System One](#system-one) | Declared questions, judgment ledger fragments, calibration. |
+| `ash_judgments` | first-party | git @ f984265d | [System One](#system-one) | Declared questions, judgment ledger fragments, calibration. |
 | `ash_evidence` | first-party | git @ 329c367c | [System One](#system-one) | Document versions, addressed atoms, parse runs, assertions. |
 | `ash_provenance` | first-party | git @ ac73afc9 | [System One](#system-one) | Plain-data contract that explains a value: steps, typed gaps, PROV-O export. |
 | `ash_rules` | first-party | git @ ab97fdc8 | [Compliance](#compliance) | Serializable rule IR, fact schemas, evaluator seam. |
