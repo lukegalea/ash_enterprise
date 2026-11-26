@@ -414,6 +414,7 @@
         "ash_bpmn",
         "ash_decisions",
         "ash_a2ui",
+        "ash_provenance",
         "ash_events"
       ],
       "hex_name": "free",
