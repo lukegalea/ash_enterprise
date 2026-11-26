@@ -621,6 +621,52 @@
       ]
     },
     {
+      "id": "provenance",
+      "name": "Provenance",
+      "domain": "AshEnterprise.Provenance",
+      "plane": "knowledge",
+      "mission": "Where a value came from (ADR 0078): one explain question over any readable value, answered as the reader through one dispatch, with steps and typed gaps and nothing the reader could not read one record at a time.",
+      "packages": [
+        "ash_provenance"
+      ],
+      "adrs": [
+        78,
+        23,
+        52,
+        73
+      ],
+      "terms": [
+        {
+          "term": "address",
+          "definition": "Where a value lives: <base>/<type>/<id>#<attribute>; the type token is declared in the explainer registry, never derived from a module name."
+        },
+        {
+          "term": "explainer",
+          "definition": "One answerer in the dispatch (package explainers, derived values, the audit log, the record columns); the first that does not pass answers, and each antecedent it names is asked again."
+        },
+        {
+          "term": "gap",
+          "definition": "Where an answer stops, and why: unreadable, failed, erased, not recorded, or archived — never read as empty or as a clean answer."
+        },
+        {
+          "term": "masked",
+          "definition": "What a step shows of a value the reader may not see; never empty, which would read as a known, empty value."
+        }
+      ],
+      "edges": [
+        {
+          "to": "audit",
+          "pattern": "customer–supplier",
+          "note": "Reads the newest event that changed the attribute, as the reader, hot log then archive."
+        },
+        {
+          "to": "canonical",
+          "pattern": "open host service",
+          "note": "Explains canonical values through their own registry tokens."
+        }
+      ]
+    },
+    {
       "id": "exports",
       "name": "Exports",
       "domain": "AshEnterprise.Exports",

@@ -91,6 +91,11 @@ defmodule AshEnterprise.Erasure do
     resource AshEnterprise.Erasure.PersonErasure do
       define :erase_person, action: :erase, args: [:email, :confirm, :reason]
       define :list_person_erasures, action: :read
+
+      define :person_erasure_by_shredded_scope,
+        action: :by_shredded_scope,
+        args: [:scope_id],
+        not_found_error?: false
     end
   end
 end

@@ -94,7 +94,12 @@ defmodule AshEnterprise.Security do
     # Automation principals (ADR 0043): their roles, and who may start an agent
     # that runs as one.
     resource AshEnterprise.Security.AutomationRole
-    resource AshEnterprise.Security.AgentStartGrant
+
+    resource AshEnterprise.Security.AgentStartGrant do
+      # What an explanation reads to name the standing grant a recipe step ran
+      # under, as its reader (ADR 0078, section 2).
+      define :get_agent_start_grant, action: :read, get_by: [:id]
+    end
 
     # The exception path: per-record sharing.
     resource AshEnterprise.Security.AccessGrant

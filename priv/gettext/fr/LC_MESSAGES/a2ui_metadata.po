@@ -1473,6 +1473,10 @@ msgid "For principals"
 msgstr "Pour les principaux"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "For record"
+msgstr "Pour l’enregistrement"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Force complete"
 msgstr "Forcer l’achèvement"
 
