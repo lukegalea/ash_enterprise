@@ -54,7 +54,7 @@ its ubiquitous language, which DDD pattern its edges carry.
    registered resource declares an `emit` or a `signals_in` listener yet; the region renders the
    table the day one does).
 7. **Amended: the generator lives in `ash_agent_tools` as `mix ash_agent.domain_map`.** A second
-   host (keystone) wanted the same capability, and the 0/1/N rule moves a second use up into the
+   host wanted the same capability, and the 0/1/N rule moves a second use up into the
    shared package: the task and its pure half (`AshAgentTools.DomainMap.validate!/1`,
    `build_model/2`, `regions/3`) ship with the introspection tooling under the same
    compile-don't-start boot contract, and its usage rules document the workflow. What stayed here
