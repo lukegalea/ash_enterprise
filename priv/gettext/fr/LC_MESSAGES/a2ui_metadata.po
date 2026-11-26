@@ -81,10 +81,16 @@ msgid "Action items"
 msgstr "Éléments d’action"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/user_ui.ex:1
 msgid "Activate"
 msgstr "Activer"
+
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
+msgctxt "one_of:status"
+msgid "Activated"
+msgstr "Activée"
 
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 msgid "Activated at"
@@ -124,6 +130,10 @@ msgstr "Actif"
 #: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
 msgid "Active at"
 msgstr "Actif depuis"
+
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
+msgid "Active rule set"
+msgstr "Jeu de règles actif"
 
 #: lib/ash_enterprise_web/a2ui/team_ui.ex:1
 msgid "Administrator"
@@ -2353,6 +2363,10 @@ msgstr "Propriétaire"
 msgid "Package"
 msgstr "Dossier d’audit"
 
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
+msgid "Pairs that would change band"
+msgstr "Paires qui changeraient de bande"
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Paper clause tables"
 msgstr "Tables de clauses des documents"
@@ -2507,16 +2521,19 @@ msgid "Promote routing"
 msgstr "Promouvoir l’acheminement"
 
 #: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
 msgid "Proposal"
 msgstr "Proposition"
 
 #: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
 msgid "Proposal detail"
 msgstr "Détail de la proposition"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Proposed"
 msgstr "Proposé"
@@ -2531,9 +2548,22 @@ msgctxt "one_of:lane"
 msgid "Proposed"
 msgstr "Proposé"
 
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
+msgctxt "one_of:status"
+msgid "Proposed"
+msgstr "Proposée"
+
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 msgid "Proposed by"
 msgstr "Proposé par"
+
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
+msgid "Proposed match rules"
+msgstr "Règles d’appariement proposées"
+
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
+msgid "Proposed rule set"
+msgstr "Jeu de règles proposé"
 
 #: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
 msgctxt "one_of:result"
@@ -2715,6 +2745,7 @@ msgstr "Régression"
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Reject"
 msgstr "Rejeter"
@@ -2749,6 +2780,7 @@ msgstr "Rejeté"
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
 msgctxt "one_of:status"
 msgid "Rejected"
 msgstr "Rejeté"
@@ -2764,6 +2796,10 @@ msgstr "Rouvrir"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Replay"
 msgstr "Rejouer"
+
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
+msgid "Replay over past verdicts"
+msgstr "Rejeu sur les verdicts passés"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Reproject"
@@ -2939,6 +2975,14 @@ msgstr "Ligne"
 msgid "Rule set revision"
 msgstr "Révision de l’ensemble de règles"
 
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
+msgid "Rule weights"
+msgstr "Poids des règles"
+
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
+msgid "Rules for"
+msgstr "Règles pour"
+
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
@@ -3112,6 +3156,7 @@ msgid "Select person"
 msgstr "Sélectionner une personne"
 
 #: lib/ash_enterprise_web/a2ui/judgments/question_proposals_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
 msgctxt "select_context"
 msgid "Select proposal"
 msgstr "Choisir une proposition"
@@ -3342,6 +3387,7 @@ msgstr "État"
 #: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 #: lib/ash_enterprise_web/a2ui/paper_clause_review_ui.ex:1
@@ -3619,6 +3665,10 @@ msgctxt "one_of:check_status"
 msgid "Unchecked"
 msgstr "Non vérifié"
 
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
+msgid "Undoes a steward decision"
+msgstr "Annule une décision d’un gardien"
+
 #: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
 msgid "Units under it"
 msgstr "Unités subordonnées"
@@ -3851,6 +3901,10 @@ msgstr "Monde"
 msgid "Would run"
 msgstr "S’exécuterait"
 
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
+msgid "Would undo a steward"
+msgstr "Annulerait un gardien"
+
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
 msgid "Writes"
 msgstr "Écritures"
@@ -3957,6 +4011,10 @@ msgstr "version de correspondance"
 #: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
 msgid "match candidate"
 msgstr "candidat de correspondance"
+
+#: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
+msgid "match-rule proposal"
+msgstr "proposition de règles d’appariement"
 
 #: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
 msgid "n"

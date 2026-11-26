@@ -24,6 +24,13 @@ defmodule AshEnterprise.Mdm do
     resource AshEnterprise.Mdm.SourceIdentity
     resource AshEnterprise.Mdm.AttributeAssertion
     resource AshEnterprise.Mdm.MappingProposal
+
+    resource AshEnterprise.Mdm.MatchRuleProposal do
+      define :propose_match_rules, action: :propose, args: [:golden_resource]
+      define :activate_match_rule_proposal, action: :activate
+      define :reject_match_rule_proposal, action: :reject
+    end
+
     resource AshEnterprise.Mdm.Egress
   end
 end
