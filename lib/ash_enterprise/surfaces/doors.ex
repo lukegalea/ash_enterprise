@@ -23,12 +23,16 @@ defmodule AshEnterprise.Surfaces.Doors do
     * `:lineage` — a read grant on `AshEnterprise.Lineage.Run`: every
       Administrator, and any role given it as a grant row.
     * `:audit` — a read grant on `AshEnterprise.Audit.EventLog`.
+    * `:why` — the `ont_why` flag is on for the actor (ADR 0072). A flag offers a
+      page and never authorizes it: the page reads as the actor, through the
+      policies of every record it asks about.
 
   Reads the actor's precomputed `ActorContext` (attached once per request or
   ACP session); `ActorContext.for_actor/1` only builds one for an actor that
   arrives without it.
   """
 
+  alias AshEnterprise.Flags
   alias AshEnterprise.Security.ActorContext
 
   @gates %{
@@ -42,6 +46,7 @@ defmodule AshEnterprise.Surfaces.Doors do
   @spec open?(AshEnterprise.Surfaces.Surface.door(), term()) :: boolean()
   def open?(_door, nil), do: false
   def open?(:signed_in, _actor), do: true
+  def open?(:why, actor), do: Flags.enabled?(ActorContext.for_actor(actor), "ont_why")
 
   def open?(door, actor) when is_map_key(@gates, door) do
     context = ActorContext.for_actor(actor)
@@ -58,5 +63,6 @@ defmodule AshEnterprise.Surfaces.Doors do
   def audience(:compliance), do: "people with a compliance grant"
   def audience(:lineage), do: "people with a lineage grant"
   def audience(:audit), do: "people with an audit grant"
+  def audience(:why), do: "people who have it turned on"
   def audience(_door), do: "signed-in people"
 end

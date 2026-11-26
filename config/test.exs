@@ -269,6 +269,7 @@ config :ash_enterprise, privilege_sync?: false
 # SYNTHETIC feature flags for the flag tests (ADR 0072); no code path checks them.
 config :ash_enterprise, AshEnterprise.Flags.Catalogue,
   flags: %{
+    "ont_why" => "The Why page and explain's value form, which tests turn on (ADR 0078).",
     "test.alpha" => "A synthetic flag the flag tests turn on and off.",
     "test.beta" => "A second synthetic flag, for isolation between keys."
   }

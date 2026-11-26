@@ -24,7 +24,10 @@ defmodule AshEnterprise.Assistant.Lookups.Work do
   alias AshEnterprise.Assistant.Lookup.WorkEntry
   alias AshEnterprise.Assistant.Lookups.Support
   alias AshEnterprise.Execution
+  alias AshEnterprise.Flags
   alias AshEnterprise.Platform.LocalTime
+  alias AshEnterprise.Provenance
+  alias AshEnterprise.Provenance.Why
 
   @roots ~w(run invocation process_instance human_task)
   @ref ~r/\A([a-z_]+):([0-9a-fA-F-]{36})\z/
@@ -32,7 +35,23 @@ defmodule AshEnterprise.Assistant.Lookups.Work do
   # The most entries one answer carries: a small model reads every row it is given.
   @shown 60
 
+  @flag "ont_why"
+
   @impl true
+  def read(
+        %{arguments: %{address: address} = arguments},
+        _data_layer_query,
+        [op: :explain],
+        context
+      )
+      when is_binary(address) do
+    case {blank(arguments[:ref]), blank(address)} do
+      {nil, address} when is_binary(address) -> why(address, Support.read_opts(context))
+      {nil, nil} -> Support.refused("Give ref or address.")
+      {_ref, _address} -> Support.refused("Give ref or address, not both.")
+    end
+  end
+
   def read(query, _data_layer_query, opts, context) do
     Support.gated(query, context, fn read_opts ->
       with {:ok, args} <- args(opts[:op], query.arguments),
@@ -62,11 +81,70 @@ defmodule AshEnterprise.Assistant.Lookups.Work do
     end
   end
 
+  # -- where a value came from --------------------------------------------------------
+
+  # A value's answer is structure: who, when, how and where it stops, with a value
+  # shown only as the masked text. It is the reader's own `Provenance.explain`, so the
+  # zone gate, which keeps the record answer's content from a model outside the zone,
+  # has no content to keep; the flag decides only whether the answer is offered, and
+  # grants nothing (ADR 0072).
+  defp why(address, read_opts) do
+    if Flags.enabled?(read_opts[:actor], @flag) do
+      case Provenance.explain(address, Keyword.take(read_opts, [:actor, :tenant])) do
+        {:ok, %{explanation: explanation, correlation_ids: correlation_ids}} ->
+          {:ok, Enum.map(Why.rows(explanation, correlation_ids), &why_row/1)}
+
+        {:error, _error} ->
+          {:ok, [not_a_value(address)]}
+      end
+    else
+      Support.refused("Where a value came from is not turned on for you.")
+    end
+  end
+
+  defp why_row(%{kind: :step} = row) do
+    Support.row(WorkEntry, %{
+      role: :entry,
+      kind: row.relation,
+      meaning: row.what,
+      granularity: row.granularity,
+      value: row[:masked?] && row.value,
+      by: row[:by],
+      at: row[:at],
+      summary: row[:summary],
+      definition: row[:plan],
+      entry: row[:activity],
+      context: row[:context],
+      integrity: row[:integrity],
+      correlation_id: row[:correlation_id]
+    })
+  end
+
+  defp why_row(%{kind: :gap} = row) do
+    missing(
+      Enum.join(
+        Enum.reject([row.what, row[:summary], row[:from]], &is_nil/1),
+        ": "
+      )
+    )
+  end
+
+  defp not_a_value(address) do
+    missing(
+      "No value #{address} that you may read: the address is not one of this deployment's, " <>
+        "or it names nothing, or it is not yours to read. That is not the same as the value " <>
+        "having no history."
+    )
+  end
+
   # -- the arguments ----------------------------------------------------------------
 
   # Refs are written lowercase (`explorer_path/1`); ids cast either way, so a ref that
   # differs only in case names the same record and is matched as its subject.
-  defp args(:explain, %{ref: ref}), do: {:ok, %{root_ref: String.downcase(ref)}}
+  defp args(:explain, %{ref: ref}) when is_binary(ref),
+    do: {:ok, %{root_ref: String.downcase(ref)}}
+
+  defp args(:explain, _arguments), do: {:error, "Give ref or address."}
 
   defp args(:trace, arguments) do
     case {blank(arguments[:ref]), blank(arguments[:correlation_id])} do

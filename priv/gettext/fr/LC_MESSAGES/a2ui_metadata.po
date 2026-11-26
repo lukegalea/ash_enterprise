@@ -14,6 +14,7 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
 msgid "About"
 msgstr "À propos"
 
@@ -134,6 +135,10 @@ msgstr "Actif depuis"
 #: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
 msgid "Active rule set"
 msgstr "Jeu de règles actif"
+
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
+msgid "Address of the value"
+msgstr "Adresse de la valeur"
 
 #: lib/ash_enterprise_web/a2ui/team_ui.ex:1
 msgid "Administrator"
@@ -530,6 +535,7 @@ msgid "Business units"
 msgstr "Unités d’affaires"
 
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
 msgid "By"
 msgstr "Par"
 
@@ -629,6 +635,7 @@ msgid "Certify and publish"
 msgstr "Certifier et publier"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
 msgid "Chain"
 msgstr "Chaîne"
 
@@ -818,6 +825,10 @@ msgstr "Empreinte du contenu"
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
 msgid "Content hash (batches pin this)"
 msgstr "Empreinte du contenu (les lots s’y rattachent)"
+
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
+msgid "Context"
+msgstr "Contexte"
 
 #: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
@@ -2456,6 +2467,10 @@ msgstr "Personne"
 msgid "Person detail"
 msgstr "Détail de la personne"
 
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
+msgid "Plan"
+msgstr "Plan"
+
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Planning review"
 msgstr "Revue de planification"
@@ -3489,6 +3504,10 @@ msgctxt "one_of:outcome"
 msgid "Succeeded"
 msgstr "Réussi"
 
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
+msgid "Summary"
+msgstr "Résumé"
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Supersede"
 msgstr "Remplacer"
@@ -3792,6 +3811,7 @@ msgstr "Échec du validateur"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
 msgid "Value"
 msgstr "Valeur"
 
@@ -3850,6 +3870,10 @@ msgstr "Points de terminaison webhook"
 msgid "Week"
 msgstr "Semaine"
 
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
+msgid "What"
+msgstr "Quoi"
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "What happened, and why you know: succeeded (it happened), failed (it did not), or retry (it did not happen, you checked, and it runs again)"
 msgstr "Ce qui s’est passé et comment vous le savez : réussi (c’est arrivé), échoué (ce n’est pas arrivé), ou réessayer (ce n’est pas arrivé, vous avez vérifié, et cela s’exécute à nouveau)"
@@ -3870,6 +3894,7 @@ msgstr "Ce que vous acceptez"
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
 msgid "When"
 msgstr "Quand"
 
@@ -3877,6 +3902,10 @@ msgstr "Quand"
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Where"
 msgstr "Où"
+
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
+msgid "Where a value came from"
+msgstr "D’où vient une valeur"
 
 #: lib/ash_enterprise_web/a2ui/acknowledgement_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
@@ -3892,6 +3921,7 @@ msgstr "Où en est-on"
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
 msgid "Why"
 msgstr "Pourquoi"
 

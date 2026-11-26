@@ -8,7 +8,9 @@ defmodule AshEnterprise.Assistant.Lookup.WorkEntry do
     * `trace` — every entry of one piece of work, oldest first, from a record's
       reference or a correlation id;
     * `explain` — one record (`subject`), what its status means and what it waits on,
-      and the entries under it.
+      and the entries under it; or, given an `address` instead of a `ref`, where one
+      value came from (`AshEnterprise.Provenance`, ADR 0078), as the steps and gaps of
+      that answer (`AshEnterprise.Provenance.Why`) behind the `ont_why` flag.
 
   Both are computed reads (`AshEnterprise.Assistant.Lookups.Work`) over
   `AshEnterprise.Execution.trace/2`, made as the person, behind the zone gate, so a run
@@ -27,7 +29,13 @@ defmodule AshEnterprise.Assistant.Lookup.WorkEntry do
       surface. Rows that are parts of a record (an attempt, an effect, a journal step)
       have none; their `entry` names them.
     * `entry` — the entry's own reference, which `explain` takes.
-    * `status` and `meaning` — one of the six shared statuses, and what it means.
+    * `status` and `meaning` — one of the six shared statuses, and what it means. For
+      a value's answer, `meaning` is the relation in words and `kind` is the relation.
+    * `value`, `granularity`, `context`, `integrity` and `correlation_id` — only on a
+      value's answer: whether the value was hidden from the reader (`value` is then the
+      masked text and nothing else), whether the step is about the value or its record,
+      the execution context, the chain status, and the correlation id of the write.
+      A value is never put in a row (see `AshEnterprise.Assistant.Lookups.Work`).
   """
 
   use AshEnterprise.Platform.Resource,
@@ -62,6 +70,11 @@ defmodule AshEnterprise.Assistant.Lookup.WorkEntry do
     attribute :by, :string, public?: true
     attribute :summary, :string, public?: true
     attribute :missing, :string, public?: true
+    attribute :value, :string, public?: true
+    attribute :granularity, :atom, public?: true, constraints: [one_of: [:value, :record]]
+    attribute :context, :string, public?: true
+    attribute :integrity, :string, public?: true
+    attribute :correlation_id, :string, public?: true
   end
 
   actions do
@@ -89,11 +102,20 @@ defmodule AshEnterprise.Assistant.Lookup.WorkEntry do
       description "Why one record stands as it does, from what was recorded about it."
 
       argument :ref, :string do
-        allow_nil? false
+        allow_nil? true
         constraints match: @record_ref
 
         description "The reference to explain, as a tool returned it (a ref, or an entry " <>
-                      "from trace)."
+                      "from trace). Give this or address."
+      end
+
+      argument :address, :string do
+        allow_nil? true
+        constraints max_length: 500
+
+        description "The address of one value to explain where it came from, " <>
+                      "<base>/<type>/<id>#<attribute> (an address a tool or page returned). " <>
+                      "Give this or ref."
       end
 
       manual {Lookups.Work, op: :explain}

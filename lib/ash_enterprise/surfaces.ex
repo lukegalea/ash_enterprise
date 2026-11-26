@@ -682,6 +682,26 @@ defmodule AshEnterprise.Surfaces do
       resource: HumanTask,
       acp: %{command: "stalled reviews"}
     },
+    # Where a value came from (ADR 0078), behind the `ont_why` flag: one value's
+    # address in, the steps and gaps of its answer out, read as the person. No
+    # resource and no context: the answer is computed, never stored, and nothing
+    # opens in detail here.
+    %Surface{
+      key: :why,
+      audience: [:reviewer, :operator],
+      label: dgettext_noop("default", "Where a value came from"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Who set a value, when, and where the record of it stops, for an address you hold."
+        ),
+      group: :operator,
+      order: 45,
+      icon: "hero-question-mark-circle",
+      path: "/app/why",
+      ui: A2ui.WhyUI,
+      door: :why
+    },
     # The flight views (PROD-10): a process drawn with a marker on every step a
     # run is standing on. `:flight` is the first surface over Instance with a
     # detail, so every link to a run (`link :instance`, `link :process_run`)
