@@ -6,7 +6,7 @@
   "ash_bpmn": {:git, "https://github.com/lukegalea/ash_bpmn.git", "0daf09f9d04ce8b478b5f95890e745c9aac5f348", []},
   "ash_compliance": {:git, "https://github.com/lukegalea/ash_compliance.git", "b1ddecde0306268103f52761eb582d00ece3dfb0", []},
   "ash_decisions": {:git, "https://github.com/lukegalea/ash_decisions.git", "1a01808e8e40997613887bc6f87ae6045189324f", []},
-  "ash_discrete_business_events": {:git, "https://github.com/lukegalea/ash_discrete_business_events.git", "23ea5336b1c281705c385e1e49b22925674201d2", []},
+  "ash_discrete_business_events": {:git, "https://github.com/lukegalea/ash_discrete_business_events.git", "4badc1c335797d4d02a8fc2a275fc27ea914e774", []},
   "ash_events": {:git, "https://github.com/lukegalea/ash_events.git", "bd5f4970a4602b872ffe4ee8b5700f6412d3fc65", [branch: "main-no-rollback"]},
   "ash_events_chain": {:git, "https://github.com/lukegalea/ash_events_chain.git", "cd12299100f5efc9bbb142ad3a37602d181f0279", []},
   "ash_events_projections": {:git, "https://github.com/lukegalea/ash_events_projections.git", "826aff25220e6eca958c8d9d5f40a3cde8468900", []},
