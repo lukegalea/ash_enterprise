@@ -355,17 +355,21 @@ env:
 ```
 
 The ledger has a second account for them: every surface and action is walked by a
-journey or carries an `{:undocumented, …}` waiver with a reason.
+journey whose approved run the lock still holds current in every locale
+(`AshJourneys.Lock.check/4`), or carries an `{:undocumented, …}` waiver with a reason of
+its own. A journey that is unapproved, stale, altered or drifted walks nothing, and the
+failure names it. Two waivers of one thing fail, and so do waivers that share a reason,
+so a waiver list cannot be mapped from a registry. It needs no browser.
 
 ```elixir
-test "every surface and action is in a journey or waived" do
-  AshBrowserTests.Ledger.assert_documented!(
-    AshBrowserTests.Surfaces.declared(MyAppWeb.E2E.Surfaces),
-    MyAppWeb.E2E.Surfaces.waivers(),
-    AshBrowserTests.Journeys.documented([MyApp.Journeys.Offboarding])
-  )
+test "every surface and action is in an approved journey or waived" do
+  AshBrowserTests.Journeys.assert_documented!(MyAppWeb.E2E.Surfaces, [MyApp.Journeys.Offboarding])
 end
 ```
+
+`AshBrowserTests.Ledger.documentation_coverage/2` counts what those journeys walk
+against any set of surfaces, such as the host's whole registry, with
+`AshBrowserTests.Journeys.proven/3` as its input. Waivers never count toward it.
 
 The report groups a journey's tests under the journey.
 
