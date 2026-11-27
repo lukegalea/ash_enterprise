@@ -105,7 +105,7 @@ jobs:
         image: pgvector/pgvector:pg18
         # A throwaway database on tmpfs: durability buys nothing here, and every
         # committed write would otherwise pay an fsync.
-        command: -c fsync=off -c synchronous_commit=off -c full_page_writes=off
+        command: -c fsync=off -c synchronous_commit=off -c full_page_writes=off -c max_connections=400
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
@@ -404,7 +404,7 @@ jobs:
         image: pgvector/pgvector:pg18
         # A throwaway database on tmpfs: durability buys nothing here, and every
         # committed write would otherwise pay an fsync.
-        command: -c fsync=off -c synchronous_commit=off -c full_page_writes=off
+        command: -c fsync=off -c synchronous_commit=off -c full_page_writes=off -c max_connections=400
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
@@ -573,7 +573,7 @@ jobs:
         image: pgvector/pgvector:pg18
         # A throwaway database on tmpfs: durability buys nothing here, and every
         # committed write would otherwise pay an fsync.
-        command: -c fsync=off -c synchronous_commit=off -c full_page_writes=off
+        command: -c fsync=off -c synchronous_commit=off -c full_page_writes=off -c max_connections=400
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
@@ -640,7 +640,7 @@ jobs:
         image: pgvector/pgvector:pg18
         # A throwaway database on tmpfs: durability buys nothing here, and every
         # committed write would otherwise pay an fsync.
-        command: -c fsync=off -c synchronous_commit=off -c full_page_writes=off
+        command: -c fsync=off -c synchronous_commit=off -c full_page_writes=off -c max_connections=400
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
@@ -765,7 +765,7 @@ jobs:
         image: pgvector/pgvector:pg18
         # A throwaway database on tmpfs: durability buys nothing here, and every
         # committed write would otherwise pay an fsync.
-        command: -c fsync=off -c synchronous_commit=off -c full_page_writes=off
+        command: -c fsync=off -c synchronous_commit=off -c full_page_writes=off -c max_connections=400
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
@@ -920,7 +920,7 @@ jobs:
         image: pgvector/pgvector:pg18
         # A throwaway database on tmpfs: durability buys nothing here, and every
         # committed write would otherwise pay an fsync.
-        command: -c fsync=off -c synchronous_commit=off -c full_page_writes=off
+        command: -c fsync=off -c synchronous_commit=off -c full_page_writes=off -c max_connections=400
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
@@ -1183,7 +1183,7 @@ jobs:
         image: pgvector/pgvector:pg18
         # A throwaway database on tmpfs: durability buys nothing here, and every
         # committed write would otherwise pay an fsync.
-        command: -c fsync=off -c synchronous_commit=off -c full_page_writes=off
+        command: -c fsync=off -c synchronous_commit=off -c full_page_writes=off -c max_connections=400
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres

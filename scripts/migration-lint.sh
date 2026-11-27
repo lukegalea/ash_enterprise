@@ -38,6 +38,10 @@ fresh_db() {
 }
 
 squawk() {
+  command -v npx >/dev/null || {
+    echo "npx is not on PATH: Squawk would silently lint nothing" >&2
+    return 1
+  }
   if [ -n "${SQUAWK:-}" ]; then "$SQUAWK" "$@"; else npx --yes "squawk-cli@${squawk_version}" "$@"; fi
 }
 
