@@ -21,7 +21,8 @@ defmodule AshEnterprise.Quality.ToolCalls do
   (`priv/decisions/agent_gate.dmn`) reads them, `"destructive"` and
   `"out_of_scope"`, with `certified`: true only when every family's
   published band table has a certification in force no older than the
-  family's `max_age_days`. The gate turns an allow from uncertified tables
+  family's `max_age_days`, for the instrument that answered (a table
+  certified for another model, digest or runtime is not). The gate turns an allow from uncertified tables
   into an ask. A judge that fails is an error, never a reading: the gate
   answers ask.
   """

@@ -1493,7 +1493,7 @@ The documents surface: issuing real documents from the host's own data through t
 |---|---|---|---|
 | `ash_events` | fork | git @ bd5f4970 | [Audit](#audit) | Audit/event ledger with as-of capture/replay (ADR 0002). |
 | `ash_events_projections` | transitive | git @ 931d9fd0 | [Compliance](#compliance) | The projector engine behind compliance findings. |
-| `ash_strangler` | first-party | git @ b7134a6b | [Legacy estate](#legacy), [Change ledger](#ledger) | Strangler-fig mappings, ledger, drain. |
+| `ash_strangler` | first-party | git @ 5643da35 | [Legacy estate](#legacy), [Change ledger](#ledger) | Strangler-fig mappings, ledger, drain. |
 | `ash_operations` | first-party | git @ 84f2b221 | [Integration](#integration) | Declared provider operations + webhook ingress. |
 | `ash_discrete_business_events` | first-party | git @ 4badc1c3 | [Business events](#business-events) | SourceRecord landing + chained event ledger. |
 | `ash_mdm` | first-party | git @ f8db5fb3 | [Master data](#mdm) | Mappings-as-data, resolution, survivorship, merge. |
@@ -1511,7 +1511,7 @@ The documents surface: issuing real documents from the host's own data through t
 | `ash_agent` | first-party | git @ c3bd9892 | [Agents](#agents) | Governed invocations and durable agent runs (host-instantiated). |
 | `ash_acp` | first-party | git @ 536a404d | [Agent protocol](#acp) | The agent-client wire adapter; no second authorization model. |
 | `ash_a2ui` | first-party | git @ fd91e33d | [Surfaces](#surfaces) | Agent-renderable payloads generated from resources. |
-| `ash_agent_tools` | first-party dev | git @ 07f800fc | [Standards](#standards) | Read-only introspection CLI + the iron laws. |
+| `ash_agent_tools` | first-party dev | git @ e1dbf9b7 | [Standards](#standards) | Read-only introspection CLI + the iron laws. |
 | `battery` | in-repo | in-repo (`battery/`) | [Platform](#platform) | Cross-substrate integration battery over its own reference instantiation. |
 | `ash_events_chain` | first-party | git @ cd122991 | [Audit](#audit) | The audit log's hash chain: immutability triggers, the verifier over hot log and archive as one chain, the verified move to the archive. |
 | `ash_greenmask` | first-party | git @ 24b0c882 | [Erasure](#erasure) | Masking blocks for sensitive attributes; the generated config's drift gate. |

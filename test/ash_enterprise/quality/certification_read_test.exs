@@ -15,7 +15,7 @@ defmodule AshEnterprise.Quality.CertificationReadTest do
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Quality.{Gate, JudgedScores}
   alias AshEnterprise.SystemOne
-  alias AshEnterprise.SystemOne.BandTableCertification
+  alias AshEnterprise.SystemOne.{BandTableCertification, Calibration}
   alias AshEnterprise.Test.Quality.BandTables
   alias AshJudgments.Calibration.FamilyConfig
 
@@ -56,6 +56,86 @@ defmodule AshEnterprise.Quality.CertificationReadTest do
 
     assert version == to_string(ctx.definition.version)
     refute Map.has_key?(judged(ctx), "reason")
+  end
+
+  describe "the instrument" do
+    setup ctx do
+      certifier_tenant = Ash.UUID.generate()
+
+      {:ok, run, _outcome} =
+        Calibration.record_run(
+          [
+            family: "agent_reply_style",
+            question_hashes: ["sha256:" <> String.duplicate("1", 64)],
+            model_version: "winnow:e4b",
+            model_digest: "sha256:" <> String.duplicate("b", 64),
+            runtime_version: "0.9.0",
+            eval_set_hash: "sha256:" <> String.duplicate("c", 64),
+            region: "ca",
+            n: 2,
+            n_per_class: %{},
+            metrics: %{"accuracy" => "0.92"},
+            ece: "0.03",
+            brier: "0.08",
+            conformal_thresholds: %{},
+            source: :eval_set,
+            created_by: "calibration-harness",
+            observations_digest: "sha256:" <> String.duplicate("d", 64),
+            pass_bar: %{"accuracy" => "0.9"},
+            finished_at: DateTime.utc_now()
+          ],
+          actor: SystemActor.process(),
+          tenant: certifier_tenant
+        )
+
+      Map.merge(ctx, %{run: run, certifier_tenant: certifier_tenant})
+    end
+
+    defp instrument(run, overrides \\ %{}) do
+      Map.merge(
+        %{
+          model_version: run.model_version,
+          model_digest: run.model_digest,
+          runtime_version: run.runtime_version
+        },
+        overrides
+      )
+    end
+
+    test "is the one the certified run measured, read from the certifier's tenant", ctx do
+      BandTables.certify!(ctx.definition, %{calibration_run_id: ctx.run.id}, ctx.certifier_tenant)
+
+      assert %{certification: %{status: :certified, instruments: [certified]}} =
+               table = table(ctx)
+
+      assert certified == %{
+               model_digest: ctx.run.model_digest,
+               runtime_version: ctx.run.runtime_version
+             }
+
+      assert Gate.certified?(table, :agent_reply_style, instrument: instrument(ctx.run))
+    end
+
+    test "another digest or runtime is not certified by it", ctx do
+      BandTables.certify!(ctx.definition, %{calibration_run_id: ctx.run.id}, ctx.certifier_tenant)
+      table = table(ctx)
+
+      for overrides <- [
+            %{model_digest: "sha256:" <> String.duplicate("f", 64)},
+            %{runtime_version: "0.9.1"}
+          ] do
+        refute Gate.certified?(table, :agent_reply_style,
+                 instrument: instrument(ctx.run, overrides)
+               )
+      end
+    end
+
+    test "a certification that names no run certifies no instrument", ctx do
+      BandTables.certify!(ctx.definition)
+
+      assert %{certification: %{status: :certified, instruments: []}} = table = table(ctx)
+      refute Gate.certified?(table, :agent_reply_style, instrument: instrument(ctx.run))
+    end
   end
 
   describe "is not certified" do
