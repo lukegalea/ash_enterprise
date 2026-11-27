@@ -40,6 +40,11 @@ config :ash_enterprise, self_registration?: true
 # (`AshEnterprise.Platform.Seeder.default_password!/0`); a test of the refusal turns this off.
 config :ash_enterprise, fixed_seed_password?: true
 
+# The browser tier walks each journey once more in this locale, which has no catalog: every
+# message is its msgid accented, so a visible English word was never translated
+# (`AshEnterpriseWeb.Locale.pseudo/0`, `test/e2e/journeys`).
+config :ash_enterprise, pseudo_locale: "en_XA"
+
 # The OIDC strategy is declared under test (ADR 0071), against a provider that is never
 # called: the tests drive the sign-in action with what a provider would assert.
 config :ash_enterprise, oidc_sign_in?: true

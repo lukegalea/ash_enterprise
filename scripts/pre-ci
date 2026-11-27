@@ -79,6 +79,7 @@ step greenmask mix ash_greenmask.gen.config --check
 step gettext mix gettext.extract --check-up-to-date
 step a2ui-gettext mix ash_a2ui.gettext.extract_metadata --check-up-to-date
 step journeys-gettext mix ash_journeys.gettext.extract --check-up-to-date
+step journeys-translated mix ash_journeys.gettext.extract --check-translated
 step journeys-lock mix ash_journeys.lock --check
 step roadmap mix ash_enterprise.roadmap --check
 step api-contract mix ash_enterprise.api.contract --check --base origin/main

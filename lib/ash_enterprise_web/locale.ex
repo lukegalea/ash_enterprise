@@ -80,9 +80,24 @@ defmodule AshEnterpriseWeb.Locale do
   @spec backend() :: module()
   def backend, do: @backend
 
-  @doc "The Gettext locales that have a catalog, the default among them."
+  @doc """
+  The pseudo-locale, when the environment configures one
+  (`config :ash_enterprise, :pseudo_locale`): a locale with no catalog, in which
+  every message is its msgid accented (`AshEnterpriseWeb.Gettext.Pseudo`). The
+  browser tier walks a journey in it to find text that never went through
+  Gettext. Only the test environment configures it; elsewhere an
+  `Accept-Language` naming it is an unknown language, like any other.
+  """
+  @spec pseudo() :: gettext_locale() | nil
+  def pseudo, do: Application.get_env(:ash_enterprise, :pseudo_locale)
+
+  @doc """
+  The Gettext locales that have a catalog, the default among them, and the
+  pseudo-locale when there is one.
+  """
   @spec known_locales() :: [gettext_locale()]
-  def known_locales, do: Enum.uniq([@default | Gettext.known_locales(@backend)])
+  def known_locales,
+    do: Enum.uniq([@default | Gettext.known_locales(@backend)] ++ List.wrap(pseudo()))
 
   @doc """
   The locale for a request, by the precedence in the moduledoc.

@@ -72,12 +72,28 @@ if Code.ensure_loaded?(AshJourneys.Info) do
     A browser failure reported after the last step, before the test ends, still
     fails the test at exit (`AshBrowserTests.Case`); the runner then rewrites the
     manifest as failed, so it never says passed.
+
+    ## The pseudo-locale run
+
+    `pseudo_locale: "xx_XA"` adds one more test per journey, which walks it in a
+    locale the host answers with every message accented (the host owns the
+    pseudo-locale; `AshBrowserTests.Journeys.Untranslated`). After each figure,
+    the text visible in the figured region, outside its masks, must have no word of
+    ASCII letters left, except the strings the host names as data
+    (`c:AshBrowserTests.Journeys.Host.visible_data/1`). The step fails with the
+    text and the surface it was on.
+
+    The run writes its manifest and figures under a run id of its own
+    (`pseudo-<run id>`), beside the real run, and is never approvable: the journey
+    declares no such locale, so `mix ash_journeys.approve` refuses it, and it never
+    stops the real run from being approved.
     """
 
     alias AshBrowserTests.Browser
     alias AshBrowserTests.FailureCapture
     alias AshBrowserTests.Figure
     alias AshBrowserTests.Journeys.Candidates
+    alias AshBrowserTests.Journeys.Untranslated
     alias AshBrowserTests.Ledger
     alias AshBrowserTests.RowActions
     alias AshBrowserTests.Trace
@@ -99,6 +115,7 @@ if Code.ensure_loaded?(AshJourneys.Info) do
     defmacro __using__(opts) do
       {host, opts} = Keyword.pop!(opts, :host)
       {journeys, opts} = Keyword.pop!(opts, :journeys)
+      {pseudo_locale, opts} = Keyword.pop(opts, :pseudo_locale)
       opts = Keyword.put_new(opts, :timeout, 180_000)
 
       quote do
@@ -117,7 +134,33 @@ if Code.ensure_loaded?(AshJourneys.Info) do
             AshBrowserTests.Journeys.run!(@journeys_host, context.journey, context)
           end
         end
+
+        for {module, name, locale} <-
+              AshBrowserTests.Journeys.pseudo(unquote(journeys), unquote(pseudo_locale)) do
+          @tag journey: {module, name, locale}
+          @tag pseudo: true
+          # A Gettext locale is spelled `en_XA`; the browser is told `en-XA`.
+          @tag browser_context_opts:
+                 AshBrowserTests.Journeys.framing(String.replace(locale, "_", "-"))
+          test "journey #{name} (#{locale}, never approved)", context do
+            AshBrowserTests.Journeys.run!(@journeys_host, context.journey, context)
+          end
+        end
       end
+    end
+
+    @doc """
+    Every journey `modules` declare once, in the pseudo-locale `locale`, as
+    `{module, name, locale}`; none without one.
+    """
+    @spec pseudo([module()], String.t() | nil) :: [{module(), atom(), String.t()}]
+    def pseudo(_modules, nil), do: []
+
+    def pseudo(modules, locale) do
+      modules
+      |> planned()
+      |> Enum.uniq_by(fn {module, name, _locale} -> {module, name} end)
+      |> Enum.map(fn {module, name, _locale} -> {module, name, locale} end)
     end
 
     @doc "Every journey and locale `modules` declare, as `{module, name, locale}`."
@@ -271,7 +314,9 @@ if Code.ensure_loaded?(AshJourneys.Info) do
     def run!(host, {module, name, locale}, context) do
       journey = Info.journey!(module, name)
       ir = Ir.build(journey)
-      claim = Candidates.claim!(File.cwd!(), Candidates.run_id(), ir["id"], locale)
+      pseudo? = context[:pseudo] == true
+      run_id = if pseudo?, do: "pseudo-" <> Candidates.run_id(), else: Candidates.run_id()
+      claim = Candidates.claim!(File.cwd!(), run_id, ir["id"], locale)
 
       run = %{
         host: host,
@@ -279,6 +324,7 @@ if Code.ensure_loaded?(AshJourneys.Info) do
         journey: journey,
         ir: ir,
         locale: locale,
+        pseudo?: pseudo?,
         context: context,
         key: context.test_key,
         dir: claim.dir,
@@ -755,7 +801,22 @@ if Code.ensure_loaded?(AshJourneys.Info) do
           highlight: highlight(acc, conn, figure.highlight, selector, raster)
         )
 
+      if acc.run.pseudo?, do: assert_translated!(acc, conn, selector, masks, figure)
+
       %{put_conn(acc, conn) | figures: [recorded | acc.figures]}
+    end
+
+    defp assert_translated!(acc, conn, selector, masks, figure) do
+      host = acc.run.host
+
+      data =
+        if function_exported?(host, :visible_data, 1),
+          do: host.visible_data(acc.run.bindings),
+          else: []
+
+      where = "surface #{acc.surface}, figure #{acc.step.name}.#{figure.name}"
+
+      Untranslated.assert_translated!(conn, selector, Enum.map(masks, &elem(&1, 0)), data, where)
     end
 
     defp frame_selector(_acc, :page), do: nil

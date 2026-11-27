@@ -1510,7 +1510,7 @@ The documents surface: issuing real documents from the host's own data through t
 | `ash_planning` | first-party | git @ 6aab92f2 | [Planning](#planning) | Planning fragments, IR, validators; solver backend. |
 | `ash_agent` | first-party | git @ c3bd9892 | [Agents](#agents) | Governed invocations and durable agent runs (host-instantiated). |
 | `ash_acp` | first-party | git @ 536a404d | [Agent protocol](#acp) | The agent-client wire adapter; no second authorization model. |
-| `ash_a2ui` | first-party | git @ fd91e33d | [Surfaces](#surfaces) | Agent-renderable payloads generated from resources. |
+| `ash_a2ui` | first-party | git @ b4837f48 | [Surfaces](#surfaces) | Agent-renderable payloads generated from resources. |
 | `ash_agent_tools` | first-party dev | git @ e1dbf9b7 | [Standards](#standards) | Read-only introspection CLI + the iron laws. |
 | `battery` | in-repo | in-repo (`battery/`) | [Platform](#platform) | Cross-substrate integration battery over its own reference instantiation. |
 | `ash_events_chain` | first-party | git @ cd122991 | [Audit](#audit) | The audit log's hash chain: immutability triggers, the verifier over hot log and archive as one chain, the verified move to the archive. |
@@ -1518,7 +1518,7 @@ The documents surface: issuing real documents from the host's own data through t
 | `ash_signatures` | first-party | git @ cb192d44 | [Signatures](#signatures) | The signature and acknowledgement fragments the host instantiates (ADR 0074). |
 | `ash_versions` | first-party | git @ 62b29b14 | [Artifacts](#artifacts) | The version registry the artifact pages read through, and temporal history. |
 | `ash_paper` | first-party | git @ e14889c9 | [Documents](#documents) | Deterministic PDF documents from Ash data (early; the API may change). |
-| `ash_journeys` | first-party | git @ 53b6f4c7 | [Surfaces](#surfaces) | User journeys declared once: walked by the browser tier, published from approved runs (early; the API may change). |
+| `ash_journeys` | first-party | git @ 34944970 | [Surfaces](#surfaces) | User journeys declared once: walked by the browser tier, published from approved runs (early; the API may change). |
 
 <!-- domain-map:substrates:end -->
 

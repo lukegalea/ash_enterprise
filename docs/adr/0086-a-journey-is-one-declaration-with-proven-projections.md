@@ -213,6 +213,13 @@ or a bypass.
   the fourth differed in one 8×11 pixel box, a sort-indicator glyph the browser draws from a system fallback font.
   Across builds (Chromium 151 against 158) every figure differed. So figures are approved from CI's artifact only,
   and a figure taken on a developer's machine is never compared with the lock.
+- A figure shows no English in a French page by construction rather than by review: the browser job walks each
+  journey once more in a pseudo-locale (`en_XA`, configured only under test), where every message the application
+  translates is its msgid accented, and fails any word of ASCII letters left in a figured region outside its masks,
+  with the text and the surface. The run is written under its own run id and is never approvable, since the journey
+  declares no such locale. What it names as data (the product and organization names, a seeded person's email and
+  creation time, a keyboard hint) is the host's list. Narration is covered separately: `--check-translated` fails
+  a journey text with no translation in a declared locale.
 - Each journey needs a seeded world, so demo data becomes part of the documentation's inputs.
 - Journeys can only drive what the manifest describes. Until the manifest describes forms and wizard steps, a journey
   stops at tables and row actions.

@@ -34,6 +34,11 @@ defmodule AshEnterprise.Journeys.World do
   alias AshEnterprise.Platform.SystemActor
 
   @kinds [:tenant_admin, :member]
+  @organization "Example Corp"
+
+  @doc "The name of the organization every journey's world seeds."
+  @spec organization_name() :: String.t()
+  def organization_name, do: @organization
 
   @impl true
   def seed(%{packs: [_pack | _rest] = packs}, _opts),
@@ -45,7 +50,7 @@ defmodule AshEnterprise.Journeys.World do
            Enum.filter(bind, &match?({_binding, {:tenant_admin, _name}}, &1)) do
       seeded =
         Seeder.seed_tenant(
-          name: "Example Corp",
+          name: @organization,
           unique_name: "example",
           email: email(admin_name),
           password: password()
