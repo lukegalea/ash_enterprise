@@ -307,14 +307,6 @@ defmodule AshEnterprise.Audit.EventLog do
     public_fields [:id, :occurred_at, :resource, :action, :action_type, :record_id, :user_id]
   end
 
-  @doc """
-  The SOC 2 criteria this module records evidence for (the audit event log).
-
-  Read by `AshCompliance.Ownership.Resolver.proves_producer/2`; `docs/controls.json`
-  rows that name this module as their evidence producer must appear here.
-  """
-  def evidence_controls, do: ["CC6.3"]
-
   # ADR 0032: how these columns may leave production in a copy (greenmask.yml).
   greenmask do
     exclude_data(

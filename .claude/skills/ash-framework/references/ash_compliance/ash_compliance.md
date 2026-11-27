@@ -296,7 +296,15 @@ Turn on the real test with `--require-producer-proof` (or
 `mix:` producer must export `evidence_controls/0` returning the criterion ids
 it records evidence for. Add the function in the same change that makes the
 producer call the evidence writer, then keep the flag on in CI. A `file:`
-producer is never proven. A freshness waiver silences only with a requester
+producer is never proven.
+
+Proof that lives where a module cannot declare it gets a scheme of its own,
+not a stand-in module: implement `AshCompliance.Ownership.ReferenceScheme`
+(`resolve/2` and `proves_producer/2`, answering from what is compiled or on
+disk, never a database) and configure it with
+`config :ash_compliance, reference_schemes: %{"name" => MyApp.Reference}`.
+Rows then name `name:value`, and the check and its task resolve it. The
+built-in `module:`, `mix:` and `file:` cannot be replaced. A freshness waiver silences only with a requester
 different from its approver and a window of at most 90 days.
 
 A producer that can run outside production passes `environment_class:` to

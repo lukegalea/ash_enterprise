@@ -122,7 +122,7 @@ defmodule AshEnterprise.Journeys.EvidenceSinkTest do
       assert {:ok, _manifest} = Manifest.decode(artifact.content)
 
       assert {:ok, results} =
-               FreshnessSweepWorker.sweep(ctx.org, controls_file: controls_file(), now: @now)
+               FreshnessSweepWorker.sweep(ctx.org, now: @now)
 
       assert %{state: :unknown, reason: :non_production} =
                Enum.find(results, &(&1.criterion == "CC6.2"))
@@ -338,24 +338,7 @@ defmodule AshEnterprise.Journeys.EvidenceSinkTest do
   defp restore_deployment_class(class),
     do: Application.put_env(:ash_enterprise, :deployment_class, class)
 
-  defp sweep(org), do: FreshnessSweepWorker.sweep(org, controls_file: controls_file(), now: @now)
+  defp sweep(org), do: FreshnessSweepWorker.sweep(org, now: @now)
 
   defp cc62(results), do: Enum.find(results, &(&1.criterion == "CC6.2"))
-
-  # docs/controls.json with CC6.2's evidence producer the journey. Whether the real row
-  # names it is the control map's decision; this is the evaluator's question alone.
-  defp controls_file do
-    document = "docs/controls.json" |> File.read!() |> Jason.decode!()
-
-    criteria =
-      Enum.map(document["criteria"], fn
-        %{"id" => "CC6.2"} = row -> Map.put(row, "evidence_producer", @producer)
-        row -> row
-      end)
-
-    path = Path.join(System.tmp_dir!(), "controls_#{System.unique_integer([:positive])}.json")
-    File.write!(path, Jason.encode!(%{document | "criteria" => criteria}))
-    on_exit(fn -> File.rm(path) end)
-    path
-  end
 end
