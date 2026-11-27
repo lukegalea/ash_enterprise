@@ -129,33 +129,19 @@ if Code.ensure_loaded?(AshJourneys.Info) do
           do: {module, journey.name, Atom.to_string(locale)}
     end
 
-    @doc """
-    What the journeys `modules` declare walk, for the documentation ledger
-    (`AshBrowserTests.Ledger.documentation_problems/3`): each surface a step is
-    on, as `{:journey, id, {:surface, surface_id}}`, and each row action a step
-    performs, as `{:journey, id, {:action, surface_id, "row:" <> row_action_id}}`.
-    Every declaration counts, approved or not; `proven/3` counts only the
-    journeys the lock proves.
-    """
-    @spec documented([module()]) :: [AshBrowserTests.Ledger.documented()]
-    def documented(modules) do
-      for module <- modules,
-          journey <- Info.journeys(module),
-          entry <- walks(journey),
-          uniq: true,
-          do: entry
-    end
-
     @typedoc "A journey and locale whose approved run does not prove it, and why."
     @type unproven :: {String.t(), String.t(), Lock.refusal(), [String.t()]}
 
     @doc """
-    What the journeys `modules` declare walk, as `documented/1` reports it, from
-    only the journeys the lock under the project root `root` holds current in
-    every locale they declare (`AshJourneys.Lock.check/4`: approved, and not
-    stale, altered or drifted). The others are `unproven`, one entry per locale
-    that is not current, with the lock's reasons. `opts` are
-    `AshJourneys.Lock.verify/6`'s.
+    What the journeys `modules` declare walk, for the documentation ledger
+    (`AshBrowserTests.Ledger.documentation_problems/3`), counting only the
+    journeys the lock under the project root `root` holds current in every
+    locale they declare (`AshJourneys.Lock.check/4`: approved, and not stale,
+    altered or drifted). A counted journey walks each surface a step is on, as
+    `{:journey, id, {:surface, surface_id}}`, and each row action a step
+    performs, as `{:journey, id, {:action, surface_id, "row:" <> row_action_id}}`.
+    The others are `unproven`, one entry per locale that is not current, with
+    the lock's reasons. `opts` are `AshJourneys.Lock.verify/6`'s.
     """
     @spec proven([module()], Path.t(), keyword()) ::
             {:ok, %{documented: [AshBrowserTests.Ledger.documented()], unproven: [unproven()]}}
@@ -194,9 +180,8 @@ if Code.ensure_loaded?(AshJourneys.Info) do
     (`AshBrowserTests.Surfaces.declared/1` of `surfaces_host`, and its waivers),
     walked by the journeys `modules` declare that the lock proves (`proven/3`).
     Raises `ExUnit.AssertionError` on any problem of
-    `AshBrowserTests.Ledger.documentation_problems/3`, or of
-    `AshBrowserTests.Ledger.waiver_problems/1` among the `:undocumented`
-    waivers. The message names every journey that was not counted, and why.
+    `AshBrowserTests.Ledger.documentation_problems/3`. The message names every
+    journey that was not counted, and why.
 
     `opts`: `:root`, the project root the lock is read under (the current
     directory by default); the rest are `AshJourneys.Lock.verify/6`'s.
@@ -216,14 +201,12 @@ if Code.ensure_loaded?(AshJourneys.Info) do
                 "the journeys or their lock do not read:\n  " <> Enum.join(problems, "\n  ")
         end
 
-      waivers = surfaces_host.waivers()
-
       problems =
         Ledger.documentation_problems(
           AshBrowserTests.Surfaces.declared(surfaces_host),
-          waivers,
+          surfaces_host.waivers(),
           documented
-        ) ++ Ledger.waiver_problems(Enum.filter(waivers, &(elem(&1, 0) == :undocumented)))
+        )
 
       if problems != [] do
         raise ExUnit.AssertionError,

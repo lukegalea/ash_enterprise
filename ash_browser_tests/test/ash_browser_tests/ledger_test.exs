@@ -150,16 +150,25 @@ defmodule AshBrowserTests.LedgerTest do
              ] = Ledger.documentation_problems(surfaces(), waivers, walked())
     end
 
-    test "a journey names its surfaces and row actions as the generator does" do
-      documented = AshBrowserTests.Journeys.documented([AshBrowserTests.Fixture.Journeys])
+    test "two waivers of one thing, or one reason given twice, fail" do
+      waivers = [
+        {:surface, "b", "no ui"},
+        {:undocumented, :surface, "b", "internal only"},
+        {:undocumented, :surface, "b", "kept for the operators"}
+      ]
 
-      assert {:journey, "activate_a_widget", {:surface, "widgets"}} in documented
+      assert [{:duplicate_waiver, {:undocumented, :surface, "b", "kept for the operators"}}] =
+               Ledger.documentation_problems(surfaces(), waivers, walked())
 
-      assert {:journey, "activate_a_widget", {:action, "widgets", "row:widgets.activate"}} in documented
+      waivers = [
+        {:undocumented, :surface, "b", "b: not documented yet"},
+        {:undocumented, :action, {"a", "go"}, "a go -- not documented yet"}
+      ]
 
-      assert {:journey, "remove_a_widget", {:action, "widgets", "row:widgets.remove"}} in documented
+      walked_page = [{:journey, "a_journey", {:surface, "a"}}]
 
-      assert length(documented) == length(Enum.uniq(documented))
+      assert [{:repeated_reason, ^waivers}] =
+               Ledger.documentation_problems(surfaces(), waivers, walked_page)
     end
   end
 
@@ -269,9 +278,27 @@ defmodule AshBrowserTests.LedgerTest do
                {"activate_a_widget", "en", :unapproved, []},
                {"remove_a_widget", "en", :unapproved, []}
              ]
+    end
 
-      # documented/1 still reports every declaration, approved or not.
-      assert Journeys.documented([FixtureJourneys]) != []
+    test "a journey names its surfaces and row actions as the generator does" do
+      root = ApprovedRuns.root()
+
+      :ok =
+        ApprovedRuns.approve!(root, [FixtureJourneys], "r1", [
+          "activate_a_widget",
+          "remove_a_widget"
+        ])
+
+      {:ok, %{documented: documented, unproven: []}} =
+        Journeys.proven([FixtureJourneys], root, @opts)
+
+      assert {:journey, "activate_a_widget", {:surface, "widgets"}} in documented
+
+      assert {:journey, "activate_a_widget", {:action, "widgets", "row:widgets.activate"}} in documented
+
+      assert {:journey, "remove_a_widget", {:action, "widgets", "row:widgets.remove"}} in documented
+
+      assert length(documented) == length(Enum.uniq(documented))
     end
 
     test "an approved, current journey walks its surfaces and row actions; the others do not" do
