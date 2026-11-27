@@ -16,7 +16,7 @@ defmodule AshBrowserTests.Ledger do
 
   A second, separate account (`documentation_problems/3`): every surface and
   action is either walked by one of the host's journeys (`ash_journeys`,
-  `AshBrowserTests.Journeys.documented/1`) or carries an `:undocumented` waiver
+  `AshBrowserTests.Journeys.proven/3`) or carries an `:undocumented` waiver
   with a reason: `{:undocumented, :surface, id, reason}` or
   `{:undocumented, :action, {surface_id, action_id}, reason}`. It lives in the
   same waiver list as the exercise waivers, and each account reads only its own
@@ -27,14 +27,15 @@ defmodule AshBrowserTests.Ledger do
   declared, or something a journey now walks.
 
   Only a journey whose approved run still proves it counts as walking anything:
-  `AshBrowserTests.Journeys.assert_documented!/3` reads the walks from the
-  journeys the lock holds current in every locale they declare, and adds the
-  waiver checks of `waiver_problems/1`.
+  `AshBrowserTests.Journeys.proven/3` reads the walks from the journeys the lock
+  holds current in every locale they declare, and
+  `AshBrowserTests.Journeys.assert_documented!/3` runs this account on them.
 
   ## Waivers are written by hand
 
-  A waiver is a decision someone made about one thing, so `waiver_problems/1`
-  fails two waivers of the same thing, and two waivers that give one reason
+  A waiver is a decision someone made about one thing, so the documentation
+  account (through `waiver_problems/1`) fails two waivers of the same thing, and
+  two waivers that give one reason
   (compared without case, spacing, or the ids they name). A list mapped from a
   registry with a stock reason is refused that way.
 
@@ -95,8 +96,9 @@ defmodule AshBrowserTests.Ledger do
   @doc """
   The problems in the documentation account (see the moduledoc): `documented` is
   what the host's journeys walk, as `{:journey, journey_id, {:surface, id}}` and
-  `{:journey, journey_id, {:action, surface_id, action_id}}`. Exercise waivers in
-  `waivers` are ignored.
+  `{:journey, journey_id, {:action, surface_id, action_id}}`, from
+  `AshBrowserTests.Journeys.proven/3`. Exercise waivers in `waivers` are ignored;
+  the `:undocumented` ones are also checked together (`waiver_problems/1`).
   """
   @spec documentation_problems([Surface.t()], [waiver()], [documented()]) :: [problem()]
   def documentation_problems(surfaces, waivers, documented) do
@@ -126,7 +128,7 @@ defmodule AshBrowserTests.Ledger do
         end
       end)
 
-    waiver_problems =
+    refused =
       Enum.flat_map(waivers, fn {:undocumented, kind, id, reason} = waiver ->
         key = if kind == :surface, do: {:surface, id}, else: Tuple.insert_at(id, 0, :action)
 
@@ -138,7 +140,7 @@ defmodule AshBrowserTests.Ledger do
         end
       end)
 
-    undocumented ++ waiver_problems
+    undocumented ++ refused ++ waiver_problems(waivers)
   end
 
   @doc "Raises `ExUnit.AssertionError` if `documentation_problems/3` finds anything."
