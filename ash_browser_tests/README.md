@@ -19,6 +19,7 @@ What it gives a host, as `AshBrowserTests.*`:
 | `Fake`, `Fake.LLM`, `Fake.DSN` | Bandit-served stand-ins for outbound HTTP, which record requests and propagated headers |
 | `Surfaces`, `Ledger`, `A2uiManifest` | A generated test per declared surface and action; anything neither exercised nor waived fails |
 | `Tables`, `Rows`, `RowActions` | A generated test per A2UI table and preset, with its own ledger; and the row-level helpers (locate by `data-a2ui-row-id`, switch presets, fill prompt widgets) |
+| `Journeys`, `Settle`, `Figure`, `Trace.Cursor` | Runs the journeys a host declares with `ash_journeys`: a test per journey and locale, a span window per step, figures of settled pages, and the run manifest approval reads |
 | `Reporter`, `Report` | An ExUnit formatter recording each outcome, and the renderer behind `mix ash_browser_tests.report` |
 
 ## Adopting it
@@ -257,7 +258,12 @@ the Ash action and resource, `visible_when`, `prompt_fields`, and a confirm labe
 there is one) and `tables` with their presets.
 
 `ash_a2ui` now builds that — `AshA2ui.Manifest.for_surface/2` — so a host's module is
-usually one line per surface over its own registry. `A2uiManifest.Stub` answers `nil`
+usually one line per surface over its own registry. A generated row-action test asserts
+the chain browser event → `handle_event` → the Ash action; a host without browser
+tracing roots it at `handle_event` with the optional `row_action_chain/1`. After the
+chain, the optional `assert_audit/2` gets the `handle_event` span's correlation id. A
+row action whose manifest says `confirm: :destructive` is confirmed through the control
+inside the open dialog, which carries the row button's own label. `A2uiManifest.Stub` answers `nil`
 for every surface, for a host with no A2UI; `Static` serves a hand-written map.
 
 ### The derived table suite
@@ -288,6 +294,84 @@ declare a row action's `run` itself rather than take the generated one.
 > the row, locates it by `data-a2ui-row-id` and handles the widget types. They overlap,
 > and a host currently picks one by either taking the generated action or declaring its
 > own `run:`. Reconciling them is a follow-up, not a thing to discover mid-debugging.
+
+## Journeys
+
+A host that declares journeys with `ash_journeys` runs them here, one test per
+journey and locale:
+
+```elixir
+defmodule MyAppWeb.E2E.JourneysTest do
+  use AshBrowserTests.Journeys,
+    host: MyAppWeb.E2E.JourneyHost,
+    journeys: [MyApp.Journeys.Offboarding],
+    async: true
+end
+```
+
+`ash_journeys` is an optional dependency of this package: the host declares it,
+test-only, beside its journeys. `AshBrowserTests.Journeys.Host` is the browser half
+of the host's side: the path that opens each surface, sign-in, the manifest options a
+surface renders with in a locale, the selector of each masked region, and the audit
+assertion. The surface registry, personas and world come from the journey module.
+
+Each test checks the journey against its surfaces, seeds its world, and signs every
+persona in on a browser context of its own (one sandbox, one test key, a failure
+capture per context). Then, step by step, as the step's persona:
+
+- a span cursor is taken before the step acts (`Trace.cursor/2`), and the step's trace
+  expectations are asserted against it, so a span lost in one step fails that step and
+  never the next;
+- row actions go through `RowActions.perform/4` on the bound record's
+  `data-a2ui-row-id`; a confirmation stays open while the step captures it;
+- every figure and every expectation first waits for the page to settle
+  (`Settle.wait!/2`); a page that does not settle fails the step with the state it saw,
+  and is never captured;
+- a figure is captured under one fixed framing (`Journeys.framing/1`), masked, with its
+  file and raster hashes and the highlighted row's box;
+- `expect audit: true` asks the host's `assert_audit/3` for the row each of the step's
+  row actions wrote: that action, about that record, under the step's correlation id,
+  since the step began;
+- when the step is done, a console error, page error or 5xx that any persona's context
+  reported during it fails the step (unless the test is tagged
+  `allow_browser_failures: true`).
+
+A failing step stops the journey; the steps after it are recorded as skipped. Errors
+name the journey, locale, step and persona. Whether it passed or not, the test writes
+the run manifest and figures to `tmp/journeys/runs/<run>/<journey>/<locale>/`, for
+`mix ash_journeys.approve`, with the journey's texts as the run resolved them. The run
+is `JOURNEYS_RUN_ID` when set (one id per CI run, without its attempt), else
+`local-<commit>`. `JOURNEYS_RUN_ATTEMPT` is the CI attempt (`github.run_attempt`): a
+re-run job starts in an empty directory, so the attempt is what records that an earlier
+one ran. A test claims its directory first, so two tests of one journey never write the
+same file. A second attempt, or a second `mix test` at the same commit, counts as a
+retry and is never approvable. The driver's own end-of-test screenshot is off for these
+tests.
+
+```yaml
+env:
+  JOURNEYS_RUN_ID: ci-${{ github.run_id }}
+  JOURNEYS_RUN_ATTEMPT: ${{ github.run_attempt }}
+```
+
+The ledger has a second account for them: every surface and action is walked by a
+journey whose approved run the lock still holds current in every locale
+(`AshJourneys.Lock.check/4`), or carries an `{:undocumented, …}` waiver with a reason of
+its own. A journey that is unapproved, stale, altered or drifted walks nothing, and the
+failure names it. Two waivers of one thing fail, and so do waivers that share a reason,
+so a waiver list cannot be mapped from a registry. It needs no browser.
+
+```elixir
+test "every surface and action is in an approved journey or waived" do
+  AshBrowserTests.Journeys.assert_documented!(MyAppWeb.E2E.Surfaces, [MyApp.Journeys.Offboarding])
+end
+```
+
+`AshBrowserTests.Ledger.documentation_coverage/2` counts what those journeys walk
+against any set of surfaces, such as the host's whole registry, with
+`AshBrowserTests.Journeys.proven/3` as its input. Waivers never count toward it.
+
+The report groups a journey's tests under the journey.
 
 ## Running
 

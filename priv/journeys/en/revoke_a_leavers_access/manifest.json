@@ -1,0 +1,202 @@
+{
+  "browser": {
+    "executable": "bundled",
+    "name": "chromium",
+    "version": "158.0.8127.18"
+  },
+  "commit": "9bd2f0b1523fe9fcd85629806d01283d68f8efcb",
+  "declaration_hash": "c779dc4d3696347b659685c6678a60aa30062636325456583844c87b38e0240d",
+  "environment": "test",
+  "format": 2,
+  "framing": {
+    "color_scheme": "light",
+    "device_scale_factor": 1.0,
+    "locale": "en",
+    "reduced_motion": "reduce",
+    "timezone_id": "UTC",
+    "viewport": {
+      "height": 800,
+      "width": 1280
+    }
+  },
+  "journey": "revoke_a_leavers_access",
+  "locale": "en",
+  "retries": 0,
+  "run_id": "ci-45796414469",
+  "status": "passed",
+  "steps": [
+    {
+      "actor": "leaver",
+      "attempts": 1,
+      "correlation_id": null,
+      "cursor": {
+        "from": 5,
+        "to": 66
+      },
+      "error": null,
+      "figures": [],
+      "label": "01-leaver_is_signed_in",
+      "name": "leaver_is_signed_in",
+      "span_ids": [],
+      "status": "passed"
+    },
+    {
+      "actor": "admin",
+      "attempts": 1,
+      "correlation_id": null,
+      "cursor": {
+        "from": 66,
+        "to": 131
+      },
+      "error": null,
+      "figures": [
+        {
+          "file": "find_the_person.people.png",
+          "file_sha256": "593ff4adecb1e2ff97a3c5baf6a9682d1d2bd77c58f9ed9bed417d6d6ef75f3a",
+          "height": 800,
+          "highlight": {
+            "height": 47.5,
+            "width": 1212.0,
+            "x": 34.0,
+            "y": 414.5
+          },
+          "name": "people",
+          "raster_sha256": "1bdbe11576f173286f324dd7ee69f752a0ea9a61603e92888f1d71ef1a6bab9b",
+          "settled": true,
+          "width": 1280
+        }
+      ],
+      "label": "02-find_the_person",
+      "name": "find_the_person",
+      "span_ids": [],
+      "status": "passed"
+    },
+    {
+      "actor": "admin",
+      "attempts": 1,
+      "correlation_id": "5f0f2860-ed2f-4b16-9d19-c3a9909e43a6",
+      "cursor": {
+        "from": 131,
+        "to": 186
+      },
+      "error": null,
+      "figures": [
+        {
+          "file": "deactivate.confirm.png",
+          "file_sha256": "e920548e074525f1446f87179c5ef3680fcabf6e0f9d6fa7932178b8c1414823",
+          "height": 114,
+          "highlight": null,
+          "name": "confirm",
+          "raster_sha256": "163758297b88d53a77f7cd0858d2a70d4d954c9e503a47b466d34f7cfe8aa751",
+          "settled": true,
+          "width": 448
+        },
+        {
+          "file": "deactivate.deactivated.png",
+          "file_sha256": "700727557c9cfb133576cc1d416087701620631e7972bdbcacb301017fd7c0e7",
+          "height": 48,
+          "highlight": null,
+          "name": "deactivated",
+          "raster_sha256": "41bd3353c60a8ef388d2a878e5e11e1691c1f97ca3e98cf8fff2e8845635056b",
+          "settled": true,
+          "width": 1212
+        }
+      ],
+      "label": "03-deactivate",
+      "name": "deactivate",
+      "span_ids": [
+        "65e9d0231d67303e",
+        "e134abbcfa7792d5",
+        "48359f5eaa75a757",
+        "cd16b4e11a048334",
+        "e3dc9442a93d557d",
+        "fd0ac8171ad591ad",
+        "c35be38f2781be9e",
+        "b8e0737b4447c8d0",
+        "cda9f75ee0b014fd",
+        "01ddbc47248276cf",
+        "532b4e3e360b2895",
+        "aec3301a0e45fbf4",
+        "752670d75ce7c876",
+        "e0ae6164592b8897",
+        "ac456c5f24552363",
+        "87add231555d2238",
+        "7f7cf153c32010eb",
+        "9cd84a75ed2c38fa",
+        "863b3137040535b9",
+        "4f9d43ec8efa9c02",
+        "0f2ec1d07695d155",
+        "73e20686a652f0bc",
+        "1a1767fd9d870362",
+        "e3651cb40c5e526e",
+        "be97c42305068579",
+        "1bd37ca0e084aa22",
+        "c72ce6b6f1e6e6d7",
+        "12c59511a33c71fd",
+        "4d7ec860c829aa2e",
+        "ebbc1486fb0bae45",
+        "8554db59f822819b",
+        "b7104c9b3dd67cae",
+        "9e56addc2618cd12",
+        "c6a2871bc0e12c0c",
+        "fb26e3036e682ece",
+        "ac0b7fdd89afcfd2",
+        "eae9d78fe4802a4e",
+        "591d848b097365d8",
+        "8bdff2493aa24f08",
+        "8e89f84c50aa293a",
+        "49113d0619426f44",
+        "c8f2188a8e7d4543",
+        "2fbb0fa7ef38c32a",
+        "a662a8be3f0abbdd",
+        "3dfa0b64bc5bb288",
+        "5895e686c3bb2514",
+        "fdc62257b0d092ea",
+        "e2e036b9c2c2f908",
+        "24c3533b8b7df80d",
+        "e00d75326b5546f3",
+        "e8dc774f11cf218e"
+      ],
+      "status": "passed"
+    },
+    {
+      "actor": "leaver",
+      "attempts": 1,
+      "correlation_id": null,
+      "cursor": {
+        "from": 186,
+        "to": 196
+      },
+      "error": null,
+      "figures": [
+        {
+          "file": "their_next_action_signs_them_out.sign_in.png",
+          "file_sha256": "2e9a62dd4bd868e88fb30ad5829715b7b46575cb70d224f962010609b662a30a",
+          "height": 800,
+          "highlight": null,
+          "name": "sign_in",
+          "raster_sha256": "20bdb38f38ff1ca0aff83f4db7c230e4555a1dbf9178369f2f43203c6744b132",
+          "settled": true,
+          "width": 1280
+        }
+      ],
+      "label": "04-their_next_action_signs_them_out",
+      "name": "their_next_action_signs_them_out",
+      "span_ids": [],
+      "status": "passed"
+    }
+  ],
+  "texts": {
+    "deactivate.narration.1": "Choose Deactivate on their row, and confirm.",
+    "deactivate.narration.2": "The next thing they do in the app sends them to sign in.",
+    "deactivate.ui.action": "Deactivate",
+    "find_the_person.narration.1": "Open Users and find the person who is leaving.",
+    "find_the_person.ui.surface": "Users",
+    "goal": "The person who is leaving can no longer use the app.",
+    "leaver_is_signed_in.narration.1": "The person who is leaving is still signed in, with the app open.",
+    "outcome": "Their account is inactive, and the next thing they do in the app sends them to sign in.",
+    "their_next_action_signs_them_out.narration.1": "The next time they open the app, they are sent to sign in.",
+    "title": "Revoke a leaver's access"
+  },
+  "version": 1
+}

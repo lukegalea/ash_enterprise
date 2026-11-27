@@ -135,6 +135,7 @@ defmodule AshEnterprise.Anonymization.GreenmaskConfigTest do
     AshEnterprise.Bpmn.ProcessEvent.data
     AshEnterprise.Bpmn.Subscription.compiled
     AshEnterprise.Bpmn.Subscription.variable_mapping
+    AshEnterprise.Bpmn.TimerJob.data
     AshEnterprise.Bpmn.Token.routing
     AshEnterprise.Canonical.Task.judgment_digests
     AshEnterprise.Credentialing.DocumentEvent.data
@@ -183,6 +184,7 @@ defmodule AshEnterprise.Anonymization.GreenmaskConfigTest do
     AshEnterprise.Mdm.Mapping.observed_schema
     AshEnterprise.Mdm.MatchCandidate.explanation
     AshEnterprise.Mdm.MatchCandidate.human_verdict_ref
+    AshEnterprise.Mdm.MatchCandidate.second_opinion
     AshEnterprise.Mdm.MatchRuleSet.rules
     AshEnterprise.Mdm.MatchRuleSet.survivorship
     AshEnterprise.Mdm.SourceRecord.cursor

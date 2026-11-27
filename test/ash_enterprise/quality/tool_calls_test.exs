@@ -151,6 +151,19 @@ defmodule AshEnterprise.Quality.ToolCallsTest do
                )
     end
 
+    test "tables certified for another instrument are not certified for this one", ctx do
+      other = %{@instrument | model_digest: "sha256:" <> String.duplicate("e", 64)}
+
+      assert {:ok, %{certified: false}} =
+               ToolCalls.assess(
+                 ToolCalls.subject(@request),
+                 opts(ctx,
+                   resolver: &admit_no/3,
+                   band_tables: certified_tables(DateTime.utc_now(), other)
+                 )
+               )
+    end
+
     test "one certified family is not enough", ctx do
       tables = Map.delete(certified_tables(DateTime.utc_now()), :agent_gate_scope)
 
@@ -230,7 +243,7 @@ defmodule AshEnterprise.Quality.ToolCallsTest do
     |> Ash.read!(tenant: ctx.tenant, authorize?: false)
   end
 
-  defp certified_tables(at) do
+  defp certified_tables(at, instrument \\ @instrument) do
     Map.new(ToolCalls.families(), fn family ->
       {family,
        %{
@@ -240,7 +253,11 @@ defmodule AshEnterprise.Quality.ToolCallsTest do
          content_hash: "sha256:" <> String.duplicate("c", 64),
          published_at: at,
          certified_at: at,
-         certification: %{status: :certified, certified_at: at}
+         certification: %{
+           status: :certified,
+           certified_at: at,
+           instruments: [Map.take(instrument, [:model_digest, :runtime_version])]
+         }
        }}
     end)
   end

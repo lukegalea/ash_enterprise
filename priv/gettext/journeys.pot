@@ -1,0 +1,43 @@
+## This file is a PO Template file.
+##
+## `msgid`s here are the titles and narration of this application's journeys.
+##
+## Run `mix ash_journeys.gettext.extract` to refresh this file.
+## Run `mix gettext.merge priv/gettext --locale LOCALE` to merge into a .po file.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Domain: journeys\n"
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "Choose %{action} on their row, and confirm."
+msgstr ""
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "Open %{surface} and find the person who is leaving."
+msgstr ""
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "Revoke a leaver's access"
+msgstr ""
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "The next thing they do in the app sends them to sign in."
+msgstr ""
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "The next time they open the app, they are sent to sign in."
+msgstr ""
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "The person who is leaving can no longer use the app."
+msgstr ""
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "The person who is leaving is still signed in, with the app open."
+msgstr ""
+
+#: lib/ash_enterprise/journeys/offboarding.ex
+msgid "Their account is inactive, and the next thing they do in the app sends them to sign in."
+msgstr ""

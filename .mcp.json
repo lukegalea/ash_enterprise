@@ -14,11 +14,10 @@
     "ash_ai_dev: the dev-time MCP server that ash_ai itself mounts. Kept because this",
     "  repo is a reference for ash_ai and should demonstrate it, but note that",
     "  upstream describes it as experimental. Its tool list is fixed in ash_ai today;",
-    "  a `dev_tool_domains:` option is proposed upstream (fork branch",
-    "  lukegalea/ash_ai:feat/dev-tool-domains) so ash_agent_tools' adapter can join it.",
-    "  Until then the adapter is mounted separately at /ash_agent/mcp (router.ex,",
+    "  `dev_tool_domains:` shipped in ash_ai 1.4.1, so ash_agent_tools' adapter can",
+    "  join it. The adapter is still mounted separately at /ash_agent/mcp (router.ex,",
     "  dev only) -- an in-app alternative to the ash-agent daemon below, with the",
-    "  same six tool names. Not registered here, to avoid duplicate tools.",
+    "  same tool names. Not registered here, to avoid duplicate tools.",
     "",
     "ash_agent (DX-2): the ash_agent_tools dev-only dependency IS an MCP",
     "  server -- the read-only introspection surface (describe/validate/",
@@ -30,6 +29,13 @@
     "  the mystery 401s came from). Shows as disconnected until a daemon is",
     "  listening. Pre-launch gate:",
     "  eval/trigger_eval/ in the package (75% per tool; green 2026-09-21).",
+    "",
+    "ollaya (optional, advisory, local-only): the in-zone decision runtime's own MCP",
+    "  server, started over stdio as `ollaya mcp` (the binary is `ollaya`). Needs the",
+    "  `ollaya` binary on PATH; without it the entry shows as disconnected, which is",
+    "  fine. The endpoint comes from the environment (OLLAYA_BASE_URL, OLLAYA_API_KEY,",
+    "  the names config/runtime.exs reads); nothing is hardcoded here. Never run it on",
+    "  the shared platform host: point it at an in-zone endpoint (ADR 0042, ADR 0045).",
     "",
     "Serena (optional, not configured here): if installed, point its Elixir backend",
     "at our Expert fork via ls_specific_settings.elixir.ls_path -- see",
@@ -51,6 +57,15 @@
     "ash-agent": {
       "type": "http",
       "url": "http://127.0.0.1:4197"
+    },
+    "ollaya": {
+      "type": "stdio",
+      "command": "ollaya",
+      "args": ["mcp"],
+      "env": {
+        "OLLAYA_BASE_URL": "${OLLAYA_BASE_URL}",
+        "OLLAYA_API_KEY": "${OLLAYA_API_KEY:-in-zone-no-key}"
+      }
     }
   }
 }

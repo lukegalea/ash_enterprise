@@ -47,6 +47,11 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
   through governed invocations, with requests already waiting and decided, and whose
   licence documents an agent reads into findings
   (`AshEnterprise.Credentialing.DemoData`, toured at `/app/showcase/credentialing`).
+  It also seeds the values the "where did this come from" demo asks about
+  (`AshEnterprise.Provenance.DemoData`): a task a person captured and planned, two
+  judged facts (one whose cited document has been erased) and a task a recipe's steps
+  wrote under a standing grant. `scripts/provenance-demo.sh` walks the demo steps over it.
+
   Everything is created through the application's own actions, and it is
   idempotent by name, so re-running it changes nothing.
   """

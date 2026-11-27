@@ -20,10 +20,13 @@ defmodule AshEnterprise.Provenance.DelegatedTest do
   alias AshEnterprise.Bpmn.{Definition, Dispatch, Subscription}
   alias AshEnterprise.Bpmn.Subscription.Authority
   alias AshEnterprise.Canonical.Task
-  alias AshEnterprise.Platform.AutomationPrincipal
+  alias AshEnterprise.Execution.Identity
+  alias AshEnterprise.Flags
   alias AshEnterprise.Provenance
-  alias AshEnterprise.Security.{ActorContext, AgentStartGrant}
+  alias AshEnterprise.Provenance.Why
+  alias AshEnterprise.Security.AgentStartGrant
   alias AshEnterprise.Security.Impersonation
+  alias AshEnterprise.Test.AssistantFixtures, as: F
 
   @check_expiry """
   <?xml version="1.0" encoding="UTF-8"?>
@@ -257,6 +260,50 @@ defmodule AshEnterprise.Provenance.DelegatedTest do
 
       assert Enum.filter(explanation.steps, &(&1.relation == :used)) == []
     end
+
+    test "the rows carry on behalf of and the grant, on the page shape and the tool's", %{
+      admin: admin,
+      publisher: publisher,
+      grant: grant,
+      task: task
+    } do
+      Flags.set_flag!("ont_why", %{state: :on}, actor: admin.actor, tenant: admin.tenant)
+
+      reader =
+        member!(admin, "Rows reader #{System.unique_integer([:positive])}", [
+          {Task, :read, :global},
+          {EventLog, :read, :global},
+          {Dispatch, :read, :global},
+          {AgentStartGrant, :read, :global},
+          {AshEnterprise.Accounts.User, :read, :global}
+        ])
+
+      {:ok, %{explanation: explanation, correlation_ids: correlation_ids}} =
+        explain(reader, "task", task.id, "title")
+
+      rows = Why.rows(explanation, correlation_ids)
+
+      assert %{on_behalf_of: behalf_of} =
+               Enum.find(rows, &(&1.kind == :step and &1.relation == :acted_on_behalf_of))
+
+      assert behalf_of == publisher.email
+
+      assert %{from: used_from} = Enum.find(rows, &(&1.kind == :step and &1.relation == :used))
+      assert used_from == "agent_start_grant:" <> to_string(grant.id)
+
+      # The tool's rows carry the same, for the same reader.
+      tool_rows =
+        F.tool!(reader, :explain, %{address: "#{Provenance.base()}/task/#{task.id}#title"})
+
+      assert %{"on_behalf_of" => ^behalf_of} =
+               Enum.find(tool_rows, &(&1["kind"] == :acted_on_behalf_of))
+
+      assert %{"from" => ^used_from} = Enum.find(tool_rows, &(&1["kind"] == :used))
+
+      # The person who caused the event is named nowhere, in either surface's rows.
+      refute inspect(explanation) =~ admin.email
+      refute Jason.encode!(tool_rows) =~ admin.email
+    end
   end
 
   # -- Helpers -------------------------------------------------------------
@@ -288,24 +335,13 @@ defmodule AshEnterprise.Provenance.DelegatedTest do
   # principal acting for the accountable person, its provenance fields naming
   # the dispatch, the event and the grant.
   defp recipe_actor(publisher, subscription, dispatch, grant, tenant) do
-    context =
-      ActorContext.intersect(
-        ActorContext.build(publisher.user, tenant: tenant),
-        ActorContext.build_automation(:recipe_runner, tenant)
-      )
+    {:ok, actor} =
+      Identity.recipe_actor(publisher.user.id, Authority.grant_key(subscription), tenant, %{
+        dispatch_id: dispatch.id,
+        event_id: dispatch.event_id,
+        grant_id: grant.id
+      })
 
-    AutomationPrincipal.acting(
-      AutomationPrincipal.recipe_runner(),
-      publisher.user.id,
-      Authority.grant_key(subscription),
-      context
-    )
-    |> then(fn actor ->
-      %{
-        actor
-        | recipe: %{dispatch_id: dispatch.id, event_id: dispatch.event_id, grant_id: grant.id}
-      }
-    end)
-    |> ActorContext.attach(context)
+    actor
   end
 end

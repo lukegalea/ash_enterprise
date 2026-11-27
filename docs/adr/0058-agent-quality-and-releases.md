@@ -253,6 +253,8 @@ still cannot satisfy the gate. The amendment adds one more thing that can block 
 ## Built, 2026-11-21: judged scores read their certification, cover `start` runs and ride on the manifest
 
 D9 still holds: judged scores report and never gate (S1-97).
+Landed on `main` as `b4933019` (the certification read, suite-run coverage and the manifest) and `65d48f9c`
+(grading of `start` runs, #128). The certification is read across tenants by the named read `:for_definition`.
 
 - **The certification read.** A band table is a platform baseline, and its certification is recorded in the
   certifying person's own tenant, so a report read from the evaluation tenant always said `not_certified`.

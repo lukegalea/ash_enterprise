@@ -271,6 +271,20 @@
       "verb": "GET"
     },
     {
+      "action": "show",
+      "kind": "controller",
+      "module": "AshEnterpriseWeb.GuideFigureController",
+      "path": "/app/guide/figures/:file",
+      "verb": "GET"
+    },
+    {
+      "action": null,
+      "kind": "live",
+      "module": "AshEnterpriseWeb.GuideLive.RevokeALeaversAccess",
+      "path": "/app/guide/revoke_a_leavers_access",
+      "verb": "GET"
+    },
+    {
       "action": "launcher",
       "kind": "controller",
       "module": "AshEnterpriseWeb.PageController",
@@ -562,6 +576,13 @@
       "kind": "live",
       "module": "AshEnterpriseWeb.SurfaceLive.WebhookEndpoints",
       "path": "/app/webhook-endpoints",
+      "verb": "GET"
+    },
+    {
+      "action": null,
+      "kind": "live",
+      "module": "AshEnterpriseWeb.SurfaceLive.Why",
+      "path": "/app/why",
       "verb": "GET"
     },
     {

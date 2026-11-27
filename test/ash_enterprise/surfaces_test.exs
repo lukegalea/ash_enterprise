@@ -27,7 +27,7 @@ defmodule AshEnterprise.SurfacesTest do
 
       assert Enum.all?(
                surfaces,
-               &(&1.door in [:signed_in, :operator, :compliance, :lineage, :audit])
+               &(&1.door in [:signed_in, :operator, :compliance, :lineage, :audit, :why])
              )
     end
 
@@ -53,7 +53,8 @@ defmodule AshEnterprise.SurfacesTest do
     end
 
     test "a UI module is over its entry's resource, and declares its context" do
-      for %{ui: ui} = surface <- Surfaces.all(), ui do
+      # An entry with no resource shows a computed answer: no record opens there.
+      for %{ui: ui, resource: resource} = surface <- Surfaces.all(), ui, resource do
         assert AshA2ui.Info.resource!(ui) == surface.resource, inspect(surface.key)
 
         if surface.context do
@@ -101,7 +102,8 @@ defmodule AshEnterprise.SurfacesTest do
       names = Enum.map(Surfaces.candidate_actions(), & &1.name)
 
       assert ~w(today compose calendar inbox slack people todo done approvals approve reject accounts
-                sync erasure lineage open help) == names
+                sync erasure lineage) ++ ["guide revoke_a_leavers_access"] ++ ~w(open help) ==
+               names
     end
   end
 

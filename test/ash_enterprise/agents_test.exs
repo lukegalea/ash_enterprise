@@ -324,8 +324,10 @@ defmodule AshEnterprise.AgentsTest do
       # Paused means paused: no writes go to the port while the call waits.
       refute Enum.any?(AgentMessage.for_run!(run.id, authorize?: false), &(&1.text == "resumed"))
 
+      # confirm/3 re-reads the row after dispatch; the fake answers at once, so
+      # its tool_result can settle the call before that read.
       {:ok, dispatched} = ConfirmInvocation.confirm(call, actor, tenant)
-      assert dispatched.status == :dispatched
+      assert dispatched.status in [:dispatched, :succeeded]
 
       run =
         eventually(fn ->
@@ -470,8 +472,11 @@ defmodule AshEnterprise.AgentsTest do
   # --- helpers -----------------------------------------------------------------
 
   # Writes a fake `omp` executable speaking the documented line protocol.
+  # Each call writes a new file. Rewriting one path in place raced a session
+  # still starting from it: its shell could read the next test step's script,
+  # or a truncated one, and exit, completing a run the test needs live.
   defp write_omp(dir, body) do
-    path = Path.join(dir, "omp")
+    path = Path.join(dir, "omp-#{System.unique_integer([:positive])}")
     File.write!(path, "#!/bin/sh\n" <> body)
     File.chmod!(path, 0o755)
     Application.put_env(:ash_enterprise, :omp_binary, path)

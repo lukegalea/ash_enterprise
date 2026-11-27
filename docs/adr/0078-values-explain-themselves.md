@@ -266,6 +266,48 @@ fragment, where an RFC 3986 parser sees no query; the address would need its own
 disclosure, and it needs its own record. Keyed digests already issued become unverifiable with their scopes whatever
 this record later says, which is their purpose.
 
+## Amendment, 2026-11-26 — the Why page and the tool's value form
+
+The first two surfaces over `explain` are in place, both behind the `ont_why` flag ([ADR 0072](0072-ash-native-tenant-flags.md)),
+which offers them and authorizes nothing:
+
+- **The Why page** (`/app/why`) is a report over `Explanation.why`, which answers through `explain` and projects the
+  answer into rows (`AshEnterprise.Provenance.Why`): steps first, then gaps, then a row saying so when the walk cut
+  the answer short. A value the reader may not see is the masked text, and a step that shows no value has no value
+  column. A person pastes the address; a record page that links to it comes later.
+- **The assistant's `explain` tool** takes an `address` in place of a `ref`, and `/mcp` serves the tool. The rows are the
+  page's, and carry structure only: who, when, in what context, the chain status and where the answer stops, with a
+  value shown as the masked text when it was hidden and never otherwise. That is why this form is not behind the
+  zone gate (ADR 0042): the gate keeps content from a model outside the zone, and there is none in these rows. The
+  `ref` form is unchanged, and an MCP client still gets the gate's refusal for it.
+- An unreadable subject and a missing one get one answer, as decision 6 requires.
+
+## Amendment, 2026-11-27 — an answer the evidence does not support says so
+
+A review of the first explainers found five places where an answer read as explained, or dropped what it had found.
+Each is now a typed gap or a shown field:
+
+- **An empty answer is a pass.** An explainer answer with no steps, no antecedents and no gaps does not end the
+  dispatch, so a value nothing can explain ends in `:not_recorded` (or the record columns), never in an answer with
+  nothing in it. A function calculation names no inputs and passes. A module calculation whose `load/3` names a
+  relationship or an aggregate is one `:record` step over it, as an expression ref through a relationship already was.
+- **An audit step must have written the value.** The audit explainer restores the value the event recorded
+  (`changed_attributes`, else `data`) and compares it with the value the reader reads now. When they differ (a write
+  outside the recorded actions left today's value), the step is at `:record` granularity with no value, and a
+  `:not_recorded` gap says the newest recorded write does not show the current value. A value hidden from the reader is
+  not compared.
+- **No recorded write is a gap.** On an audited resource, an attribute with no event in the hot log or the archive is a
+  `:not_recorded` gap (its history was purged, or it was written outside the recorded actions), and the record columns
+  still answer after it. A reader whose grants do not reach the log gets no such gap: for them, no event is no
+  evidence.
+- **A blanked field reads as erased.** A person erasure blanks the plaintext `sensitive?` fields it cannot shred. On a
+  row whose erasure scope a person erasure shredded, such a `nil` is `:erased` with the receipt, for a reader who may
+  read the receipt. A reader who may not is told nothing about an erase, because only the receipt says one happened.
+- **The surfaces show whom an act was for, and what a step used.** The Why page and the tool's rows carry
+  `on_behalf_of` and `from`, so a recipe-written value names its accountable publisher and the standing grant
+  (`agent_start_grant:<id>`), and an impersonated write names both the operator and the person whose authority it ran
+  on.
+
 ## Manifesto amendment
 
 Thesis 3 carries this record's rule for explanations as a dated amendment:

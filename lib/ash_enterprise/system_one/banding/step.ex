@@ -106,6 +106,22 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
     Map.put(evaluation, :outputs, outputs)
   end
 
+  @doc """
+  A `band/2` result as a reading of a yes/no question: `"yes"` or `"no"`
+  for an admitted answer, `"unsure"` for everything else (a review, an
+  omit, a refusal, no published table, an error). Unsure is never folded
+  into yes or no.
+  """
+  @spec reading(term()) :: String.t()
+  def reading({:ok, %{band: :admit, banding: %{fact_value: value}}}) when value in [true, "true"],
+    do: "yes"
+
+  def reading({:ok, %{band: :admit, banding: %{fact_value: value}}})
+      when value in [false, "false"],
+      do: "no"
+
+  def reading(_result), do: "unsure"
+
   ## The resolver seam: arity-3 MFA or function, per the
   ## Process.DecisionResolver pattern.
 

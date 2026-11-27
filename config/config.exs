@@ -201,6 +201,10 @@ config :ash_bpmn,
   # published, enabled subscription. Evaluated per call; see
   # `AshEnterprise.Bpmn.Subscription.trigger_tenants/0`.
   trigger_tenants: {AshEnterprise.Bpmn.Subscription, :trigger_tenants, []},
+  # How the people a task's timer names are told: a reminder, an escalation that added
+  # people, an expiry. Without it, a draft with a reminder or an escalation is refused at
+  # publish (ash_bpmn DESIGN.md §11.8). `AshEnterprise.Process.TaskNotices`.
+  task_notifier: AshEnterprise.Process.TaskNotices,
   # Token movement is broadcast here after each step commits
   # (`AshBpmn.FlightView`): the flight views listen, and refresh their markers
   # by reading again as the viewer. A broadcast carries ids and statuses only.
@@ -530,6 +534,12 @@ config :ash_evidence, AshEvidence.Repo, priv: "priv/repo"
 # (`AshEnterprise.Mdm.Banding`), not a `judgments_band_<family>` one.
 config :ash_enterprise, :band_table_keys, %{"mdm_matches" => "mdm:match_bands"}
 
+# The model's second opinion on review-banded match pairs (S1-83,
+# `AshEnterprise.Mdm.SecondOpinion`): off until a deployment has an in-zone
+# instrument and turns it on. Until its band table is certified it only shows
+# beside the pair and decides nothing.
+config :ash_enterprise, AshEnterprise.Mdm.SecondOpinion, enabled: false
+
 # The processes an agent may start through the `start_process` tool
 # (`AshEnterprise.Process.StartableKey`). None until a deployment names one.
 config :ash_enterprise, :agent_startable_processes, []
@@ -632,7 +642,11 @@ config :ash_enterprise,
 # ADR 0072: the feature flags this build declares, key => what it turns on. A tenant
 # decides who sees each one with an `AshEnterprise.Flags.Flag` row; an undeclared key
 # is off everywhere. `FLAGS_OFF` (config/runtime.exs) kills declared keys.
-config :ash_enterprise, AshEnterprise.Flags.Catalogue, flags: %{}
+config :ash_enterprise, AshEnterprise.Flags.Catalogue,
+  flags: %{
+    "ont_why" =>
+      "Where a value came from: the Why page and the assistant's explain tool for a value's address (ADR 0078)."
+  }
 
 # ADR 0026 as amended: a model outside the zone is a sub-processor, called only for a
 # tenant that has recorded an opt-in (`AshEnterprise.AI.Models.check/3`). A call that
@@ -811,6 +825,18 @@ config :phoenix, :json_library, Jason
 # app-wide -- every surface is `AshA2ui.Standalone`-based, so nothing
 # per-surface is needed. See docs/adr/0033-experience-layer-adoption.md.
 config :ash_a2ui, catalog: :admin_v1
+
+# The modules that declare journeys (`AshJourneys`), for its tasks: `mix
+# ash_journeys.lock --check` and `mix ash_journeys.gettext.extract
+# --check-up-to-date` in `check`, `approve`, `impact` and `export`; and for
+# `journey:` references in docs/controls.json.
+config :ash_journeys, journeys: [AshEnterprise.Journeys.Offboarding]
+
+# `journey:<id>` in docs/controls.json resolves only while the journey's approved run
+# proves it, and as a producer proves the criteria its metadata names
+# (`mix ash_compliance.controls.check`).
+config :ash_compliance,
+  reference_schemes: %{"journey" => AshEnterprise.Journeys.ControlReference}
 
 # Calendars (`display :calendar`: /app/calendar, and calendars the assistant
 # composes) cut days in the display zone, read on every request so the

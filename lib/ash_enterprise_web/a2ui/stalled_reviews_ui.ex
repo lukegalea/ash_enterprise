@@ -1,7 +1,8 @@
 defmodule AshEnterpriseWeb.A2ui.StalledReviewsUI do
   @moduledoc """
-  Stalled reviews: the process tasks the signed-in person may read that opened more
-  than two days ago and are still open or claimed, oldest first (`HumanTask.stalled`).
+  Stalled reviews: the process tasks the signed-in person may read that are still open or
+  claimed and past their due date, or, with no due date, opened more than two days ago;
+  oldest first (`HumanTask.stalled`).
 
   The view the assistant's `stalled_reviews` tool puts in an answer, reached without
   chat: the same read, as the reader, so the page and the chat show one set. Read only;

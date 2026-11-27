@@ -191,9 +191,36 @@ defmodule AshEnterprise.Bpmn.Calculations.ReviewPacket do
   defp unknown(:unchecked), do: "the binding could not be checked."
   defp unknown(other), do: to_string(other)
 
+  defp escalation({:escalated, 0}), do: "Escalated, adding nobody new,"
+  defp escalation({:escalated, 1}), do: "Escalated to 1 more person"
+  defp escalation({:escalated, count}), do: "Escalated to #{count} more people"
+
+  defp escalation({:escalated_while_held, 0}),
+    do: "Escalated while held by its claimant, adding nobody new,"
+
+  defp escalation({:escalated_while_held, count}),
+    do:
+      "Escalated while held by its claimant: #{people(count)} added, who can act only if the " <>
+        "claimant delegates it,"
+
+  defp escalation(:claimed_on_escalation),
+    do: "Claimed by a person added by escalation, not by a candidate it started with,"
+
+  defp escalation(:decided_on_escalation),
+    do: "Decided by a person added by escalation, not by a candidate it started with,"
+
   defp escalation(:escalated), do: "Escalated"
-  defp escalation(:no_handler), do: "Due for escalation, with nobody to escalate to,"
+  defp escalation(:signalled), do: "Escalated by signal"
+  defp escalation(:reached_nobody), do: "Escalation reached nobody"
+
+  defp escalation(:not_delivered),
+    do: "Escalation notice not delivered: no notifier is configured,"
+
+  defp escalation(:notice_failed), do: "Escalation notice failed"
   defp escalation(:failed), do: "Escalation failed"
+
+  defp people(1), do: "1 more person"
+  defp people(count), do: "#{count} more people"
 
   defp decision_lines(decisions) do
     Enum.map_join(decisions, "\n", fn decision ->

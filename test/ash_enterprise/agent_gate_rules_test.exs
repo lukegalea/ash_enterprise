@@ -100,6 +100,17 @@ defmodule AshEnterprise.AgentGateRulesTest do
       end
     end
 
+    test "a -C directory the shell would compute never rides the allow", ctx do
+      for command <- [
+            "git -C $(git${IFS}push${IFS}-f${IFS}origin${IFS}main) push -f origin HEAD:refs/heads/ci/x",
+            "git -C $(echo${IFS}$HOME/fork) push -f origin HEAD:refs/heads/ci/x",
+            "git -C `pkill${IFS}-f${IFS}beam` push -f origin HEAD:refs/heads/ci/x",
+            "git -C $HOME/$(id) push -f origin HEAD:refs/heads/ci/x"
+          ] do
+        assert bash(ctx, command) == {"deny", "gate_force_push"}, command
+      end
+    end
+
     test "a plain push to main and deleting your ci/ branch are left to the harness", ctx do
       assert bash(ctx, "git push origin HEAD:refs/heads/main") == {"defer", "gate_no_rule"}
       assert bash(ctx, "git push origin --delete ci/s1-l6b") == {"defer", "gate_no_rule"}
@@ -124,7 +135,15 @@ defmodule AshEnterprise.AgentGateRulesTest do
 
   describe "ae_bare_mix" do
     test "mix outside devenv is denied", ctx do
-      for command <- ["mix test", "MIX_ENV=test mix compile", "cd lib && mix format"] do
+      for command <- [
+            "mix test",
+            "MIX_ENV=test mix compile",
+            "cd lib && mix format",
+            "timeout 60 mix test",
+            "echo devenv shell; mix test",
+            "ls\nmix test",
+            "devenv shell -- bash -lc 'cd wt' && mix test"
+          ] do
         assert bash(ctx, command) == {"deny", "ae_bare_mix"}, command
       end
     end
@@ -133,7 +152,9 @@ defmodule AshEnterprise.AgentGateRulesTest do
       for command <- [
             "devenv shell -- mix test test/a_test.exs",
             "cd ~/ash_enterprise && devenv shell -- bash -lc 'cd wt && mix credo --strict'",
-            "echo mix test"
+            "echo mix test",
+            ~s(devenv shell -- bash -lc "cd wt && mix test"),
+            "git commit -m \"$(cat <<'EOF'\nA fix\n\nmix test passes\nEOF\n)\""
           ] do
         assert bash(ctx, command) == {"defer", "gate_no_rule"}, command
       end

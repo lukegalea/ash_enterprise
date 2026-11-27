@@ -1,8 +1,16 @@
 defmodule AshEnterprise.Bpmn.Changes.RecordUnassignableFinding do
   @moduledoc """
-  Raises a compliance finding when the engine records that a task's candidates, minus its
-  exclusions, left nobody (`:no_eligible_candidate`, from
-  `AshEnterprise.Process.AssignmentResolver.no_eligible_candidate/2`).
+  Raises a compliance finding when the engine records that a task could not be routed to
+  anyone:
+
+    * `:no_eligible_candidate`: its candidates, minus its exclusions, left nobody
+      (`AshEnterprise.Process.AssignmentResolver.no_eligible_candidate/2`). Filed under
+      `task_unassignable`, gap `no_eligible_candidate`.
+    * `:escalation_reached_nobody`: an escalation timer fired and found nobody to add
+      (`AshEnterprise.Process.AssignmentResolver.escalate/2` answered no manager and an empty
+      fallback, or only excluded people). Filed under `task_escalation_unreached`, gap
+      `escalation_reached_nobody`, severity `:medium`: the task keeps whoever could already
+      act on it, but nobody above them was told.
 
   ## Why an `ash_compliance` finding
 
@@ -30,15 +38,20 @@ defmodule AshEnterprise.Bpmn.Changes.RecordUnassignableFinding do
   alias AshEnterprise.Process.DefinitionLoader
 
   @subject_type "task_unassignable"
-  @gap "no_eligible_candidate"
+  @escalation_subject_type "task_escalation_unreached"
+  @kinds [:no_eligible_candidate, :escalation_reached_nobody]
   @unclassified "process:unassignable"
 
-  @doc "The finding subject type these findings are filed under."
+  @doc "The finding subject type a task with nobody eligible is filed under."
   def subject_type, do: @subject_type
+
+  @doc "The finding subject type an escalation that reached nobody is filed under."
+  def subject_type(:escalation_reached_nobody), do: @escalation_subject_type
+  def subject_type(:no_eligible_candidate), do: @subject_type
 
   @impl true
   def change(changeset, _opts, _context) do
-    if Ash.Changeset.get_attribute(changeset, :kind) == :no_eligible_candidate do
+    if Ash.Changeset.get_attribute(changeset, :kind) in @kinds do
       Ash.Changeset.after_action(changeset, &file_after_action/2)
     else
       changeset
@@ -58,8 +71,8 @@ defmodule AshEnterprise.Bpmn.Changes.RecordUnassignableFinding do
     task = Ash.get!(HumanTask, task_id, opts)
     now = DateTime.utc_now()
     data = event.data || %{}
-    explanation = explanation(task, data)
-    severity = if data["escalated"] == true, do: :medium, else: :high
+    explanation = explanation(event.kind, task, data)
+    severity = severity(event.kind, data)
 
     task
     |> process_key(org, opts)
@@ -69,7 +82,7 @@ defmodule AshEnterprise.Bpmn.Changes.RecordUnassignableFinding do
       controls -> controls
     end
     |> Enum.reduce_while(:ok, fn control, :ok ->
-      case file_one(org, control, task_id, severity, explanation, now) do
+      case file_one(org, control, event.kind, task_id, severity, explanation, now) do
         :ok -> {:cont, :ok}
         error -> {:halt, error}
       end
@@ -80,11 +93,11 @@ defmodule AshEnterprise.Bpmn.Changes.RecordUnassignableFinding do
   # engine's event is still there.
   defp file(_event), do: :ok
 
-  defp file_one(org, control, task_id, severity, explanation, now) do
+  defp file_one(org, control, kind, task_id, severity, explanation, now) do
     grain = %{
       organization_id: org,
       control_id: control,
-      subject_type: @subject_type,
+      subject_type: subject_type(kind),
       subject_id: task_id
     }
 
@@ -96,7 +109,7 @@ defmodule AshEnterprise.Bpmn.Changes.RecordUnassignableFinding do
           [
             {:set, :status, :unknown},
             {:set, :severity, severity},
-            {:set, :gap, @gap},
+            {:set, :gap, to_string(kind)},
             {:set, :last_seen_at, now},
             {:set, :resolved_at, nil},
             {:set, :explanation, explanation}
@@ -121,7 +134,28 @@ defmodule AshEnterprise.Bpmn.Changes.RecordUnassignableFinding do
     end
   end
 
-  defp explanation(task, data) do
+  defp severity(:escalation_reached_nobody, _data), do: :medium
+  defp severity(:no_eligible_candidate, %{"escalated" => true}), do: :medium
+  defp severity(:no_eligible_candidate, _data), do: :high
+
+  defp explanation(:escalation_reached_nobody, task, data) do
+    why =
+      case data do
+        %{"reason" => "no_escalate_callback"} ->
+          "the process has no escalation handler"
+
+        %{"refused" => [_ | _] = refused} ->
+          "everyone it named (#{length(refused)}) is excluded from the task"
+
+        _nobody ->
+          "it found no manager in the organization and the fallback named nobody"
+      end
+
+    "Escalation of task #{task.id} (#{task.name}) reached nobody: #{why}. " <>
+      "The task keeps its #{data["candidates"] || 0} #{plural(data["candidates"] || 0, "candidate")}."
+  end
+
+  defp explanation(:no_eligible_candidate, task, data) do
     candidates = data["candidates"] || 0
     fallback = data["fallback"] || 0
 

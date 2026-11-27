@@ -8,7 +8,9 @@ defmodule AshEnterprise.Surfaces do
     * the thin pages and their routes: an entry that names a `ui` and no
       `live` gets a generated `AshA2ui.LiveRenderer`
       (`AshEnterpriseWeb.SurfaceLive`) routed at its `path` (`generated/0`);
-      hand-written renderers are declared `renderer: :specialist`;
+      hand-written renderers are declared `renderer: :specialist`; a guide
+      names the journey it shows and gets its page from
+      `AshEnterpriseWeb.GuideLive` (`guides/0`);
     * the web nav (grouped menus) and the `/app` launcher, with its views by
       `audience` (`for_audience/2`) and its lookup of a record by a business
       reference or a run id over each entry's `searchable` attributes
@@ -121,6 +123,16 @@ defmodule AshEnterprise.Surfaces do
         dgettext_noop(
           "default",
           "A synthetic clinic activating its clinicians' credentials through governed requests, an agent reading their licence documents, and the tour over it."
+        )
+    },
+    %{
+      key: :guides,
+      label: dgettext_noop("default", "Guides"),
+      menu: :work,
+      blurb:
+        dgettext_noop(
+          "default",
+          "How to do a task here, step by step, as a passing run of it in the browser showed it."
         )
     },
     %{
@@ -672,7 +684,7 @@ defmodule AshEnterprise.Surfaces do
       blurb:
         dgettext_noop(
           "default",
-          "Reviews and other process tasks you can see that have waited more than two days."
+          "Reviews and other process tasks you can see that are past their due date, or have waited more than two days with none."
         ),
       group: :processes,
       order: 2,
@@ -681,6 +693,26 @@ defmodule AshEnterprise.Surfaces do
       ui: A2ui.StalledReviewsUI,
       resource: HumanTask,
       acp: %{command: "stalled reviews"}
+    },
+    # Where a value came from (ADR 0078), behind the `ont_why` flag: one value's
+    # address in, the steps and gaps of its answer out, read as the person. No
+    # resource and no context: the answer is computed, never stored, and nothing
+    # opens in detail here.
+    %Surface{
+      key: :why,
+      audience: [:reviewer, :operator],
+      label: dgettext_noop("default", "Where a value came from"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Who set a value, when, and where the record of it stops, for an address you hold."
+        ),
+      group: :operator,
+      order: 45,
+      icon: "hero-question-mark-circle",
+      path: "/app/why",
+      ui: A2ui.WhyUI,
+      door: :why
     },
     # The flight views (PROD-10): a process drawn with a marker on every step a
     # run is standing on. `:flight` is the first surface over Instance with a
@@ -1383,6 +1415,27 @@ defmodule AshEnterprise.Surfaces do
       ui: A2ui.LegacyUserUI,
       resource: AshEnterprise.Legacy.User,
       acp: %{command: "legacy users"}
+    },
+    # --- Guides ---------------------------------------------------------------
+    # One per approved journey (priv/journeys/journeys.lock.json); the label and
+    # blurb are the journey's title and goal, which AshEnterprise.GuidesTest keeps
+    # equal in every locale.
+    %Surface{
+      key: :guide_revoke_a_leavers_access,
+      audience: [:operator],
+      label: dgettext_noop("default", "Revoke a leaver's access"),
+      blurb: dgettext_noop("default", "The person who is leaving can no longer use the app."),
+      group: :guides,
+      order: 0,
+      icon: "hero-book-open",
+      path: "/app/guide/revoke_a_leavers_access",
+      journey: {AshEnterprise.Journeys.Offboarding, :revoke_a_leavers_access},
+      acp: %{
+        command: "guide revoke_a_leavers_access",
+        action: {Console, :open},
+        description: "The guide: revoke a leaver's access",
+        palette?: true
+      }
     }
   ]
 
@@ -1403,7 +1456,12 @@ defmodule AshEnterprise.Surfaces do
 
   # A thin surface names its UI and no LiveView: the registry names the page
   # it gets, which AshEnterpriseWeb.SurfaceLive defines and the router routes.
+  # A guide names its journey: its page is AshEnterpriseWeb.GuideLive's.
   @surfaces Enum.map(@surfaces, fn
+              %Surface{live: nil, journey: {_module, id}} = surface ->
+                live = Module.concat(AshEnterpriseWeb.GuideLive, Macro.camelize("#{id}"))
+                %{surface | live: live, renderer: :specialist}
+
               %Surface{live: nil, ui: nil, key: key} ->
                 raise ArgumentError,
                       "surface #{inspect(key)} names neither a LiveView nor a UI to generate one from"
@@ -1432,6 +1490,14 @@ defmodule AshEnterprise.Surfaces do
   """
   @spec generated() :: [Surface.t()]
   def generated, do: Enum.filter(@sorted, &(&1.renderer == :generated))
+
+  @doc """
+  The guides: the surfaces that show a journey's approved run
+  (`AshEnterprise.Guides`), each on the page `AshEnterpriseWeb.GuideLive`
+  defines for it.
+  """
+  @spec guides() :: [Surface.t()]
+  def guides, do: Enum.filter(@sorted, & &1.journey)
 
   @doc """
   A registry label or blurb in the current process's Gettext locale. The texts

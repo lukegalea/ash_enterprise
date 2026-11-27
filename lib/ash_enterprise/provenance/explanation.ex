@@ -27,7 +27,7 @@ defmodule AshEnterprise.Provenance.Explanation do
     lifecycle?: false,
     archival?: false,
     audit?: false,
-    self_service: [:explain]
+    self_service: [:explain, :why]
 
   resource do
     require_primary_key? false
@@ -53,6 +53,21 @@ defmodule AshEnterprise.Provenance.Explanation do
       end
 
       run AshEnterprise.Provenance.Explanation.Explain
+    end
+
+    action :why, {:array, :map} do
+      description """
+      The same answer as `explain`, as the rows a person reads
+      (`AshEnterprise.Provenance.Why`): the Why page runs this.
+      """
+
+      argument :address, :string do
+        allow_nil? false
+
+        description "<base>/<type>/<id>[?as_of=<instant>]#<attribute> (ADR 0078, section 1)."
+      end
+
+      run AshEnterprise.Provenance.Explanation.Why
     end
   end
 end

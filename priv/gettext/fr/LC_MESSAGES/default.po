@@ -162,7 +162,7 @@ msgstr "Lecture de votre journée…"
 msgid "Something went wrong!"
 msgstr "Une erreur s’est produite."
 
-#: lib/ash_enterprise/surfaces.ex:172
+#: lib/ash_enterprise/surfaces.ex:184
 #: lib/ash_enterprise_web/components/layouts.ex:95
 #, elixir-autogen, elixir-format
 msgid "Today"
@@ -198,551 +198,551 @@ msgstr "Connexion Internet introuvable"
 msgid "close"
 msgstr "fermer"
 
-#: lib/ash_enterprise/surfaces.ex:1332
+#: lib/ash_enterprise/surfaces.ex:1364
 #, elixir-autogen, elixir-format
 msgid "A guided tour of governed activation: ask, approve, and what happens when the world changes in between."
 msgstr "Une visite guidée de l’activation encadrée : demander, approuver, et ce qui se passe quand la situation change entre-temps."
 
-#: lib/ash_enterprise/surfaces.ex:121
+#: lib/ash_enterprise/surfaces.ex:123
 #, elixir-autogen, elixir-format
 msgid "A synthetic clinic activating its clinicians' credentials through governed requests, an agent reading their licence documents, and the tour over it."
 msgstr "Une clinique synthétique qui active les justificatifs de ses cliniciens au moyen de demandes encadrées, un agent qui lit leurs documents de licence, et la visite qui l’accompagne."
 
-#: lib/ash_enterprise/surfaces.ex:388
+#: lib/ash_enterprise/surfaces.ex:400
 #, elixir-autogen, elixir-format
 msgid "Accounts & syncs"
 msgstr "Comptes et synchronisations"
 
-#: lib/ash_enterprise/surfaces.ex:315
+#: lib/ash_enterprise/surfaces.ex:327
 #, elixir-autogen, elixir-format
 msgid "Action items"
 msgstr "Éléments d’action"
 
-#: lib/ash_enterprise/surfaces.ex:202
+#: lib/ash_enterprise/surfaces.ex:214
 #: lib/ash_enterprise_web/live/explorer_live.ex:689
 #, elixir-autogen, elixir-format
 msgid "Agent"
 msgstr "Agent"
 
-#: lib/ash_enterprise/surfaces.ex:350
+#: lib/ash_enterprise/surfaces.ex:362
 #, elixir-autogen, elixir-format
 msgid "Approvals"
 msgstr "Approbations"
 
-#: lib/ash_enterprise/surfaces.ex:204
+#: lib/ash_enterprise/surfaces.ex:216
 #, elixir-autogen, elixir-format
 msgid "Ask about your calendar, mail, Slack, people and approvals. Answers cite the records they came from; the model runs in the zone."
 msgstr "Posez vos questions sur votre calendrier, votre courrier, Slack, vos contacts et vos approbations. Les réponses citent les enregistrements dont elles proviennent ; le modèle s’exécute dans la zone."
 
-#: lib/ash_enterprise/surfaces.ex:585
+#: lib/ash_enterprise/surfaces.ex:597
 #, elixir-autogen, elixir-format
 msgid "Audit trail"
 msgstr "Piste d’audit"
 
-#: lib/ash_enterprise/surfaces.ex:1094
+#: lib/ash_enterprise/surfaces.ex:1126
 #, elixir-autogen, elixir-format
 msgid "Band tables a calibration run earned, awaiting a person's certification."
 msgstr "Tables de bandes issues d’une exécution d’étalonnage, en attente de la certification d’une personne."
 
-#: lib/ash_enterprise/surfaces.ex:1092
+#: lib/ash_enterprise/surfaces.ex:1124
 #, elixir-autogen, elixir-format
 msgid "Band tables to certify"
 msgstr "Tables de bandes à certifier"
 
-#: lib/ash_enterprise/surfaces.ex:713
+#: lib/ash_enterprise/surfaces.ex:745
 #, elixir-autogen, elixir-format
 msgid "Brief approvals in flight"
 msgstr "Approbations de synthèses en cours"
 
-#: lib/ash_enterprise/surfaces.ex:1007
+#: lib/ash_enterprise/surfaces.ex:1039
 #, elixir-autogen, elixir-format
 msgid "Business units"
 msgstr "Unités d’affaires"
 
-#: lib/ash_enterprise/surfaces.ex:218
+#: lib/ash_enterprise/surfaces.ex:230
 #, elixir-autogen, elixir-format
 msgid "Calendar"
 msgstr "Calendrier"
 
-#: lib/ash_enterprise/surfaces.ex:1122
+#: lib/ash_enterprise/surfaces.ex:1154
 #, elixir-autogen, elixir-format
 msgid "Calibration"
 msgstr "Étalonnage"
 
-#: lib/ash_enterprise/surfaces.ex:929
+#: lib/ash_enterprise/surfaces.ex:961
 #, elixir-autogen, elixir-format
 msgid "Catalogs"
 msgstr "Catalogues"
 
-#: lib/ash_enterprise/surfaces.ex:1109
+#: lib/ash_enterprise/surfaces.ex:1141
 #, elixir-autogen, elixir-format
 msgid "Certified band tables"
 msgstr "Tables de bandes certifiées"
 
-#: lib/ash_enterprise/surfaces.ex:916
+#: lib/ash_enterprise/surfaces.ex:948
 #, elixir-autogen, elixir-format
 msgid "Compiled bundles: which is active for whom, and since when."
 msgstr "Ensembles compilés : lequel est actif, pour qui et depuis quand."
 
-#: lib/ash_enterprise/surfaces.ex:108
+#: lib/ash_enterprise/surfaces.ex:110
 #, elixir-autogen, elixir-format
 msgid "Compliance"
 msgstr "Conformité"
 
-#: lib/ash_enterprise/surfaces.ex:931
+#: lib/ash_enterprise/surfaces.ex:963
 #, elixir-autogen, elixir-format
 msgid "Compliance catalogs, and the OSCAL documents they came from."
 msgstr "Catalogues de conformité et documents OSCAL dont ils proviennent."
 
-#: lib/ash_enterprise/surfaces.ex:118
+#: lib/ash_enterprise/surfaces.ex:120
 #, elixir-autogen, elixir-format
 msgid "Credentialing"
 msgstr "Justificatifs"
 
-#: lib/ash_enterprise/surfaces.ex:1330
+#: lib/ash_enterprise/surfaces.ex:1362
 #, elixir-autogen, elixir-format
 msgid "Credentialing tour"
 msgstr "Visite des justificatifs"
 
-#: lib/ash_enterprise/surfaces.ex:1307
+#: lib/ash_enterprise/surfaces.ex:1339
 #, elixir-autogen, elixir-format
 msgid "Credentials"
 msgstr "Justificatifs"
 
-#: lib/ash_enterprise/surfaces.ex:147
+#: lib/ash_enterprise/surfaces.ex:159
 #, elixir-autogen, elixir-format
 msgid "Customer files imported, matched into golden records, and the matches a person decides."
 msgstr "Fichiers clients importés, appariés en enregistrements de référence, et appariements qu’une personne tranche."
 
-#: lib/ash_enterprise/surfaces.ex:164
+#: lib/ash_enterprise/surfaces.ex:176
 #, elixir-autogen, elixir-format
 msgid "Data"
 msgstr "Données"
 
-#: lib/ash_enterprise/surfaces.ex:762
+#: lib/ash_enterprise/surfaces.ex:794
 #, elixir-autogen, elixir-format
 msgid "Decisions"
 msgstr "Décisions"
 
-#: lib/ash_enterprise/surfaces.ex:1024
+#: lib/ash_enterprise/surfaces.ex:1056
 #, elixir-autogen, elixir-format
 msgid "Directory"
 msgstr "Annuaire"
 
-#: lib/ash_enterprise/surfaces.ex:418
+#: lib/ash_enterprise/surfaces.ex:430
 #, elixir-autogen, elixir-format
 msgid "Erasure scopes"
 msgstr "Portées d’effacement"
 
-#: lib/ash_enterprise/surfaces.ex:420
+#: lib/ash_enterprise/surfaces.ex:432
 #, elixir-autogen, elixir-format
 msgid "Erasure scopes and the irreversible, typed-confirmation shred."
 msgstr "Portées d’effacement et déchiquetage irréversible, avec confirmation saisie."
 
-#: lib/ash_enterprise/surfaces.ex:881
+#: lib/ash_enterprise/surfaces.ex:913
 #, elixir-autogen, elixir-format
 msgid "Evaluations"
 msgstr "Évaluations"
 
-#: lib/ash_enterprise/surfaces.ex:746
+#: lib/ash_enterprise/surfaces.ex:778
 #, elixir-autogen, elixir-format
 msgid "Every BPMN process this tenant can run: baselines and its own customizations."
 msgstr "Chaque processus BPMN que cette organisation peut exécuter : les modèles de base et ses propres personnalisations."
 
-#: lib/ash_enterprise/surfaces.ex:1124
+#: lib/ash_enterprise/surfaces.ex:1156
 #, elixir-autogen, elixir-format
 msgid "Every calibration run: what it measured and the threshold it earned."
 msgstr "Chaque exécution d’étalonnage : ce qu’elle a mesuré et le seuil obtenu."
 
-#: lib/ash_enterprise/surfaces.ex:1287
+#: lib/ash_enterprise/surfaces.ex:1319
 #, elixir-autogen, elixir-format
 msgid "Every import by status, with its counts and its staged rows."
 msgstr "Chaque importation par statut, avec ses totaux et ses lignes en transit."
 
-#: lib/ash_enterprise/surfaces.ex:730
+#: lib/ash_enterprise/surfaces.ex:762
 #, elixir-autogen, elixir-format
 msgid "Every match under steward review, on the step it is on now."
 msgstr "Chaque appariement en revue par un gardien, à l’étape où il se trouve actuellement."
 
-#: lib/ash_enterprise/surfaces.ex:629
+#: lib/ash_enterprise/surfaces.ex:641
 #, elixir-autogen, elixir-format
 msgid "Every process task routed to you: claim it, complete it, or hand it on."
 msgstr "Chaque tâche de processus qui vous est acheminée : prenez-la en charge, terminez-la ou transmettez-la."
 
-#: lib/ash_enterprise/surfaces.ex:587
+#: lib/ash_enterprise/surfaces.ex:599
 #, elixir-autogen, elixir-format
 msgid "Every recorded change, newest first, each linked to the run that made it."
 msgstr "Chaque modification enregistrée, la plus récente d’abord, liée à l’exécution qui l’a produite."
 
-#: lib/ash_enterprise/surfaces.ex:714
+#: lib/ash_enterprise/surfaces.ex:746
 #, elixir-autogen, elixir-format
 msgid "Every running morning brief, on the step it is on now."
 msgstr "Chaque synthèse du matin en cours, à l’étape où elle se trouve actuellement."
 
-#: lib/ash_enterprise/surfaces.ex:291
+#: lib/ash_enterprise/surfaces.ex:303
 #, elixir-autogen, elixir-format
 msgid "Everyone you correspond and meet with, and their events."
 msgstr "Toutes les personnes avec qui vous échangez et que vous rencontrez, et leurs événements."
 
-#: lib/ash_enterprise/surfaces.ex:317
+#: lib/ash_enterprise/surfaces.ex:329
 #, elixir-autogen, elixir-format
 msgid "Everything you have to do: captured items in Inbox, Today, Later and Done, with the process tasks waiting on you beside them."
 msgstr "Tout ce que vous avez à faire : les éléments saisis dans Boîte de réception, Aujourd’hui, Plus tard et Terminé, avec à côté les tâches de processus qui vous attendent."
 
-#: lib/ash_enterprise/surfaces.ex:1139
+#: lib/ash_enterprise/surfaces.ex:1171
 #, elixir-autogen, elixir-format
 msgid "Facts"
 msgstr "Faits"
 
-#: lib/ash_enterprise/surfaces.ex:867
+#: lib/ash_enterprise/surfaces.ex:899
 #, elixir-autogen, elixir-format
 msgid "Findings"
 msgstr "Constatations"
 
-#: lib/ash_enterprise/surfaces.ex:111
+#: lib/ash_enterprise/surfaces.ex:113
 #, elixir-autogen, elixir-format
 msgid "Findings, the evaluations behind them, and the rules they are judged against."
 msgstr "Constatations, évaluations qui les fondent et règles selon lesquelles elles sont jugées."
 
-#: lib/ash_enterprise/surfaces.ex:693
+#: lib/ash_enterprise/surfaces.ex:725
 #, elixir-autogen, elixir-format
 msgid "Flight view"
 msgstr "Vue de suivi"
 
-#: lib/ash_enterprise/surfaces.ex:246
+#: lib/ash_enterprise/surfaces.ex:258
 #, elixir-autogen, elixir-format
 msgid "Gmail threads, newest first."
 msgstr "Fils Gmail, le plus récent d’abord."
 
-#: lib/ash_enterprise/surfaces.ex:1208
+#: lib/ash_enterprise/surfaces.ex:1240
 #, elixir-autogen, elixir-format
 msgid "Golden records"
 msgstr "Enregistrements de référence"
 
-#: lib/ash_enterprise/surfaces.ex:1191
+#: lib/ash_enterprise/surfaces.ex:1223
 #, elixir-autogen, elixir-format
 msgid "Import CSV"
 msgstr "Importer un CSV"
 
-#: lib/ash_enterprise/surfaces.ex:1285
+#: lib/ash_enterprise/surfaces.ex:1317
 #, elixir-autogen, elixir-format
 msgid "Import batches"
 msgstr "Lots d’importation"
 
-#: lib/ash_enterprise/surfaces.ex:245
+#: lib/ash_enterprise/surfaces.ex:257
 #, elixir-autogen, elixir-format
 msgid "Inbox"
 msgstr "Boîte de réception"
 
-#: lib/ash_enterprise/surfaces.ex:87
+#: lib/ash_enterprise/surfaces.ex:89
 #, elixir-autogen, elixir-format
 msgid "Judgments"
 msgstr "Jugements"
 
-#: lib/ash_enterprise/surfaces.ex:1077
+#: lib/ash_enterprise/surfaces.ex:1109
 #, elixir-autogen, elixir-format
 msgid "Judgments the band table sent to review, awaiting your verdict."
 msgstr "Jugements que la table de bandes a envoyés en revue, en attente de votre verdict."
 
-#: lib/ash_enterprise/surfaces.ex:154
+#: lib/ash_enterprise/surfaces.ex:166
 #, elixir-autogen, elixir-format
 msgid "Legacy"
 msgstr "Ancien système"
 
-#: lib/ash_enterprise/surfaces.ex:1366
+#: lib/ash_enterprise/surfaces.ex:1398
 #, elixir-autogen, elixir-format
 msgid "Legacy users"
 msgstr "Utilisateurs de l’ancien système"
 
-#: lib/ash_enterprise/surfaces.ex:444
+#: lib/ash_enterprise/surfaces.ex:456
 #, elixir-autogen, elixir-format
 msgid "Lineage"
 msgstr "Traçabilité"
 
-#: lib/ash_enterprise/surfaces.ex:70
+#: lib/ash_enterprise/surfaces.ex:72
 #, elixir-autogen, elixir-format
 msgid "Linked accounts, their syncs, erasure, lineage and the audit trail."
 msgstr "Comptes liés, leurs synchronisations, l’effacement, la traçabilité et la piste d’audit."
 
-#: lib/ash_enterprise/surfaces.ex:1246
+#: lib/ash_enterprise/surfaces.ex:1278
 #, elixir-autogen, elixir-format
 msgid "MDM mappings"
 msgstr "Correspondances MDM"
 
-#: lib/ash_enterprise/surfaces.ex:144
+#: lib/ash_enterprise/surfaces.ex:156
 #, elixir-autogen, elixir-format
 msgid "Master data"
 msgstr "Données de référence"
 
-#: lib/ash_enterprise/surfaces.ex:60
-#: lib/ash_enterprise/surfaces.ex:161
+#: lib/ash_enterprise/surfaces.ex:62
+#: lib/ash_enterprise/surfaces.ex:173
 #, elixir-autogen, elixir-format
 msgid "My day"
 msgstr "Ma journée"
 
-#: lib/ash_enterprise/surfaces.ex:627
+#: lib/ash_enterprise/surfaces.ex:639
 #, elixir-autogen, elixir-format
 msgid "My tasks"
 msgstr "Mes tâches"
 
-#: lib/ash_enterprise/surfaces.ex:994
+#: lib/ash_enterprise/surfaces.ex:1026
 #, elixir-autogen, elixir-format
 msgid "Named bundles of privileges a user can hold."
 msgstr "Ensembles nommés de privilèges qu’un utilisateur peut détenir."
 
-#: lib/ash_enterprise/surfaces.ex:695
+#: lib/ash_enterprise/surfaces.ex:727
 #, elixir-autogen, elixir-format
 msgid "One process run on its diagram, with a marker on the step it is on now."
 msgstr "Une exécution de processus sur son diagramme, avec un marqueur sur l’étape où elle se trouve actuellement."
 
-#: lib/ash_enterprise/surfaces.ex:67
+#: lib/ash_enterprise/surfaces.ex:69
 #, elixir-autogen, elixir-format
 msgid "Operator"
 msgstr "Opérateur"
 
-#: lib/ash_enterprise/surfaces.ex:128
-#: lib/ash_enterprise/surfaces.ex:163
+#: lib/ash_enterprise/surfaces.ex:140
+#: lib/ash_enterprise/surfaces.ex:175
 #, elixir-autogen, elixir-format
 msgid "Organization"
 msgstr "Organisation"
 
-#: lib/ash_enterprise/surfaces.ex:290
+#: lib/ash_enterprise/surfaces.ex:302
 #, elixir-autogen, elixir-format
 msgid "People"
 msgstr "Personnes"
 
-#: lib/ash_enterprise/surfaces.ex:963
+#: lib/ash_enterprise/surfaces.ex:995
 #, elixir-autogen, elixir-format
 msgid "People with accounts in this application."
 msgstr "Personnes ayant un compte dans cette application."
 
-#: lib/ash_enterprise/surfaces.ex:914
+#: lib/ash_enterprise/surfaces.ex:946
 #, elixir-autogen, elixir-format
 msgid "Policy bundles"
 msgstr "Ensembles de politiques"
 
-#: lib/ash_enterprise/surfaces.ex:77
-#: lib/ash_enterprise/surfaces.ex:744
+#: lib/ash_enterprise/surfaces.ex:79
+#: lib/ash_enterprise/surfaces.ex:776
 #, elixir-autogen, elixir-format
 msgid "Processes"
 msgstr "Processus"
 
-#: lib/ash_enterprise/surfaces.ex:945
+#: lib/ash_enterprise/surfaces.ex:977
 #, elixir-autogen, elixir-format
 msgid "Profiles"
 msgstr "Profils"
 
-#: lib/ash_enterprise/surfaces.ex:138
+#: lib/ash_enterprise/surfaces.ex:150
 #, elixir-autogen, elixir-format
 msgid "Projections"
 msgstr "Projections"
 
-#: lib/ash_enterprise/surfaces.ex:1175
+#: lib/ash_enterprise/surfaces.ex:1207
 #, elixir-autogen, elixir-format
 msgid "Review-banded matches awaiting a person's confirm, reject or unsure."
 msgstr "Appariements classés « à revoir », en attente que quelqu’un les confirme, les rejette ou se déclare incertain."
 
-#: lib/ash_enterprise/surfaces.ex:993
+#: lib/ash_enterprise/surfaces.ex:1025
 #, elixir-autogen, elixir-format
 msgid "Roles"
 msgstr "Rôles"
 
-#: lib/ash_enterprise/surfaces.ex:901
+#: lib/ash_enterprise/surfaces.ex:933
 #, elixir-autogen, elixir-format
 msgid "Rule set revisions: their layer, lifecycle and content hash."
 msgstr "Révisions des ensembles de règles : leur couche, leur cycle de vie et l’empreinte de leur contenu."
 
-#: lib/ash_enterprise/surfaces.ex:899
+#: lib/ash_enterprise/surfaces.ex:931
 #, elixir-autogen, elixir-format
 msgid "Rule sets"
 msgstr "Ensembles de règles"
 
-#: lib/ash_enterprise/surfaces.ex:268
+#: lib/ash_enterprise/surfaces.ex:280
 #, elixir-autogen, elixir-format
 msgid "Slack"
 msgstr "Slack"
 
-#: lib/ash_enterprise/surfaces.ex:269
+#: lib/ash_enterprise/surfaces.ex:281
 #, elixir-autogen, elixir-format
 msgid "Slack channels, group DMs and DMs, newest first."
 msgstr "Canaux Slack, messages directs de groupe et messages directs, le plus récent d’abord."
 
-#: lib/ash_enterprise/surfaces.ex:1173
+#: lib/ash_enterprise/surfaces.ex:1205
 #, elixir-autogen, elixir-format
 msgid "Steward queue"
 msgstr "File du gardien"
 
-#: lib/ash_enterprise/surfaces.ex:728
+#: lib/ash_enterprise/surfaces.ex:760
 #, elixir-autogen, elixir-format
 msgid "Stewardship in flight"
 msgstr "Gardiennage en cours"
 
-#: lib/ash_enterprise/surfaces.ex:140
+#: lib/ash_enterprise/surfaces.ex:152
 #, elixir-autogen, elixir-format
 msgid "Tables this application owns, projected from elsewhere."
 msgstr "Tables que cette application possède, projetées depuis ailleurs."
 
-#: lib/ash_enterprise/surfaces.ex:947
+#: lib/ash_enterprise/surfaces.ex:979
 #, elixir-autogen, elixir-format
 msgid "Tailoring profiles: who tailored what, against which catalog."
 msgstr "Profils d’adaptation : qui a adapté quoi, par rapport à quel catalogue."
 
-#: lib/ash_enterprise/surfaces.ex:978
+#: lib/ash_enterprise/surfaces.ex:1010
 #, elixir-autogen, elixir-format
 msgid "Teams"
 msgstr "Équipes"
 
-#: lib/ash_enterprise/surfaces.ex:979
+#: lib/ash_enterprise/surfaces.ex:1011
 #, elixir-autogen, elixir-format
 msgid "Teams, which own records alongside users."
 msgstr "Équipes, qui possèdent des enregistrements au même titre que les utilisateurs."
 
-#: lib/ash_enterprise/surfaces.ex:764
+#: lib/ash_enterprise/surfaces.ex:796
 #, elixir-autogen, elixir-format
 msgid "The DMN decisions processes route on, resolved when they are asked."
 msgstr "Les décisions DMN sur lesquelles les processus s’aiguillent, résolues au moment où on les demande."
 
-#: lib/ash_enterprise/surfaces.ex:883
+#: lib/ash_enterprise/surfaces.ex:915
 #, elixir-autogen, elixir-format
 msgid "The append-only log of what the engine decided, and on what facts."
 msgstr "Le journal en ajout seul de ce que le moteur a décidé, et sur quels faits."
 
-#: lib/ash_enterprise/surfaces.ex:1110
+#: lib/ash_enterprise/surfaces.ex:1142
 #, elixir-autogen, elixir-format
 msgid "The band tables in force, with who certified them."
 msgstr "Les tables de bandes en vigueur, avec la personne qui les a certifiées."
 
-#: lib/ash_enterprise/surfaces.ex:1309
+#: lib/ash_enterprise/surfaces.ex:1341
 #, elixir-autogen, elixir-format
 msgid "The clinic's credentials: ask to activate one, and see what the registry holds."
 msgstr "Les justificatifs de la clinique : demandez-en l’activation et consultez ce que contient le registre."
 
-#: lib/ash_enterprise/surfaces.ex:1141
+#: lib/ash_enterprise/surfaces.ex:1173
 #, elixir-autogen, elixir-format
 msgid "The facts current now, per subject, with the admission behind each."
 msgstr "Les faits actuels, par sujet, avec l’admission qui fonde chacun."
 
-#: lib/ash_enterprise/surfaces.ex:1008
+#: lib/ash_enterprise/surfaces.ex:1040
 #, elixir-autogen, elixir-format
 msgid "The hierarchy that authorization depth expands over."
 msgstr "La hiérarchie sur laquelle s’étend la profondeur d’autorisation."
 
-#: lib/ash_enterprise/surfaces.ex:1026
+#: lib/ash_enterprise/surfaces.ex:1058
 #, elixir-autogen, elixir-format
 msgid "The legacy estate's people, projected into a table this application owns."
 msgstr "Les personnes de l’ancien parc, projetées dans une table que cette application possède."
 
-#: lib/ash_enterprise/surfaces.ex:1247
+#: lib/ash_enterprise/surfaces.ex:1279
 #, elixir-autogen, elixir-format
 msgid "The mapping version chain: no-deploy onboarding."
 msgstr "La chaîne de versions de correspondance : intégration sans déploiement."
 
-#: lib/ash_enterprise/surfaces.ex:1209
+#: lib/ash_enterprise/surfaces.ex:1241
 #, elixir-autogen, elixir-format
 msgid "The merged view of the customer, with merge lineage."
 msgstr "La vue fusionnée du client, avec la filiation des fusions."
 
-#: lib/ash_enterprise/surfaces.ex:1368
+#: lib/ash_enterprise/surfaces.ex:1400
 #, elixir-autogen, elixir-format
 msgid "The old system's people, read live through a compatibility view."
 msgstr "Les personnes de l’ancien système, lues en direct par une vue de compatibilité."
 
-#: lib/ash_enterprise/surfaces.ex:156
+#: lib/ash_enterprise/surfaces.ex:168
 #, elixir-autogen, elixir-format
 msgid "The old system, read live through compatibility views."
 msgstr "L’ancien système, lu en direct par des vues de compatibilité."
 
-#: lib/ash_enterprise/surfaces.ex:80
+#: lib/ash_enterprise/surfaces.ex:82
 #, elixir-autogen, elixir-format
 msgid "The processes this tenant runs, the decisions they consult, and what starts them."
 msgstr "Les processus que cette organisation exécute, les décisions qu’ils consultent et ce qui les déclenche."
 
-#: lib/ash_enterprise/surfaces.ex:351
+#: lib/ash_enterprise/surfaces.ex:363
 #, elixir-autogen, elixir-format
 msgid "The tasks waiting on your decision."
 msgstr "Les tâches en attente de votre décision."
 
-#: lib/ash_enterprise/surfaces.ex:1229
+#: lib/ash_enterprise/surfaces.ex:1261
 #, elixir-autogen, elixir-format
 msgid "Time travel"
 msgstr "Voyage dans le temps"
 
-#: lib/ash_enterprise/surfaces.ex:780
+#: lib/ash_enterprise/surfaces.ex:812
 #, elixir-autogen, elixir-format
 msgid "Triggers"
 msgstr "Déclencheurs"
 
-#: lib/ash_enterprise/surfaces.ex:1193
+#: lib/ash_enterprise/surfaces.ex:1225
 #, elixir-autogen, elixir-format
 msgid "Upload a customer file, map its columns onto the golden record, run the import."
 msgstr "Téléversez un fichier client, associez ses colonnes à l’enregistrement de référence et lancez l’importation."
 
-#: lib/ash_enterprise/surfaces.ex:962
+#: lib/ash_enterprise/surfaces.ex:994
 #, elixir-autogen, elixir-format
 msgid "Users"
 msgstr "Utilisateurs"
 
-#: lib/ash_enterprise/surfaces.ex:1075
+#: lib/ash_enterprise/surfaces.ex:1107
 #, elixir-autogen, elixir-format
 msgid "Verdicts"
 msgstr "Verdicts"
 
-#: lib/ash_enterprise/surfaces.ex:446
+#: lib/ash_enterprise/surfaces.ex:458
 #, elixir-autogen, elixir-format
 msgid "What ran, what it read and wrote, and what failed, drawn as a live graph."
 msgstr "Ce qui s’est exécuté, ce qui a été lu et écrit, et ce qui a échoué, présenté sous forme de graphe en direct."
 
-#: lib/ash_enterprise/surfaces.ex:782
+#: lib/ash_enterprise/surfaces.ex:814
 #, elixir-autogen, elixir-format
 msgid "What starts a process: a watched write, a guard, and what it starts."
 msgstr "Ce qui déclenche un processus : une écriture surveillée, une garde, et ce qu’elle déclenche."
 
-#: lib/ash_enterprise/surfaces.ex:90
+#: lib/ash_enterprise/surfaces.ex:92
 #, elixir-autogen, elixir-format
 msgid "What the judgment loop leaves for a person: verdicts, band tables to certify, and what calibration earned."
 msgstr "Ce que la boucle de jugement laisse à une personne : verdicts, tables de bandes à certifier et résultats de l’étalonnage."
 
-#: lib/ash_enterprise/surfaces.ex:1231
+#: lib/ash_enterprise/surfaces.ex:1263
 #, elixir-autogen, elixir-format
 msgid "Who a person resolved to, and what was true about them, at any moment."
 msgstr "À qui une personne a été rattachée, et ce qui était vrai à son sujet, à tout moment."
 
-#: lib/ash_enterprise/surfaces.ex:131
+#: lib/ash_enterprise/surfaces.ex:143
 #, elixir-autogen, elixir-format
 msgid "Who can sign in, the teams and units they belong to, and their roles."
 msgstr "Qui peut se connecter, les équipes et unités auxquelles ces personnes appartiennent, et leurs rôles."
 
-#: lib/ash_enterprise/surfaces.ex:868
+#: lib/ash_enterprise/surfaces.ex:900
 #, elixir-autogen, elixir-format
 msgid "Who is breaching which control, and why."
 msgstr "Qui enfreint quel contrôle, et pourquoi."
 
-#: lib/ash_enterprise/surfaces.ex:162
+#: lib/ash_enterprise/surfaces.ex:174
 #, elixir-autogen, elixir-format
 msgid "Work"
 msgstr "Travail"
 
-#: lib/ash_enterprise/surfaces.ex:63
+#: lib/ash_enterprise/surfaces.ex:65
 #, elixir-autogen, elixir-format
 msgid "Your calendar, mail, people and the approvals waiting on you."
 msgstr "Votre calendrier, votre courrier, vos contacts et les approbations qui vous attendent."
 
-#: lib/ash_enterprise/surfaces.ex:220
+#: lib/ash_enterprise/surfaces.ex:232
 #, elixir-autogen, elixir-format
 msgid "Your events on a month or week grid, with today, tomorrow, this week and the next two weeks as quick ranges."
 msgstr "Vos événements sur une grille mensuelle ou hebdomadaire, avec aujourd’hui, demain, cette semaine et les deux semaines suivantes en raccourcis."
 
-#: lib/ash_enterprise/surfaces.ex:389
+#: lib/ash_enterprise/surfaces.ex:401
 #, elixir-autogen, elixir-format
 msgid "Your linked accounts and how their syncs are doing."
 msgstr "Vos comptes liés et l’état de leurs synchronisations."
 
-#: lib/ash_enterprise/surfaces.ex:173
+#: lib/ash_enterprise/surfaces.ex:185
 #, elixir-autogen, elixir-format
 msgid "Your morning brief, today's agenda and the day's pulse."
 msgstr "Votre synthèse du matin, l’ordre du jour d’aujourd’hui et le pouls de la journée."
 
-#: lib/ash_enterprise/surfaces.ex:1392
+#: lib/ash_enterprise/surfaces.ex:1445
 #, elixir-autogen, elixir-format
 msgid "Builders"
 msgstr "Constructeurs"
@@ -762,7 +762,7 @@ msgstr "Appuyer sur Entrée sur un numéro de licence ou un identifiant d’exé
 msgid "Everyone"
 msgstr "Tout le monde"
 
-#: lib/ash_enterprise/surfaces.ex:1390
+#: lib/ash_enterprise/surfaces.ex:1443
 #, elixir-autogen, elixir-format
 msgid "Members"
 msgstr "Membres"
@@ -772,7 +772,7 @@ msgstr "Membres"
 msgid "No app or record matches “%{query}”."
 msgstr "Aucune application ou enregistrement ne correspond à « %{query} »."
 
-#: lib/ash_enterprise/surfaces.ex:1393
+#: lib/ash_enterprise/surfaces.ex:1446
 #, elixir-autogen, elixir-format
 msgid "Operators"
 msgstr "Opérateurs"
@@ -782,7 +782,7 @@ msgstr "Opérateurs"
 msgid "Records"
 msgstr "Enregistrements"
 
-#: lib/ash_enterprise/surfaces.ex:1391
+#: lib/ash_enterprise/surfaces.ex:1444
 #, elixir-autogen, elixir-format
 msgid "Reviewers"
 msgstr "Réviseurs"
@@ -872,12 +872,12 @@ msgstr "fantôme, à côté du travail réel"
 msgid "unknown"
 msgstr "inconnu"
 
-#: lib/ash_enterprise/surfaces.ex:547
+#: lib/ash_enterprise/surfaces.ex:559
 #, elixir-autogen, elixir-format
 msgid "Recovery"
 msgstr "Récupération"
 
-#: lib/ash_enterprise/surfaces.ex:549
+#: lib/ash_enterprise/surfaces.ex:561
 #, elixir-autogen, elixir-format
 msgid "Settle an uncertain outcome, simulate or rerun a request, or cancel one, saying why."
 msgstr "Résoudre un résultat incertain, simuler ou relancer une demande, ou en annuler une en indiquant pourquoi."
@@ -1030,7 +1030,7 @@ msgstr "Événement"
 msgid "Evidence cited"
 msgstr "Preuve citée"
 
-#: lib/ash_enterprise/surfaces.ex:609
+#: lib/ash_enterprise/surfaces.ex:621
 #, elixir-autogen, elixir-format
 msgid "Execution explorer"
 msgstr "Explorateur d’exécution"
@@ -1111,7 +1111,7 @@ msgstr "Rien pour l’instant."
 msgid "Observation"
 msgstr "Observation"
 
-#: lib/ash_enterprise/surfaces.ex:611
+#: lib/ash_enterprise/surfaces.ex:623
 #, elixir-autogen, elixir-format
 msgid "One piece of work, followed through its process, runs, decisions, approvals and calls, on one timeline."
 msgstr "Un élément de travail, suivi à travers son processus, exécutions, décisions, approbations et appels, sur une chronologie unique."
@@ -1433,32 +1433,27 @@ msgstr "Les appels d’outils de ce tour n’ont pas pu être lus."
 msgid "sensitive, not shown"
 msgstr "sensible, non affiché"
 
-#: lib/ash_enterprise/surfaces.ex:802
+#: lib/ash_enterprise/surfaces.ex:834
 #, elixir-autogen, elixir-format
 msgid "Artifacts"
 msgstr "Artefacts"
 
-#: lib/ash_enterprise/surfaces.ex:804
+#: lib/ash_enterprise/surfaces.ex:836
 #, elixir-autogen, elixir-format
 msgid "Every version of what is authored here, what it references, whether it checks out and what changed."
 msgstr "Chaque version de ce qui est créé ici, ce qu’elle référence, si elle est valide et ce qui a changé."
 
-#: lib/ash_enterprise/surfaces.ex:673
-#, elixir-autogen, elixir-format
-msgid "Reviews and other process tasks you can see that have waited more than two days."
-msgstr "Revues et autres tâches de processus visibles qui attendent depuis plus de deux jours."
-
-#: lib/ash_enterprise/surfaces.ex:671
+#: lib/ash_enterprise/surfaces.ex:683
 #, elixir-autogen, elixir-format
 msgid "Stalled reviews"
 msgstr "Revues bloquées"
 
-#: lib/ash_enterprise/surfaces.ex:569
+#: lib/ash_enterprise/surfaces.ex:581
 #, elixir-autogen, elixir-format
 msgid "Model profiles"
 msgstr "Profils de modèles"
 
-#: lib/ash_enterprise/surfaces.ex:571
+#: lib/ash_enterprise/surfaces.ex:583
 #, elixir-autogen, elixir-format
 msgid "Which model each profile runs, what it may be used for, whether it is known to answer, and what it is restricted from."
 msgstr "Quel modèle chaque profil exécute, à quoi il peut servir, s’il est connu pour répondre et ce qui lui est interdit."
@@ -1479,7 +1474,7 @@ msgid "Data read at %{time}, over %{minutes} minutes ago"
 msgstr "Données lues à %{time}, il y a plus de %{minutes} minutes"
 
 #: lib/ash_enterprise_web/live/pinned_app_live.ex:271
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Definition invalid"
 msgstr "Définition invalide"
 
@@ -1489,7 +1484,7 @@ msgid "Definition not checked yet"
 msgstr "Définition non encore vérifiée"
 
 #: lib/ash_enterprise_web/live/pinned_app_live.ex:270
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Definition valid"
 msgstr "Définition valide"
 
@@ -1498,32 +1493,32 @@ msgstr "Définition valide"
 msgid "Read again"
 msgstr "Relire"
 
-#: lib/ash_enterprise/surfaces.ex:98
+#: lib/ash_enterprise/surfaces.ex:100
 #, elixir-autogen, elixir-format
 msgid "Agent quality"
 msgstr "Qualité de l’agent"
 
-#: lib/ash_enterprise/surfaces.ex:1053
+#: lib/ash_enterprise/surfaces.ex:1085
 #, elixir-autogen, elixir-format
 msgid "Compare candidates"
 msgstr "Comparer les candidats"
 
-#: lib/ash_enterprise/surfaces.ex:1055
+#: lib/ash_enterprise/surfaces.ex:1087
 #, elixir-autogen, elixir-format
 msgid "Evaluation runs side by side, case by case, with safety in a lane of its own."
 msgstr "Les exécutions d’évaluation côte à côte, cas par cas, avec la sécurité dans sa propre voie."
 
-#: lib/ash_enterprise/surfaces.ex:101
+#: lib/ash_enterprise/surfaces.ex:103
 #, elixir-autogen, elixir-format
 msgid "How agent versions did on the same evaluation cases, with safety kept apart from quality."
 msgstr "Résultats des versions d’agent sur les mêmes cas d’évaluation, avec la sécurité séparée de la qualité."
 
-#: lib/ash_enterprise/surfaces.ex:478
+#: lib/ash_enterprise/surfaces.ex:490
 #, elixir-autogen, elixir-format
 msgid "Webhook deliveries"
 msgstr "Livraisons de webhooks"
 
-#: lib/ash_enterprise/surfaces.ex:480
+#: lib/ash_enterprise/surfaces.ex:492
 #, elixir-autogen, elixir-format
 msgid "What providers have sent, with the signature verdict and whether anyone followed up."
 msgstr "Ce que les fournisseurs ont envoyé, avec le verdict de signature et le suivi éventuel."
@@ -1638,22 +1633,22 @@ msgstr "masqué"
 msgid "Your session has ended. Sign in again."
 msgstr "Votre session a pris fin. Reconnectez-vous."
 
-#: lib/ash_enterprise/surfaces.ex:527
+#: lib/ash_enterprise/surfaces.ex:539
 #, elixir-autogen, elixir-format
 msgid "Each event sent to a webhook endpoint, with its attempts and the receiver's last answer."
 msgstr "Chaque événement envoyé à un point de terminaison webhook, avec ses tentatives et la dernière réponse du destinataire."
 
-#: lib/ash_enterprise/surfaces.ex:525
+#: lib/ash_enterprise/surfaces.ex:537
 #, elixir-autogen, elixir-format
 msgid "Outbound deliveries"
 msgstr "Livraisons sortantes"
 
-#: lib/ash_enterprise/surfaces.ex:502
+#: lib/ash_enterprise/surfaces.ex:514
 #, elixir-autogen, elixir-format
 msgid "Webhook endpoints"
 msgstr "Points de terminaison webhook"
 
-#: lib/ash_enterprise/surfaces.ex:504
+#: lib/ash_enterprise/surfaces.ex:516
 #, elixir-autogen, elixir-format
 msgid "Where this organization's events are sent, what each endpoint is sent, and whether it is working."
 msgstr "Où les événements de cette organisation sont envoyés, ce que reçoit chaque point de terminaison, et s’il fonctionne."
@@ -1668,7 +1663,7 @@ msgstr "%{title}\nSHA-256 : %{sha256}\nL’original : %{path}"
 msgid "%{title}, version %{version}"
 msgstr "%{title}, version %{version}"
 
-#: lib/ash_enterprise/surfaces.ex:647
+#: lib/ash_enterprise/surfaces.ex:659
 #, elixir-autogen, elixir-format
 msgid "Acknowledgements"
 msgstr "Prises d’acte"
@@ -1688,67 +1683,107 @@ msgstr "Document %{sha}"
 msgid "Open the documents to read them."
 msgstr "Ouvrez les documents pour les lire."
 
-#: lib/ash_enterprise/surfaces.ex:649
+#: lib/ash_enterprise/surfaces.ex:661
 #, elixir-autogen, elixir-format
 msgid "The policies you have been asked to read and acknowledge, and the ones you already have."
 msgstr "Les politiques que l’on vous a demandé de lire et dont prendre acte, et celles dont vous avez déjà pris acte."
 
-#: lib/ash_enterprise/surfaces.ex:849
+#: lib/ash_enterprise/surfaces.ex:881
 #, elixir-autogen, elixir-format
 msgid "Clause tables"
 msgstr "Tables de clauses"
 
-#: lib/ash_enterprise/surfaces.ex:817
+#: lib/ash_enterprise/surfaces.ex:849
 #, elixir-autogen, elixir-format
 msgid "Document questions"
 msgstr "Questions sur les documents"
 
-#: lib/ash_enterprise/surfaces.ex:833
+#: lib/ash_enterprise/surfaces.ex:865
 #, elixir-autogen, elixir-format
 msgid "Document wording"
 msgstr "Libellé des documents"
 
-#: lib/ash_enterprise/surfaces.ex:835
+#: lib/ash_enterprise/surfaces.ex:867
 #, elixir-autogen, elixir-format
 msgid "The clauses documents may carry, and what admitting a draft would change in documents already issued."
 msgstr "Les clauses que les documents peuvent comporter, et ce que l'admission d'un brouillon changerait dans les documents déjà émis."
 
-#: lib/ash_enterprise/surfaces.ex:851
+#: lib/ash_enterprise/surfaces.ex:883
 #, elixir-autogen, elixir-format
 msgid "The tables that put clauses in documents, and which issued documents a draft would gain or lose them for."
 msgstr "Les tables qui placent des clauses dans les documents, et les documents émis auxquels un brouillon en ajouterait ou en retirerait."
 
-#: lib/ash_enterprise/surfaces.ex:819
+#: lib/ash_enterprise/surfaces.ex:851
 #, elixir-autogen, elixir-format
 msgid "What a requirement still needs you to answer before one of your documents can be issued."
 msgstr "Ce à quoi vous devez encore répondre pour qu'une exigence permette d'émettre un de vos documents."
 
-#: lib/ash_enterprise/surfaces.ex:1156
+#: lib/ash_enterprise/surfaces.ex:1188
 #, elixir-autogen, elixir-format
 msgid "Question proposals"
 msgstr "Propositions de questions"
 
-#: lib/ash_enterprise/surfaces.ex:1158
+#: lib/ash_enterprise/surfaces.ex:1190
 #, elixir-autogen, elixir-format
 msgid "Questions drafted from policy text, awaiting a person's confirmation."
 msgstr "Questions rédigées à partir du texte d’une politique, en attente de la confirmation d’une personne."
 
-#: lib/ash_enterprise/surfaces.ex:1349
+#: lib/ash_enterprise/surfaces.ex:1381
 #, elixir-autogen, elixir-format
 msgid "Search invented clinicians and see what is in, what is out, and what is unknown, with the reason for each unknown."
 msgstr "Cherchez parmi des cliniciens inventés et voyez ce qui est dedans, ce qui est dehors et ce qui est inconnu, avec la raison de chaque inconnu."
 
-#: lib/ash_enterprise/surfaces.ex:1347
+#: lib/ash_enterprise/surfaces.ex:1379
 #, elixir-autogen, elixir-format
 msgid "Three-valued search"
 msgstr "Recherche à trois valeurs"
 
-#: lib/ash_enterprise/surfaces.ex:1217
+#: lib/ash_enterprise/surfaces.ex:1297
 #, elixir-autogen, elixir-format
 msgid "Match-rule weights learned from steward verdicts, replayed over them, for a person to activate."
 msgstr "Poids des règles d’appariement appris des verdicts des gardiens, rejoués sur ces verdicts, à activer par une personne."
 
-#: lib/ash_enterprise/surfaces.ex:1215
+#: lib/ash_enterprise/surfaces.ex:1295
 #, elixir-autogen, elixir-format
 msgid "Proposed match rules"
 msgstr "Règles d’appariement proposées"
+
+#: lib/ash_enterprise/surfaces.ex:685
+#, elixir-autogen, elixir-format
+msgid "Reviews and other process tasks you can see that are past their due date, or have waited more than two days with none."
+msgstr "Revues et autres tâches de processus visibles dont l’échéance est passée, ou qui attendent depuis plus de deux jours sans échéance."
+
+#: lib/ash_enterprise/surfaces.ex:704
+#, elixir-autogen, elixir-format
+msgid "Where a value came from"
+msgstr "D’où vient une valeur"
+
+#: lib/ash_enterprise/surfaces.ex:706
+#, elixir-autogen, elixir-format
+msgid "Who set a value, when, and where the record of it stops, for an address you hold."
+msgstr "Qui a défini une valeur, quand, et où s’arrête sa trace, pour une adresse que vous détenez."
+
+#: lib/ash_enterprise/surfaces.ex:130
+#, elixir-autogen, elixir-format
+msgid "Guides"
+msgstr "Guides"
+
+#: lib/ash_enterprise/surfaces.ex:133
+#, elixir-autogen, elixir-format
+msgid "How to do a task here, step by step, as a passing run of it in the browser showed it."
+msgstr "Comment faire une tâche ici, étape par étape, telle qu'une exécution réussie dans le navigateur l'a montrée."
+
+#: lib/ash_enterprise/surfaces.ex:1426
+#, elixir-autogen, elixir-format
+msgid "Revoke a leaver's access"
+msgstr "Révoquer l'accès d'une personne qui s'en va"
+
+#: lib/ash_enterprise/surfaces.ex:1427
+#, elixir-autogen, elixir-format
+msgid "The person who is leaving can no longer use the app."
+msgstr "La personne qui s'en va ne peut plus utiliser l'application."
+
+#: lib/ash_enterprise/guides.ex:242
+#, elixir-autogen, elixir-format
+msgid "This guide cannot be shown until a run of it is approved."
+msgstr "Ce guide ne peut pas être affiché tant qu'aucune exécution n'en est approuvée."

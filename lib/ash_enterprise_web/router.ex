@@ -213,6 +213,10 @@ defmodule AshEnterpriseWeb.Router do
     # (ADR 0074). 404 for anyone else. See AshEnterpriseWeb.AcknowledgementDocumentController.
     get "/app/acknowledgements/documents/:id", AcknowledgementDocumentController, :show
 
+    # A guide's figures, by the digest the journey lock records. See
+    # AshEnterpriseWeb.GuideFigureController.
+    get "/app/guide/figures/:file", GuideFigureController, :show
+
     # --- A2UI surfaces -------------------------------------------------------
     #
     # Declarative, agent-renderable screens derived from resource metadata. Each
@@ -239,6 +243,11 @@ defmodule AshEnterpriseWeb.Router do
       scope "/", alias: false do
         for surface <- AshEnterprise.Surfaces.generated() do
           live surface.path, surface.live
+        end
+
+        # A guide is a registry entry too: its page is AshEnterpriseWeb.GuideLive's.
+        for guide <- AshEnterprise.Surfaces.guides() do
+          live guide.path, guide.live
         end
       end
 
@@ -587,7 +596,11 @@ defmodule AshEnterpriseWeb.Router do
         :list_roles,
         :list_privileges,
         :list_role_assignments,
-        :assign_role
+        :assign_role,
+        # Where a value came from (ADR 0078): the assistant's own `explain`, which
+        # answers a value's address for any caller and refuses a record's ref
+        # outside an agent run.
+        :explain
       ],
       # The server implements 2025-03-26, but many clients still negotiate
       # against the older statement. Advertising the older one keeps Claude

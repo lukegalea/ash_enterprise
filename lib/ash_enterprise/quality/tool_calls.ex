@@ -21,7 +21,8 @@ defmodule AshEnterprise.Quality.ToolCalls do
   (`priv/decisions/agent_gate.dmn`) reads them, `"destructive"` and
   `"out_of_scope"`, with `certified`: true only when every family's
   published band table has a certification in force no older than the
-  family's `max_age_days`. The gate turns an allow from uncertified tables
+  family's `max_age_days`, for the instrument that answered (a table
+  certified for another model, digest or runtime is not). The gate turns an allow from uncertified tables
   into an ask. A judge that fails is an error, never a reading: the gate
   answers ask.
   """
@@ -32,7 +33,6 @@ defmodule AshEnterprise.Quality.ToolCalls do
   alias AshEnterprise.Quality.ToolCall
   alias AshEnterprise.SystemOne
   alias AshEnterprise.SystemOne.Banding.Step
-  alias AshJudgments.Calibration.FamilyConfig
   alias AshJudgments.Registry.Info
 
   @questions [
@@ -178,14 +178,7 @@ defmodule AshEnterprise.Quality.ToolCalls do
   answer, `"unsure"` for everything else.
   """
   @spec reading(term()) :: String.t()
-  def reading({:ok, %{band: :admit, banding: %{fact_value: value}}}) when value in [true, "true"],
-    do: "yes"
-
-  def reading({:ok, %{band: :admit, banding: %{fact_value: value}}})
-      when value in [false, "false"],
-      do: "no"
-
-  def reading(_result), do: "unsure"
+  defdelegate reading(result), to: Step
 
   ## Asking one question
 
@@ -230,7 +223,7 @@ defmodule AshEnterprise.Quality.ToolCalls do
         {:ok,
          %{
            inputs: Map.new(answered, fn {q, _a, _id, banded} -> {q.reading, reading(banded)} end),
-           certified: Enum.all?(families(), &certified?(Map.get(tables, &1), &1, opts)),
+           certified: Enum.all?(families(), &Gate.certified?(Map.get(tables, &1), &1, opts)),
            audit: audit(answered, tables, opts)
          }}
     end
@@ -292,14 +285,6 @@ defmodule AshEnterprise.Quality.ToolCalls do
       end)
     end)
   end
-
-  # A certification in force, no older than the family's max_age_days.
-  defp certified?(%{certified_at: %DateTime{} = at}, family, opts) do
-    now = Keyword.get(opts, :now, DateTime.utc_now())
-    DateTime.diff(now, at, :second) <= FamilyConfig.fetch(family).max_age_days * 86_400
-  end
-
-  defp certified?(_table, _family, _opts), do: false
 
   ## The request
 

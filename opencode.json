@@ -11,6 +11,15 @@
       "url": "http://127.0.0.1:4197",
       "enabled": true
     },
+    "ollaya": {
+      "type": "local",
+      "command": ["ollaya", "mcp"],
+      "environment": {
+        "OLLAYA_BASE_URL": "{env:OLLAYA_BASE_URL}",
+        "OLLAYA_API_KEY": "{env:OLLAYA_API_KEY}"
+      },
+      "enabled": false
+    },
     "serena": {
       "type": "local",
       "command": [

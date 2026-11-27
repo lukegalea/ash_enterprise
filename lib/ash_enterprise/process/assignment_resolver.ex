@@ -119,6 +119,65 @@ defmodule AshEnterprise.Process.AssignmentResolver do
     |> Keyword.get(:no_eligible_candidate, @default_fallback)
   end
 
+  # ── escalation ───────────────────────────────────────────────────────────
+
+  @doc """
+  Whom an escalation timer adds to a task (`ash_bpmn` DESIGN.md §11.6): the manager
+  (`User.manager_id`) of the person holding it, or, while nobody has claimed it, the managers
+  of its user candidates.
+
+  A manager the task excludes is no answer: the requester's own manager may be the
+  requester. When no manager is left, or none is found, the task falls back to the same
+  clauses as a task with nobody eligible (`fallback_specs/0`), minus the exclusions again.
+  `{:ok, []}` is an escalation that reached nobody: the engine records
+  `:escalation_reached_nobody`, and `AshEnterprise.Bpmn.Changes.RecordUnassignableFinding`
+  raises a finding from it.
+
+  Everyone returned is an active member of the task's organization
+  (`AshEnterprise.Process.TenantPeople`): a manager whose home business unit is in another
+  organization is never returned. Read as the platform's process actor in `ctx.tenant`. The
+  engine adds what this returns as candidates, and never removes a candidate or the
+  assignee: an escalation widens who may act on the task.
+  """
+  @impl true
+  def escalate(task, ctx) do
+    case AshEnterprise.Process.EngineContext.tenant(ctx) do
+      nil ->
+        {:error, :no_tenant}
+
+      tenant ->
+        excluded = MapSet.new(ctx[:exclusions] || Map.get(task, :excluded_principal_ids) || [])
+
+        task
+        |> escalation_from(ctx)
+        |> AshEnterprise.Process.TenantPeople.managers(tenant)
+        |> Enum.map(&%{type: :user, id: &1.id})
+        |> Enum.reject(&MapSet.member?(excluded, &1.id))
+        |> case do
+          [] -> escalation_fallback(excluded, Map.put(ctx, :tenant, tenant))
+          managers -> {:ok, managers}
+        end
+    end
+  end
+
+  # The person holding the task; while nobody has claimed it, its user candidates. A team
+  # has no manager.
+  defp escalation_from(%{status: :claimed, assignee_type: :user, assignee_id: id}, _ctx)
+       when is_binary(id),
+       do: [id]
+
+  defp escalation_from(%{status: :claimed}, _ctx), do: []
+
+  defp escalation_from(_task, ctx) do
+    for %{type: :user, id: id} <- ctx[:candidates] || [], do: id
+  end
+
+  defp escalation_fallback(excluded, ctx) do
+    with {:ok, fallback} <- candidates(fallback_specs(), ctx) do
+      {:ok, Enum.reject(fallback, &MapSet.member?(excluded, &1.id))}
+    end
+  end
+
   # ── who a person acts as ─────────────────────────────────────────────────
 
   @doc """

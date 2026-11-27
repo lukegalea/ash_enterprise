@@ -65,6 +65,12 @@ defmodule AshEnterpriseWeb.A2ui.UserUI do
       query :default
       select_context :user
 
+      # Offboarding: the lifecycle's own transitions, each offered only on the rows
+      # it applies to. Deactivating revokes the person's tokens, so an open session
+      # of theirs is sent to sign in on its next event or navigation
+      # (`AshEnterpriseWeb.LiveUserAuth`); nobody is disconnected at once.
+      row_actions [:deactivate, :activate]
+
       # A CSV of the users the reader can read (ash_a2ui's export), the columns the
       # table shows and nothing else.
       export do
@@ -81,6 +87,18 @@ defmodule AshEnterpriseWeb.A2ui.UserUI do
         meta [:created_on]
         columns 1
       end
+    end
+
+    # Asked first: deactivating a person ends their access. `activate` undoes it, so
+    # the dialog does not say it cannot be undone. Deactivating oneself is refused
+    # (`AshEnterprise.Accounts.Validations.NotSelf`).
+    action :deactivate do
+      confirm :destructive
+      visible_when lifecycle_status: :active
+    end
+
+    action :activate do
+      visible_when lifecycle_status: :inactive
     end
 
     component :detail, :user_detail do

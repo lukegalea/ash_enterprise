@@ -128,10 +128,11 @@ defmodule AshEnterprise.Governance.DataFlows do
       id: :model_calls_judgment,
       name: "Judgment evaluations through the judgment model wire",
       recipient_class: :model_provider,
-      data_classes: [:model_prompts, :tenant_business_content],
+      data_classes: [:model_prompts, :tenant_business_content, :personal_data],
       modules: [
         AshEnterprise.SystemOne,
         AshEnterprise.SystemOne.DecisionWire,
+        AshEnterprise.Mdm.SecondOpinion,
         AshEnterprise.Licences.Rungs,
         AshEnterprise.Standards.Standing,
         AshEnterprise.Quality.Grader,
@@ -143,7 +144,9 @@ defmodule AshEnterprise.Governance.DataFlows do
         enforced_by: AshEnterprise.Zones.ResidencyPolicy
       },
       known_gap: nil,
-      notes: "Unknown tenants and unknown residency classes are refused."
+      notes:
+        "Unknown tenants and unknown residency classes are refused. The match second opinion sends a " <>
+          "staged and a golden record's names and emails, and runs on the in-zone profile."
     },
     %{
       id: :assistant_agent_runtime,
@@ -199,20 +202,22 @@ defmodule AshEnterprise.Governance.DataFlows do
     },
     %{
       id: :outbound_mail,
-      name: "Account mail (confirmation, password reset and signature reminders)",
+      name:
+        "Account mail (confirmation, password reset, signature reminders and process task notices)",
       recipient_class: :mail_provider,
       data_classes: [:account_identity, :credentials_reference],
       modules: [
         AshEnterprise.Mailer,
         AshEnterprise.Accounts.User.Senders.SendNewUserConfirmationEmail,
         AshEnterprise.Accounts.User.Senders.SendPasswordResetEmail,
-        AshEnterprise.Signatures.Senders.SendReminder
+        AshEnterprise.Signatures.Senders.SendReminder,
+        AshEnterprise.Process.Senders.SendTaskNotice
       ],
       gate: :none,
       known_gap:
         "No tenant-level gate. A message goes to the address of the user the action is for, and carries a " <>
-          "single-use token link, or, for a signature reminder, a link to the page where the person acts, " <>
-          "naming no document. Which mail provider receives it is a deployment choice (default: local mailbox).",
+          "single-use token link, or, for a signature reminder or a process task's notice, a link to the page " <>
+          "where the person acts, naming no document or task. Which mail provider receives it is a deployment choice (default: local mailbox).",
       notes: nil
     },
     %{

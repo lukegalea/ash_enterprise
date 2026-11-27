@@ -78,8 +78,8 @@ flowchart LR
     ctx_planning["Planning<br/>5 resources"]
   end
   subgraph process["Orchestration"]
-    ctx_bpmn["Processes<br/>10 resources"]
-    ctx_process["Process instances<br/>1 resources"]
+    ctx_bpmn["Processes<br/>11 resources"]
+    ctx_process["Process instances<br/>2 resources"]
     ctx_automation["Automation<br/>2 resources"]
     ctx_execution["Execution<br/>10 resources"]
     ctx_execution-sources["Execution sources"]
@@ -672,7 +672,7 @@ Versioned mappings, deterministic entity resolution, survivorship, non-destructi
 | `AshEnterprise.Mdm.ImportRowRefusal` | — | 0 | 0 |
 | `AshEnterprise.Mdm.Mapping` | — | 0 | 2 |
 | `AshEnterprise.Mdm.MappingProposal` | — | 0 | 0 |
-| `AshEnterprise.Mdm.MatchCandidate` | — | 0 | 12 |
+| `AshEnterprise.Mdm.MatchCandidate` | — | 0 | 13 |
 | `AshEnterprise.Mdm.MatchRuleProposal` | — | 0 | 4 |
 | `AshEnterprise.Mdm.MatchRuleSet` | — | 0 | 0 |
 | `AshEnterprise.Mdm.SourceIdentity` | — | 0 | 0 |
@@ -1010,19 +1010,20 @@ BPMN documents compiled to immutable graphs, executed by a token interpreter.
 | **subscription** | A declaration that something happening in the audit log should start a process. |
 | **cursor** | How far the trigger sweep has read into one tenant's audit chain. |
 
-**Resources** — 10 introspected
+**Resources** — 11 introspected
 
 | Resource | Description | Aggregates | Calculations |
 |---|---|---|---|
 | `AshEnterprise.Bpmn.Cursor` | — | 0 | 1 |
 | `AshEnterprise.Bpmn.Definition` | — | 0 | 0 |
 | `AshEnterprise.Bpmn.Dispatch` | — | 0 | 0 |
-| `AshEnterprise.Bpmn.HumanTask` | — | 0 | 21 |
+| `AshEnterprise.Bpmn.HumanTask` | — | 0 | 22 |
 | `AshEnterprise.Bpmn.Instance` | — | 0 | 4 |
 | `AshEnterprise.Bpmn.ProcessEvent` | — | 0 | 0 |
 | `AshEnterprise.Bpmn.Redrive` | — | 0 | 0 |
 | `AshEnterprise.Bpmn.Subscription` | — | 0 | 0 |
 | `AshEnterprise.Bpmn.TaskCandidate` | — | 0 | 0 |
+| `AshEnterprise.Bpmn.TimerJob` | — | 0 | 0 |
 | `AshEnterprise.Bpmn.Token` | — | 0 | 0 |
 
 
@@ -1046,11 +1047,12 @@ Host process instances and the dispatched-cursor event triggers.
 | **dispatched cursor** | Events trigger processes through a dispatched cursor, not a handler. |
 | **approval** | Approvals and process modelling stay inside Ash. |
 
-**Resources** — 1 introspected
+**Resources** — 2 introspected
 
 | Resource | Description | Aggregates | Calculations |
 |---|---|---|---|
 | `AshEnterprise.Process.Binding` | — | 0 | 0 |
+| `AshEnterprise.Process.TaskNotice` | — | 0 | 0 |
 
 
 <!-- domain-map:context:process:end -->
@@ -1491,7 +1493,7 @@ The documents surface: issuing real documents from the host's own data through t
 |---|---|---|---|
 | `ash_events` | fork | git @ bd5f4970 | [Audit](#audit) | Audit/event ledger with as-of capture/replay (ADR 0002). |
 | `ash_events_projections` | transitive | git @ 931d9fd0 | [Compliance](#compliance) | The projector engine behind compliance findings. |
-| `ash_strangler` | first-party | git @ e9835fec | [Legacy estate](#legacy), [Change ledger](#ledger) | Strangler-fig mappings, ledger, drain. |
+| `ash_strangler` | first-party | git @ 5643da35 | [Legacy estate](#legacy), [Change ledger](#ledger) | Strangler-fig mappings, ledger, drain. |
 | `ash_operations` | first-party | git @ 84f2b221 | [Integration](#integration) | Declared provider operations + webhook ingress. |
 | `ash_discrete_business_events` | first-party | git @ 4badc1c3 | [Business events](#business-events) | SourceRecord landing + chained event ledger. |
 | `ash_mdm` | first-party | git @ f8db5fb3 | [Master data](#mdm) | Mappings-as-data, resolution, survivorship, merge. |
@@ -1500,22 +1502,23 @@ The documents surface: issuing real documents from the host's own data through t
 | `ash_evidence` | first-party | git @ 329c367c | [System One](#system-one) | Document versions, addressed atoms, parse runs, assertions. |
 | `ash_provenance` | first-party | git @ ac73afc9 | [System One](#system-one) | Plain-data contract that explains a value: steps, typed gaps, PROV-O export. |
 | `ash_rules` | first-party | git @ ab97fdc8 | [Compliance](#compliance) | Serializable rule IR, fact schemas, evaluator seam. |
-| `ash_compliance` | first-party | git @ b1ddecde | [Compliance](#compliance) | Catalogs/profiles/waivers → immutable bundles; findings projection. |
+| `ash_compliance` | first-party | git @ e6e8fbe6 | [Compliance](#compliance) | Catalogs/profiles/waivers → immutable bundles; findings projection. |
 | `ash_decisions` | first-party | git @ 1a01808e | [Decisions](#decisions) | Decisions as versioned resources; TCK-measured. |
 | `boxic_dmn` | transitive | git @ 6280f2fa | [Decisions](#decisions) | Decision-document validation (ADR 0027). |
 | `boxic_feel` | transitive | hex 0.2.0 | [Decisions](#decisions) | The FEEL expression engine (ADR 0027). |
-| `ash_bpmn` | first-party | git @ 0daf09f9 | [Processes](#bpmn) | Process documents → graph snapshot → token interpreter. |
+| `ash_bpmn` | first-party | git @ 61f0b917 | [Processes](#bpmn) | Process documents → graph snapshot → token interpreter. |
 | `ash_planning` | first-party | git @ 6aab92f2 | [Planning](#planning) | Planning fragments, IR, validators; solver backend. |
 | `ash_agent` | first-party | git @ c3bd9892 | [Agents](#agents) | Governed invocations and durable agent runs (host-instantiated). |
 | `ash_acp` | first-party | git @ 536a404d | [Agent protocol](#acp) | The agent-client wire adapter; no second authorization model. |
-| `ash_a2ui` | first-party | git @ f9f8036e | [Surfaces](#surfaces) | Agent-renderable payloads generated from resources. |
-| `ash_agent_tools` | first-party dev | git @ 4ccafc0f | [Standards](#standards) | Read-only introspection CLI + the iron laws. |
+| `ash_a2ui` | first-party | git @ fd91e33d | [Surfaces](#surfaces) | Agent-renderable payloads generated from resources. |
+| `ash_agent_tools` | first-party dev | git @ e1dbf9b7 | [Standards](#standards) | Read-only introspection CLI + the iron laws. |
 | `battery` | in-repo | in-repo (`battery/`) | [Platform](#platform) | Cross-substrate integration battery over its own reference instantiation. |
 | `ash_events_chain` | first-party | git @ cd122991 | [Audit](#audit) | The audit log's hash chain: immutability triggers, the verifier over hot log and archive as one chain, the verified move to the archive. |
 | `ash_greenmask` | first-party | git @ 24b0c882 | [Erasure](#erasure) | Masking blocks for sensitive attributes; the generated config's drift gate. |
 | `ash_signatures` | first-party | git @ cb192d44 | [Signatures](#signatures) | The signature and acknowledgement fragments the host instantiates (ADR 0074). |
 | `ash_versions` | first-party | git @ 62b29b14 | [Artifacts](#artifacts) | The version registry the artifact pages read through, and temporal history. |
 | `ash_paper` | first-party | git @ e14889c9 | [Documents](#documents) | Deterministic PDF documents from Ash data (early; the API may change). |
+| `ash_journeys` | first-party | git @ 53b6f4c7 | [Surfaces](#surfaces) | User journeys declared once: walked by the browser tier, published from approved runs (early; the API may change). |
 
 <!-- domain-map:substrates:end -->
 

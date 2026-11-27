@@ -144,10 +144,14 @@ defmodule Mix.Tasks.AshBrowserTests.Report do
         status: Map.get(result, "status", "unknown"),
         time_us: Map.get(result, "time_us"),
         failure: Map.get(result, "failure"),
+        journey: journey(Map.get(result, "journey")),
         screenshots: Map.get(shots, key, []),
         traces: Map.get(traces, key, [])
       }
     end)
     |> Enum.sort_by(&AshBrowserTests.Report.order/1)
   end
+
+  defp journey(%{"id" => id, "locale" => locale}), do: %{id: id, locale: locale}
+  defp journey(_none), do: nil
 end

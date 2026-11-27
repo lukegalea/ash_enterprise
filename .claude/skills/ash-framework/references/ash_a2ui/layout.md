@@ -517,6 +517,31 @@ topics for the full contracts.
   sends `save_changes`; with a `confirm` and fields still waiting it asks
   first (Cancel / `save_label` / `then_label`). `then_when_clear` runs the
   `then_action` without asking once nothing waits.
+- `show_while_waiting` (admin catalog 3.14) keeps the bar up for the whole
+  review: it also shows while fields under review wait, before anything
+  changed, with `message_waiting`, the `status` tag and Save (Discard only
+  once a change waits). `true` shows it on every record; a field of the
+  bar's record (`show_while_waiting :correctable`) shows it where that is
+  `true`, so a reader who cannot save never sees it. Save with no change
+  opens the `confirm`; its `save_label` then sends nothing (there is
+  nothing to write) and its `then_label` runs the `then_action` alone. The
+  bar goes once nothing waits and nothing changed.
+- The rows of the context's tables count with its fields (admin catalog
+  3.16), the ones a `review_summary` counts: a table filtered by the
+  context alone, each row waiting once. The server carries them on the
+  bar's record at `_review_rows` (`%{"waiting" => n}`), refreshed with the
+  record, so a row's ✓ counts down and the bar stays until the last line
+  is checked.
+- `status_reviewed` / `status_reviewed_one` (admin catalog 3.17) add a
+  second tag after `status`, counting the fields reviewed so far: review
+  state `reviewed` (a checked value, a saved correction) and, with
+  `edit_reviews`, a waiting field with an unsaved change, and the table
+  rows reviewed (`_review_rows`' `"reviewed"`). It shows while the review
+  is open (a field on the record is still pending or missing, or a row
+  waits) and at least one is reviewed: hidden at zero, and hidden once
+  every review is saved, so a later correction shows no tag. The stock bar
+  draws it in the success tone; a swap reads `saveBarState(props)
+  .statusReviewed` (and `.reviewed`, the count).
 - The server re-reads each card's record through its context as the actor,
   refuses it unless `visible` holds, and runs each card's `update_action`
   with only the changed fields, cast to their attributes, in one
@@ -524,10 +549,59 @@ topics for the full contracts.
   on the bar's record. A refusal saves nothing, keeps the changes, puts
   each field's error at its input (`/ui/edit_errors/<card>/<field>`) and
   says the rest as the outcome. Authorization is the actions' own policies.
+- A value kept on a related record is edited through its relationship:
+  `edit [:term, :ends_on]` names an attribute of the record a `belongs_to`
+  or `has_one` leads to. The input starts from, and is typed by, that
+  attribute (empty while there is no related record). A save sends it as
+  the relationship's argument, the map `manage_relationship` takes, with
+  the related record's primary key; the card's update action passes it on
+  to an action of the related record, which keeps its own validations,
+  changes and policies:
+
+  ```elixir
+  # the card's resource
+  update :correct do
+    argument :term, :map
+    change manage_relationship(:term, on_match: {:update, :correct},
+             on_no_match: :error, on_missing: :ignore, on_lookup: :ignore)
+  end
+
+  # the surface
+  field :term_ends_text do
+    label "Ends"
+    edit [:term, :ends_on]   # sent as %{"term" => %{"id" => ..., "ends_on" => ...}}
+  end
+  ```
+
+  The related record's errors land at the field's input too.
+- A value worked out from editable ones follows the unsaved changes with
+  `recalculate true` on its field (admin catalog 3.15): a notice date from
+  an end date and a notice period, a yearly amount from a monthly one.
+  Whenever the changes change, the bar sends `preview_changes`; the server
+  runs each card's `update_action` with them as a save would (its changes,
+  validations and the related records' actions), reads the recalculated
+  fields with the record, and rolls the transaction back. The cards draw
+  the result from `/ui/preview/<context>/<field>`; Discard and a save clear
+  it. Nothing is written and nothing is notified, and the browser never
+  computes a value. An update the action refuses shows the stored values
+  (Save reports why).
+
+  ```elixir
+  field :notice_by_text do
+    label "Notice by"
+    note "Calculated"
+    recalculate true   # on any :detail card of a context with an editable card
+  end
+  ```
+
+  The context's resource needs a data layer with transactions (Postgres,
+  Mnesia; not ETS), and a recalculated field may not be an editable one.
 - The `editable` fields (through their `edit` attribute) must be accepted
-  by the update action, `visible` and `then_visible` must be fields of the
-  record and `then_action` an update action of it, or the surface does not
-  compile. The basic catalog draws the card read-only and no bar.
+  by the update action (for `[relationship, attribute]`: a to-one
+  relationship, an attribute of its destination, and an argument named
+  after the relationship), `visible` and `then_visible` must be fields of
+  the record and `then_action` an update action of it, or the surface does
+  not compile. The basic catalog draws the card read-only and no bar.
 
 ## Record pages (`page_header`, `section_nav`, `lead`, `alert`)
 

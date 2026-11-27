@@ -1768,6 +1768,15 @@
         "documents"
       ],
       "role": "Deterministic PDF documents from Ash data (early; the API may change)."
+    },
+    {
+      "package": "ash_journeys",
+      "repo": "lukegalea/ash_journeys",
+      "kind": "first-party",
+      "context": [
+        "surfaces"
+      ],
+      "role": "User journeys declared once: walked by the browser tier, published from approved runs (early; the API may change)."
     }
   ],
   "adopted": [

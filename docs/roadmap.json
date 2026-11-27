@@ -589,6 +589,36 @@
       "item": "documents",
       "proof": "test/ash_enterprise/credentialing/credential_status_letter_test.exs",
       "test": "two clinicians' scopes share identical bytes: one shred keeps them, the second destroys them"
+    },
+    {
+      "id": "q57",
+      "section": "assurance",
+      "question": "When may a model's answer decide something, and who may let it?",
+      "answer": "A model answers a declared, typed question with a probability, and a published band table (a DMN decision from `ash_decisions`) turns that probability into admit, review or omit. The model never decides: a band table that cannot say which row fired is refused, an answer the table does not admit stays a review or unknown rather than folding into yes or no, and only admitted facts decide what a system acts on. An automated act runs as the automation principal under a grant, intersected with the person who requested it, and a learned change arrives as a proposal that only a person adopts (ADR 0043, ADR 0047). Partial: the observe, band and admit path, the principal and its intersection rule and person-confirmed proposals are built; no admission grant has been issued, and the offline learners are not built.",
+      "status": "partial",
+      "adr": "0041",
+      "item": "ai-governance",
+      "proof": "test/ash_enterprise/system_one/banding_test.exs"
+    },
+    {
+      "id": "q58",
+      "section": "assurance",
+      "question": "How is a model's reliability measured before anyone relies on it?",
+      "answer": "Each question belongs to a family, and a family is calibrated against labelled samples: a calibration run records the sample size, the error against the stated probabilities and the band table it proposes, and a person certifies a published table for a limited time (`max_age_days`). A table that is not certified, or whose certification is revoked or too old, admits nothing on its own. The same measure reads across tenants through one named read that shows only the status. In agent quality suites, judged scores are reported next to the deterministic results and on the release manifest, and they never gate a release (ADR 0058, decision D9). Partial: the calibration store, certification and the reports are built; most families have a recorded run and none is certified for unattended admission.",
+      "status": "partial",
+      "adr": "0041",
+      "item": "ai-governance",
+      "proof": "test/ash_enterprise/quality/certification_read_test.exs"
+    },
+    {
+      "id": "q59",
+      "section": "evidence",
+      "question": "Can what a model said be reproduced, and can it be taken back?",
+      "answer": "A judgment is recorded when it is made and read back afterwards; it is never recomputed, because a second call would answer differently (ADR 0040). The ledger row names the question version and the model's own probabilities, and the state the model saw is kept sealed. Whether erasing a subject should also erase that state is still pending with ADR 0024. A person's verdict on a judgment is its own record and feeds the calibration sample. Partial: the ledger, the sealed state and human verdicts are built; the erasure decision is open; replaying an old judgment against a newer table is built for facts and not for every consumer.",
+      "status": "partial",
+      "adr": "0040",
+      "item": "ai-governance",
+      "proof": "test/ash_enterprise/system_one/judgment_test.exs"
     }
   ],
   "items": [

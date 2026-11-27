@@ -14,6 +14,7 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
 msgid "About"
 msgstr ""
 
@@ -83,6 +84,7 @@ msgstr ""
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
 msgid "Activate"
 msgstr ""
 
@@ -134,6 +136,10 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/mdm_match_rule_proposal_ui.ex:1
 #, fuzzy
 msgid "Active rule set"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
+msgid "Address of the value"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/team_ui.ex:1
@@ -374,6 +380,10 @@ msgid "Assign to business unit"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Attach job"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Attach timers"
 msgstr ""
 
@@ -527,6 +537,7 @@ msgid "Business units"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
 msgid "By"
 msgstr ""
 
@@ -626,6 +637,7 @@ msgid "Certify and publish"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
 msgid "Chain"
 msgstr ""
 
@@ -817,6 +829,10 @@ msgstr ""
 msgid "Content hash (batches pin this)"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
+msgid "Context"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
 msgid "Control id"
@@ -935,6 +951,7 @@ msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
 msgid "Deactivate"
 msgstr ""
 
@@ -1448,6 +1465,10 @@ msgctxt "one_of:outcome"
 msgid "Follow up"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Follow up due"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Follow-up"
 msgstr ""
@@ -1510,6 +1531,7 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:454
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:557
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
 msgid "From"
 msgstr ""
 
@@ -1986,6 +2008,10 @@ msgstr ""
 msgid "Mark failed"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Mark mailed"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
 msgid "Mark unsure"
 msgstr ""
@@ -2077,6 +2103,10 @@ msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Model profile"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Model's second opinion"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
@@ -2230,6 +2260,10 @@ msgctxt "one_of:status"
 msgid "Omitted"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
+msgid "On behalf of"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
 msgctxt "one_of:combining"
 msgid "Only one applicable"
@@ -2355,6 +2389,10 @@ msgstr ""
 msgid "Outline"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Overdue"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/team_ui.ex:1
 msgid "Owner"
 msgstr ""
@@ -2443,6 +2481,10 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 msgid "Person detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
+msgid "Plan"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
@@ -2684,7 +2726,15 @@ msgid "Record"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Record cancelled"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Record failure"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Record fired"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
@@ -3476,6 +3526,10 @@ msgctxt "one_of:outcome"
 msgid "Succeeded"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
+msgid "Summary"
+msgstr ""
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Supersede"
 msgstr ""
@@ -3532,6 +3586,10 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Task detail"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Task notice"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
@@ -3622,6 +3680,10 @@ msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Time zone definition"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Timer job"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
@@ -3771,6 +3833,7 @@ msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
 msgid "Value"
 msgstr ""
 
@@ -3829,6 +3892,10 @@ msgstr ""
 msgid "Week"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
+msgid "What"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:670
 msgid "What happened, and why you know: succeeded (it happened), failed (it did not), or retry (it did not happen, you checked, and it runs again)"
 msgstr ""
@@ -3849,12 +3916,17 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
 msgid "When"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Where"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
+msgid "Where a value came from"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/acknowledgement_ui.ex:1
@@ -3871,6 +3943,7 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/webhook_endpoints_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
 msgid "Why"
 msgstr ""
 
