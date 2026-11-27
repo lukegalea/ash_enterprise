@@ -56,11 +56,12 @@ Three things about it are load-bearing.
 **It signs in.** Every surface worth capturing is behind `live_user_required`, so the script visits
 `/sign-in`, submits the form, and waits for the URL to change before doing anything else.
 
-**It is Firefox at 1440×900 with `deviceScaleFactor: 2`.** Not a preference — **Chromium cannot rasterize
-in the sandbox these were first captured in.** `page.screenshot()` hangs indefinitely under system Chrome
-and under every `--disable-gpu` / `--single-process` / `--headless=old` combination tried; Firefox and
-WebKit work. `BROWSER=chromium` is there for an environment where it does. The full finding is in
-[`HANDOFF.md`](HANDOFF.md), and 1440 is also why the four workflow pages are grouped under one nav
+**It is Firefox at 1440×900 with `deviceScaleFactor: 2`.** That was not a preference: Chromium could not
+rasterize in the sandbox these were first captured in (`page.screenshot()` hung under system Chrome and
+every `--disable-gpu` / `--single-process` / `--headless=old` combination tried). That no longer holds:
+the browser tests run on Chromium and take screenshots, and the journeys' approved figures
+(`priv/journeys/`) are Chromium captures. These captures stay Firefox until they are retaken;
+`BROWSER=chromium` takes them in Chromium. The history is in [`HANDOFF.md`](HANDOFF.md), and 1440 is also why the four workflow pages are grouped under one nav
 dropdown: the bar already carries six items and wraps below about 1400px, so four more top-level buttons
 would put a wrapped nav in every capture.
 

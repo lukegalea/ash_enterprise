@@ -28,7 +28,7 @@ const ADR_CONCERNS = [
     ['0008', '0010', '0011', '0012', '0013', '0014', '0017', '0019', '0031', '0032', '0054', '0063', '0075', '0078', '0081', '0083'],
   ],
   ['Surfaces and documents', ['0005', '0006', '0033', '0034', '0050', '0060', '0061', '0067', '0068', '0074', '0076', '0077']],
-  ['Engineering and operations', ['0007', '0016', '0018', '0065', '0070', '0072', '0085']],
+  ['Engineering and operations', ['0007', '0016', '0018', '0065', '0070', '0072', '0085', '0086']],
 ];
 
 /*
@@ -174,6 +174,15 @@ export default defineConfig({
             { label: 'Roadmap', link: '/docs/roadmap/' },
             { label: 'Dependencies not on Hex', link: '/docs/bleeding-edge/' },
             { label: 'House style', link: '/docs/house-style/' },
+          ],
+        },
+        {
+          // Written by `mix ash_journeys.export`, one directory per locale.
+          label: 'Guides',
+          items: [
+            { label: 'All guides', link: '/docs/journeys/' },
+            { label: 'English', items: [{ autogenerate: { directory: 'docs/journeys/en' } }] },
+            { label: 'Français', items: [{ autogenerate: { directory: 'docs/journeys/fr' } }] },
           ],
         },
         { label: 'Decision records', items: adrSidebar() },

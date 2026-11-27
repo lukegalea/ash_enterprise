@@ -101,7 +101,7 @@ change its status in the same commit.
 | [0062](0062-planning-proposes-declarations-and-people-commit.md) | Planning proposes; declarations and people commit | accepted, not built (2026-11-05) |
 | [0063](0063-declared-operations-are-a-package.md) | Declared provider operations are a package (`ash_operations`); the credential registry is the reference | proposed (2026-11-06; registry connector and webhook ingress built) |
 | [0064](0064-production-environments-are-a-separate-domain-from-compliance.md) | Production environments are a separate domain from compliance | accepted (2026-11-09; seam built in `ash_compliance`) |
-| [0065](0065-signoz-and-glitchtip-observability-backends.md) | SigNoz for traces, logs and metrics; GlitchTip for error triage | accepted (2026-11-12) |
+| [0065](0065-signoz-and-glitchtip-observability-backends.md) | SigNoz for traces, logs and metrics; GlitchTip for error triage | accepted (2026-11-12), amended 2026-11-26 with 0086 |
 | [0066](0066-sign-in-doors-share-one-standard.md) | Every way in shares one standard: deactivation, token life, salts, lockout, keys, expiring grants, break-glass | accepted (2026-11-09) |
 | [0067](0067-a-document-is-a-pure-function-of-recorded-inputs.md) | A document is a pure function of recorded inputs | accepted (2026-11-10) |
 | [0068](0068-paper-separates-schema-layout-theme-and-wording.md) | Paper separates schema, layout, theme and wording | accepted (2026-11-10) |
@@ -122,6 +122,7 @@ change its status in the same commit.
 | [0083](0083-an-ontology-facade-is-a-resource-over-resources.md) | An ontology façade is a resource over resources: a computed resource that renames, reads as the viewer and writes through named source actions | proposed (2026-11-19) |
 | [0084](0084-eligibility-is-a-conjunct-in-every-grant.md) | Eligibility is a conjunct in every grant: information-flow labels without `forbid_if` | proposed (2026-11-19) |
 | [0085](0085-the-domain-map-is-generated.md) | The domain map is generated from `domain-map.json` and domain introspection | accepted |
+| [0086](0086-a-journey-is-one-declaration-with-proven-projections.md) | A journey is one declaration, and every projection shows only what a passing run of it recorded | accepted (2026-11-26), built in part |
 
 Records 0001–0005, 0007–0009, 0020–0023, 0026 (as amended 2026-11-16: a metadata-only call record and the tenant's opt-in at the one model-call guard), 0027–0031, 0033–0037, 0050–0054, 0059 and 0061 are `accepted` and describe code that exists. 0006 is superseded by 0050, and 0016 by 0072. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed. 0060 is accepted and in progress: its phases 1 (ash_a2ui) and 2 (this repository) have landed; the downstream host's phases and CLDR formatting are not built.
 0076 and 0077 are `accepted, not built (2026-11-18)`: they extend 0067 and 0068 to the two acts around an issued
@@ -134,6 +135,13 @@ scenarios and the execution context every act carries (0080), the generated onto
 0034), an effect described as an edit set (0082), ontology façades over existing resources (0083), and
 information-flow labels as a conjunct inside every grant (0084). 0012 carries a dated note of the same day: lineage is
 kept in-app, and a backend is an optional forwarder.
+0086 is `accepted (2026-11-26), built in part`. A journey is one declaration (`ash_journeys`) of how one persona
+reaches one goal, and its tests, docs pages, in-app guide and evidence are projections of it that may show only what a
+passing run of the same version recorded. Built: the declaration and its verifiers, the browser runner in
+`ash_browser_tests`, lock and approve (`priv/journeys/journeys.lock.json`, checked in CI), the docs pages
+(`docs/journeys/`) and the in-app guide (`/guide <journey>`). Not built: the evidence and figure sinks, the agent
+tools and the Cucumber Messages export. It amends 0065: a span links a journey step to its audit rows, and the audit
+row is the proof.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that
 status flips to plain `accepted` when its code lands, so `accepted` on its own keeps meaning code that exists.
 **0012–0015 and 0017–0019 are `proposed`: none of them is built**, with the exception 0015 below. 0025 is accepted for its internal half (audit events reach SigNoz as log records, 2026-11-16); its customer SIEM half is still proposed and not built. 0010 (ingestion), 0011 (the Nango edge) and 0024 (crypto-shredding) were accepted on 2026-10-12 when a deployment we operate began depending on them, and 0032 (the generated greenmask config) on 2026-11-17 when it was adopted and gated in CI; each one's implementation note says what is built and where it differs from the Decision (0010 lands into an Ash resource rather than a staging schema; 0024's age half was built later as a verified move to archive tables rather than partitions). They are here because a decision is cheapest to reason about — and cheapest to

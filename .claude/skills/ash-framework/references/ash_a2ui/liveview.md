@@ -16,8 +16,9 @@ end
 
 That is the entire LiveView. `use` options:
 
-- `:ui` (required) — the resource or `AshA2ui.Standalone` UI module whose
-  `a2ui` section defines the surface.
+- `:ui` (required unless `:surface_fn` is given) — the resource or
+  `AshA2ui.Standalone` UI module whose `a2ui` section defines the surface.
+  See "A page with no DSL" below for the static alternative.
 - `:actor_fn` (optional) — 1-arity `socket -> actor`, evaluated on mount;
   the actor is passed to every surface, data-model, and action call.
   Without it every Ash call runs with a nil actor.
@@ -31,6 +32,40 @@ That is the entire LiveView. `use` options:
   Topics are explicit configuration — list the topics your resource's
   `Ash.Notifier.PubSub` notifier publishes; the extension does not
   introspect them.
+
+## A page with no DSL
+
+A text-and-image page (a guide, a help article) has no resource to bind.
+Give the LiveView a `:surface_fn` and no `:ui`; `:ui` may also be any value
+that is not a Spark module (it is passed to the callbacks as given):
+
+```elixir
+use AshA2ui.LiveRenderer,
+  surface_fn: fn _ui, opts -> MyApp.Guide.messages(opts[:locale]) end
+```
+
+`:surface_fn` is `(ui, opts -> [A2UI 1.0 message])` and `opts` carries the
+actor, tenant and locale as for any surface. Such a page has no document
+panes and answers no actions. Build its messages with the basic catalog's
+`Text` and `Image`, and assert on the rendered content in a browser test,
+never on the surface element being present: a message the browser cannot
+apply (a wrong `version`, say) shows a `role="alert"` element with
+`data-a2ui-error` in the hook container and is sent to the server, where
+`AshA2ui.ActionHandler` logs it as an `A2UI renderer error`.
+
+## Test seams in the page
+
+- `data-a2ui-pending="true"` is on the hook container while any `ashAction`
+  call is unanswered, and is removed when the last one is answered, failed or
+  timed out. Wait for `:not([data-a2ui-pending])` before a screenshot or an
+  assertion; do not read the surface's data model.
+- `data-a2ui-column="<field>"` is on each cell of the admin grid's table
+  rows and card fields: the field of `AshA2ui.Manifest`'s `columns` that the
+  cell shows.
+- A table in `AshA2ui.Manifest.for_surface/2` has a `row_frame`: the
+  `selector` of the element that frames a row and whether only the visible
+  one counts (`visible_only: true`: the admin grid draws a table row and a
+  narrow-layout card for each row, and one is hidden).
 
 All injected callbacks (`mount/3`, `render/1`, `handle_event/3`,
 `handle_info/2`) are `defoverridable`. If your LiveView receives unrelated
