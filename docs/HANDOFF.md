@@ -191,11 +191,14 @@ These are the ones that cost real time and are not written in any upstream doc.
   — architecture, class, ER, policy diagram, policy simulation — and
   `ash_state_machine` ships no `Clarity.Content` module at all. Lifecycle
   diagrams come from `ash_diagram` directly, not from Clarity.
-- **Chromium cannot rasterize in this sandbox.** `page.screenshot()` hangs
-  indefinitely under system Chrome and every `--disable-gpu` / `--single-process`
-  / `--headless=old` combination. Firefox and WebKit work. Every capture in
+- **Chromium could not rasterize in the 2026-08 sandbox; it can now.** Then,
+  `page.screenshot()` hung under system Chrome and every `--disable-gpu` /
+  `--single-process` / `--headless=old` combination, so every capture in
   `docs/screenshots/` from 2026-08-18 is Firefox at 1440×900,
-  `deviceScaleFactor: 2`.
+  `deviceScaleFactor: 2`, and they have not been recaptured. Since then the
+  browser tests (`ash_browser_tests`) run on Chromium and take screenshots, and the
+  journeys' approved figures in `priv/journeys/` are Chromium captures, the build
+  pinned in `journeys.lock.json`.
 
 ### The CDM corpus
 

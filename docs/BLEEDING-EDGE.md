@@ -139,10 +139,6 @@ confined so that removing one is a deletion, not a refactor.
 | `ash_journeys` | user journeys declared once (`AshEnterprise.Journeys`): walked by the browser tier (`ash_browser_tests` takes it as an optional dependency for its runner), approved runs locked in `priv/journeys/`, documentation pages exported from them | none (`ash_a2ui` optional) | yes |
 
 
-`ash_browser_tests`, a package of this repository, takes `ash_journeys` as an optional, test-only `github:`
-dependency for its journey runner. It is not in this app's lock: a host that runs journeys declares it beside them,
-and it gets a row in this table when this app does.
-
 **Path to Hex:** a Hex package can only depend on Hex packages, so publish from the leaves up:
 1. The packages with no git dependencies of their own.
 2. `ash_compliance`.
@@ -176,6 +172,7 @@ assets (`app: false, compile: false`). It is a release, not a fork.
 | `AshEnterprise.Compliance.FreshnessSweepWorker` calls `AshCompliance.Ownership.Sweep.run/2` itself (ECL-24) | `ash_compliance` compiles `AshCompliance.Workers.EvidenceFreshness` and `ProcessOverdue` only `if Code.ensure_loaded?(Oban)`, but lists Oban as a dev and test dependency only, so in a host Oban need not compile first. Here it does not, and neither worker module exists. | `ash_compliance` declares `{:oban, ..., optional: true}`; then the host can schedule the library's worker per organization. |
 | `AshEnterprise.Documents.Paper.Interview.bundle/1` round-trips a requirement's bundle through `AshRules.Ir.encode!/1` and `decode!/1` before evaluating it | An `AshRules` module's `__bundle__/0` keeps the DSL's atom subjects (`:year`), while `AshCompliance.FactBuilder` emits string subjects (`"year"`); evaluated as compiled, no fact ever meets a rule, every rule reads as not applicable and nothing is ever asked. The IR round trip gives the post-compile spelling, as `AshEnterprise.Mdm.QualityProjector.active_bundle/1` does for seeded bundles. | `ash_compliance` L2 lands: a compiled bundle evaluates with the subject spelling the fact builder emits, and `bundle/1` becomes `requirement.__bundle__()`. |
 | `Jason.Encoder` for `Ash.ForbiddenField` (`lib/ash_enterprise_web/hidden_field/json.ex`, ADR 0073) | `ash_a2ui` wrote a struct with no `Jason.Encoder` onto the wire as the text `unsupported type: ForbiddenField`, so a secured column read without its grant showed that in a cell. The struct encodes as `null`, as AshJsonApi renders a forbidden field. Since `a40499c`, `ash_a2ui` sends a forbidden field as `null` itself, so on an A2UI surface a hidden value reads as empty, not as hidden. | `ash_a2ui` renders a forbidden field as hidden in a cell and leaves it out of a form's values; then this implementation can go. |
+| The `.a2ui-text ol` and `.a2ui-text ul` rules at the end of `assets/css/app.css` (JRN-25) | `ash_a2ui`'s merged-catalog Text draws in the light DOM, and its skin restores headings under a host's Tailwind preflight but not lists, so `ol, ul { list-style: none; padding: 0 }` removed a guide's step numbers. | The `ash_a2ui` pin includes [lukegalea/ash_a2ui#151](https://github.com/lukegalea/ash_a2ui/pull/151), which moves the same rules into the Text skin. |
 
 Add a row whenever this app works around a dependency bug instead of fixing it there. A workaround that is not
 listed gets forgotten.
