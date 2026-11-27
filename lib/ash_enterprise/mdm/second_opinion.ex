@@ -23,10 +23,12 @@ defmodule AshEnterprise.Mdm.SecondOpinion do
     3. stamps the reading on the candidate (`second_opinion`), which is what
        the steward surface shows;
     4. acts only on an admitted yes from a table with a certification in
-       force (`AshEnterprise.Quality.Gate.certified?/3`): the pair is merged
+       force for the instrument that answered
+       (`AshEnterprise.Quality.Gate.certified?/3`): the pair is merged
        as the admit band would have merged it, and leaves the queue. Anything
-       else (review, omit, a refusal, no table, an uncertified table, an
-       admitted no) changes nothing: the pair stays in the queue with the
+       else (review, omit, a refusal, no table, an uncertified table, a
+       table certified for another model, digest or runtime, an admitted
+       no) changes nothing: the pair stays in the queue with the
        opinion shown beside it.
 
   The family has no low band, so a table earned for it has two ranges, and

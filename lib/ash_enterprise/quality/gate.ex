@@ -196,9 +196,11 @@ defmodule AshEnterprise.Quality.Gate do
   (as `:actor`, default the `oban` system actor), for exactly this
   definition's key, version and content hash. `certification` is one of
 
-    * `%{status: :certified, certified_at:, certifier_role:}`: the latest
-      certification in force, made by a holder of `certifier_role`, the role
-      the certifying act requires;
+    * `%{status: :certified, certified_at:, certifier_role:, instruments:}`:
+      the latest certification in force, made by a holder of `certifier_role`,
+      the role the certifying act requires; `instruments` are the
+      `%{model_digest:, runtime_version:}` the certified calibration runs
+      measured (`[]` when no certification names its run);
     * `%{status: :revoked}`: a certification of this definition was revoked,
       whatever else certifies it;
     * `%{status: :none}`: nothing certifies this definition (a certification
@@ -237,18 +239,32 @@ defmodule AshEnterprise.Quality.Gate do
 
   @doc """
   Whether a `published_band_table/3` result has a certification in force no
-  older than the family's `max_age_days` (`:now` in `opts`, default now).
-  No table, an uncertified one or a revoked one is false.
+  older than the family's `max_age_days` (`:now` in `opts`, default now),
+  for the instrument that answered (`:instrument` in `opts`, required: its
+  `model_digest` and `runtime_version`). A certification is evidence about
+  the instrument its calibration run measured, so a table certified for
+  another model, another digest of it or another runtime, or for an
+  instrument nobody recorded, does not admit for this one. No table, an
+  uncertified one or a revoked one is false.
   """
   @spec certified?(map() | nil, atom() | String.t(), keyword()) :: boolean()
-  def certified?(table, family, opts \\ [])
+  def certified?(table, family, opts)
 
-  def certified?(%{certified_at: %DateTime{} = at}, family, opts) do
+  def certified?(%{certified_at: %DateTime{} = at} = table, family, opts) do
     now = Keyword.get(opts, :now, DateTime.utc_now())
-    DateTime.diff(now, at, :second) <= FamilyConfig.fetch(family).max_age_days * 86_400
+
+    DateTime.diff(now, at, :second) <= FamilyConfig.fetch(family).max_age_days * 86_400 and
+      instrument_certified?(table, Keyword.fetch!(opts, :instrument))
   end
 
   def certified?(_table, _family, _opts), do: false
+
+  defp instrument_certified?(%{certification: %{instruments: instruments}}, instrument)
+       when is_list(instruments) do
+    Map.take(instrument, [:model_digest, :runtime_version]) in instruments
+  end
+
+  defp instrument_certified?(_table, _instrument), do: false
 
   defp certification(definition, tenant, opts) do
     definition.key
@@ -279,7 +295,12 @@ defmodule AshEnterprise.Quality.Gate do
         %{
           status: :certified,
           certified_at: certifications |> Enum.map(& &1.certified_at) |> Enum.max(DateTime),
-          certifier_role: Effects.effect(CalibrationRun, :certify_and_publish).approver_role
+          certifier_role: Effects.effect(CalibrationRun, :certify_and_publish).approver_role,
+          instruments:
+            certifications
+            |> Enum.map(&Ash.Resource.get_metadata(&1, :certified_instrument))
+            |> Enum.reject(&is_nil/1)
+            |> Enum.uniq()
         }
     end
   end
