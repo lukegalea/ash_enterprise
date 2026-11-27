@@ -25,6 +25,24 @@ defmodule AshBrowserTests.Ledger do
 
   An `:undocumented` waiver goes stale like any other: when it names nothing
   declared, or something a journey now walks.
+
+  Only a journey whose approved run still proves it counts as walking anything:
+  `AshBrowserTests.Journeys.assert_documented!/3` reads the walks from the
+  journeys the lock holds current in every locale they declare, and adds the
+  waiver checks of `waiver_problems/1`.
+
+  ## Waivers are written by hand
+
+  A waiver is a decision someone made about one thing, so `waiver_problems/1`
+  fails two waivers of the same thing, and two waivers that give one reason
+  (compared without case, spacing, or the ids they name). A list mapped from a
+  registry with a stock reason is refused that way.
+
+  ## Coverage
+
+  `documentation_coverage/2` counts what journeys walk against a set of surfaces,
+  such as a host's whole registry. Waivers never count: the number is how much is
+  documented, not how much is accounted for.
   """
 
   alias AshBrowserTests.Action
@@ -38,6 +56,10 @@ defmodule AshBrowserTests.Ledger do
   @type documented ::
           {:journey, String.t(), {:surface, String.t()} | {:action, String.t(), String.t()}}
   @type problem :: {atom(), term()}
+  @type coverage :: %{
+          surfaces: %{documented: non_neg_integer(), of: non_neg_integer()},
+          actions: %{documented: non_neg_integer(), of: non_neg_integer()}
+        }
 
   @doc """
   The problems in a set of surfaces, generated test ids and waivers. `exercised` is
@@ -134,7 +156,85 @@ defmodule AshBrowserTests.Ledger do
     end
   end
 
+  @doc """
+  The problems in a list of waivers taken together: two waivers of the same
+  thing (`{:duplicate_waiver, waiver}`, the second), and waivers that give one
+  reason between them (`{:repeated_reason, waivers}`). Reasons are compared
+  without case, punctuation, spacing, or the ids of what each waiver names, so a
+  stock reason with the id spliced in is still one reason. A blank reason is
+  left to `problems/3` and `documentation_problems/3`.
+  """
+  @spec waiver_problems([waiver()]) :: [problem()]
+  def waiver_problems(waivers) do
+    {duplicates, _seen} =
+      Enum.flat_map_reduce(waivers, MapSet.new(), fn waiver, seen ->
+        key = Tuple.delete_at(waiver, tuple_size(waiver) - 1)
+
+        if MapSet.member?(seen, key),
+          do: {[{:duplicate_waiver, waiver}], seen},
+          else: {[], MapSet.put(seen, key)}
+      end)
+
+    repeated =
+      waivers
+      |> Enum.filter(&reason_ok?(reason(&1)))
+      |> Enum.group_by(&stock_reason/1)
+      |> Enum.filter(fn {_reason, group} -> length(group) > 1 end)
+      |> Enum.sort_by(fn {_reason, [first | _]} -> Enum.find_index(waivers, &(&1 == first)) end)
+      |> Enum.map(fn {_reason, group} -> {:repeated_reason, group} end)
+
+    duplicates ++ repeated
+  end
+
+  @doc """
+  How much of `surfaces` the journeys walk: surfaces, and actions, that some
+  `documented` entry names, out of all of them. Waivers are not an input.
+  """
+  @spec documentation_coverage([Surface.t()], [documented()]) :: coverage()
+  def documentation_coverage(surfaces, documented) do
+    walked = MapSet.new(documented, fn {:journey, _journey, key} -> key end)
+
+    actions =
+      for %Surface{} = surface <- surfaces, action <- surface.actions, do: {surface, action}
+
+    %{
+      surfaces: %{
+        documented: Enum.count(surfaces, &MapSet.member?(walked, {:surface, &1.id})),
+        of: length(surfaces)
+      },
+      actions: %{
+        documented:
+          Enum.count(actions, fn {surface, action} ->
+            MapSet.member?(walked, {:action, surface.id, action.id})
+          end),
+        of: length(actions)
+      }
+    }
+  end
+
+  @doc "One problem as a line of a ledger's failure message."
+  @spec format_problem(problem()) :: String.t()
+  def format_problem(problem), do: format(problem)
+
   defp undocumented?(waiver), do: elem(waiver, 0) == :undocumented
+
+  # The reason with what makes it particular to its waiver taken out: case,
+  # punctuation, spacing, and the ids the waiver names.
+  defp stock_reason(waiver) do
+    words = fn text ->
+      text |> String.downcase() |> String.split(~r/[^[:alnum:]]+/u, trim: true)
+    end
+
+    ids = waiver |> ids() |> Enum.flat_map(words) |> MapSet.new()
+    waiver |> reason() |> words.() |> Enum.reject(&MapSet.member?(ids, &1))
+  end
+
+  defp ids({:surface, id, _reason}), do: [id]
+  defp ids({:action, surface_id, action_id, _reason}), do: [surface_id, action_id]
+  defp ids({:undocumented, :surface, id, _reason}), do: [id]
+
+  defp ids({:undocumented, :action, {surface_id, action_id}, _reason}),
+    do: [surface_id, action_id]
 
   defp obligations(surfaces) do
     Enum.flat_map(surfaces, fn %Surface{} = surface ->
@@ -194,6 +294,7 @@ defmodule AshBrowserTests.Ledger do
 
   defp reason({:surface, _id, reason}), do: reason
   defp reason({:action, _surface_id, _action_id, reason}), do: reason
+  defp reason({:undocumented, _kind, _id, reason}), do: reason
 
   defp reason_ok?(reason), do: is_binary(reason) and String.trim(reason) != ""
 
@@ -234,6 +335,16 @@ defmodule AshBrowserTests.Ledger do
 
   defp format({:documented_waiver, {waiver, journey}}) do
     "  waiver #{inspect(waiver)} excuses what journey #{journey} walks; remove it"
+  end
+
+  defp format({:duplicate_waiver, waiver}) do
+    "  waiver #{inspect(waiver)} waives what an earlier waiver already does; keep one"
+  end
+
+  defp format({:repeated_reason, waivers}) do
+    "  #{length(waivers)} waivers give one reason between them, so none is a decision " <>
+      "about its own surface or action; write each its own reason:\n" <>
+      Enum.map_join(waivers, "\n", &"    #{inspect(&1)}")
   end
 
   defp format({:stale_waiver, waiver}) do

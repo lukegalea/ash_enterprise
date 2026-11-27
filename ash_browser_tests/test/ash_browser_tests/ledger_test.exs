@@ -162,4 +162,235 @@ defmodule AshBrowserTests.LedgerTest do
       assert length(documented) == length(Enum.uniq(documented))
     end
   end
+
+  describe "waivers taken together" do
+    test "two waivers of one thing fail, the second named" do
+      first = {:undocumented, :surface, "b", "internal only"}
+      second = {:undocumented, :surface, "b", "kept for the operators"}
+
+      assert [{:duplicate_waiver, ^second}] = Ledger.waiver_problems([first, second])
+
+      action = {:undocumented, :action, {"a", "go"}, "an admin repair"}
+      again = {:undocumented, :action, {"a", "go"}, "a repair for administrators"}
+      assert [{:duplicate_waiver, ^again}] = Ledger.waiver_problems([action, again])
+    end
+
+    test "one reason given by several waivers fails, even with each one's id spliced in" do
+      stock = [
+        {:undocumented, :surface, "a", "Surface a: not documented yet."},
+        {:undocumented, :surface, "b", "surface B -- not documented yet"},
+        {:undocumented, :surface, "c", "Surface c, not documented yet"}
+      ]
+
+      assert [{:repeated_reason, ^stock} = problem] = Ledger.waiver_problems(stock)
+      assert Ledger.format_problem(problem) =~ "3 waivers give one reason between them"
+    end
+
+    test "a reason that is only the waiver's own id is a stock reason" do
+      waivers = [{:undocumented, :surface, "a", "a"}, {:undocumented, :surface, "b", "B."}]
+      assert [{:repeated_reason, ^waivers}] = Ledger.waiver_problems(waivers)
+    end
+
+    test "waivers with reasons of their own pass, and a blank reason is left to the accounts" do
+      waivers = [
+        {:undocumented, :surface, "a", "internal only"},
+        {:undocumented, :surface, "b", "replaced next quarter"},
+        {:undocumented, :action, {"a", "go"}, " "},
+        {:undocumented, :action, {"a", "stop"}, ""}
+      ]
+
+      assert Ledger.waiver_problems(waivers) == []
+    end
+  end
+
+  describe "documentation coverage" do
+    test "counts what journeys walk, and never a waiver" do
+      surfaces = surfaces() ++ [%Surface{id: "c", path: "/c"}]
+      walked = [{:journey, "j", {:surface, "a"}}, {:journey, "j", {:action, "a", "go"}}]
+
+      expected = %{surfaces: %{documented: 1, of: 3}, actions: %{documented: 1, of: 2}}
+      assert Ledger.documentation_coverage(surfaces, walked) == expected
+
+      # A walk of something not in the set counts for nothing.
+      assert Ledger.documentation_coverage(surfaces, [{:journey, "j", {:surface, "z"}} | walked]) ==
+               expected
+
+      assert Ledger.documentation_coverage(surfaces, []) ==
+               %{surfaces: %{documented: 0, of: 3}, actions: %{documented: 0, of: 2}}
+    end
+  end
+
+  describe "documented by an approved journey" do
+    alias AshBrowserTests.Fixture.ApprovedRuns
+    alias AshBrowserTests.Fixture.Journeys, as: FixtureJourneys
+    alias AshBrowserTests.Journeys
+    alias AshJourneys.Lock
+
+    @opts [manifest_opts: ApprovedRuns.manifest_opts()]
+
+    # A surfaces host: widgets with both row actions the fixture's journeys
+    # perform, and a page no journey opens.
+    defp host(waivers) do
+      host = Module.concat(__MODULE__, "Host#{System.unique_integer([:positive])}")
+
+      surfaces = [
+        %Surface{
+          id: "widgets",
+          path: "/journey/widgets",
+          actions: [%Action{id: "row:widgets.activate"}, %Action{id: "row:widgets.remove"}]
+        },
+        %Surface{id: "plain", path: "/plain"}
+      ]
+
+      Module.create(
+        host,
+        quote do
+          def surfaces, do: unquote(Macro.escape(surfaces))
+          def waivers, do: unquote(Macro.escape(waivers))
+        end,
+        Macro.Env.location(__ENV__)
+      )
+
+      host
+    end
+
+    defp plain_waiver, do: {:undocumented, :surface, "plain", "a test page with nothing to do"}
+
+    defp remove_waiver,
+      do: {:undocumented, :action, {"widgets", "row:widgets.remove"}, "removal is irreversible"}
+
+    test "a journey with no approved run walks nothing" do
+      root = ApprovedRuns.root()
+
+      assert {:ok, %{documented: [], unproven: unproven}} =
+               Journeys.proven([FixtureJourneys], root, @opts)
+
+      assert unproven == [
+               {"activate_a_widget", "en", :unapproved, []},
+               {"remove_a_widget", "en", :unapproved, []}
+             ]
+
+      # documented/1 still reports every declaration, approved or not.
+      assert Journeys.documented([FixtureJourneys]) != []
+    end
+
+    test "an approved, current journey walks its surfaces and row actions; the others do not" do
+      root = ApprovedRuns.root()
+      :ok = ApprovedRuns.approve!(root, [FixtureJourneys], "r1", ["activate_a_widget"])
+
+      assert {:ok, %{documented: documented, unproven: unproven}} =
+               Journeys.proven([FixtureJourneys], root, @opts)
+
+      assert Enum.sort(documented) == [
+               {:journey, "activate_a_widget", {:surface, "widgets"}},
+               {:journey, "activate_a_widget", {:action, "widgets", "row:widgets.activate"}}
+             ]
+
+      assert unproven == [{"remove_a_widget", "en", :unapproved, []}]
+    end
+
+    test "a stale run walks nothing: the lock's pinned build moved after approval" do
+      root = ApprovedRuns.root()
+      :ok = ApprovedRuns.approve!(root, [FixtureJourneys], "r1", ["activate_a_widget"])
+      {:ok, lock} = Lock.read(root)
+      Lock.write!(%{lock | browser: %{name: "chromium", version: "999.0.0.0"}}, root)
+
+      assert {:ok, %{documented: [], unproven: unproven}} =
+               Journeys.proven([FixtureJourneys], root, @opts)
+
+      assert [{"activate_a_widget", "en", :stale, [reason]}, {"remove_a_widget", "en", _, _}] =
+               unproven
+
+      assert reason =~ "the lock pins chromium 999.0.0.0"
+    end
+
+    test "an altered approved run walks nothing" do
+      root = ApprovedRuns.root()
+      :ok = ApprovedRuns.approve!(root, [FixtureJourneys], "r1", ["activate_a_widget"])
+      dir = Lock.approved_dir(root, "en", "activate_a_widget")
+      File.write!(Path.join(dir, "activate.activated.png"), "not the approved bytes")
+
+      assert {:ok, %{documented: [], unproven: [{"activate_a_widget", "en", :altered, _} | _]}} =
+               Journeys.proven([FixtureJourneys], root, @opts)
+    end
+
+    test "a lock that does not read, or a module that declares no journeys, is an error" do
+      root = ApprovedRuns.root()
+      File.mkdir_p!(Path.dirname(Lock.path(root)))
+      File.write!(Lock.path(root), "{")
+      assert {:error, [_ | _]} = Journeys.proven([FixtureJourneys], root, @opts)
+
+      assert {:error, [problem]} = Journeys.proven([Ledger], ApprovedRuns.root(), @opts)
+      assert problem =~ "does not use AshJourneys.Journeys"
+    end
+
+    test "assert_documented!/3 passes when the rest is waived by hand" do
+      root = ApprovedRuns.root()
+      :ok = ApprovedRuns.approve!(root, [FixtureJourneys], "r1", ["activate_a_widget"])
+      host = host([plain_waiver(), remove_waiver()])
+
+      assert :ok = Journeys.assert_documented!(host, [FixtureJourneys], [root: root] ++ @opts)
+    end
+
+    test "assert_documented!/3 fails on what an unapproved journey would walk, and says why" do
+      root = ApprovedRuns.root()
+      :ok = ApprovedRuns.approve!(root, [FixtureJourneys], "r1", ["activate_a_widget"])
+      host = host([plain_waiver()])
+
+      error =
+        assert_raise ExUnit.AssertionError, fn ->
+          Journeys.assert_documented!(host, [FixtureJourneys], [root: root] ++ @opts)
+        end
+
+      assert error.message =~
+               ~s|action "row:widgets.remove" on surface "widgets" is in no journey|
+
+      assert error.message =~ "journey remove_a_widget walks nothing yet: en is unapproved"
+    end
+
+    test "a waiver of what an unapproved journey walks is not stale until the journey is approved" do
+      root = ApprovedRuns.root()
+      :ok = ApprovedRuns.approve!(root, [FixtureJourneys], "r1", ["activate_a_widget"])
+      host = host([plain_waiver(), remove_waiver()])
+      assert :ok = Journeys.assert_documented!(host, [FixtureJourneys], [root: root] ++ @opts)
+
+      :ok = ApprovedRuns.approve!(root, [FixtureJourneys], "r2", ["remove_a_widget"])
+
+      assert_raise ExUnit.AssertionError,
+                   ~r/excuses what journey remove_a_widget walks; remove it/,
+                   fn ->
+                     Journeys.assert_documented!(host, [FixtureJourneys], [root: root] ++ @opts)
+                   end
+    end
+
+    test "assert_documented!/3 refuses a waiver without a reason, a stale one, a duplicate and a stock reason" do
+      root = ApprovedRuns.root()
+      :ok = ApprovedRuns.approve!(root, [FixtureJourneys], "r1", ["activate_a_widget"])
+
+      refused = [
+        {[{:undocumented, :surface, "plain", " "}, remove_waiver()], ~r/has no reason/},
+        {[plain_waiver(), remove_waiver(), {:undocumented, :surface, "gone", "was removed"}],
+         ~r/names nothing declared/},
+        {[plain_waiver(), remove_waiver(), {:undocumented, :surface, "plain", "a second word"}],
+         ~r/waives what an earlier waiver already does/},
+        {[
+           {:undocumented, :surface, "plain", "plain: no journey yet"},
+           {:undocumented, :action, {"widgets", "row:widgets.remove"},
+            "Widgets remove; no journey yet"}
+         ], ~r/2 waivers give one reason between them/}
+      ]
+
+      for {waivers, message} <- refused do
+        assert_raise ExUnit.AssertionError, message, fn ->
+          Journeys.assert_documented!(host(waivers), [FixtureJourneys], [root: root] ++ @opts)
+        end
+      end
+    end
+
+    test "assert_documented!/3 fails when the journeys or the lock do not read" do
+      assert_raise ExUnit.AssertionError, ~r/do not read/, fn ->
+        Journeys.assert_documented!(host([]), [Ledger], root: ApprovedRuns.root())
+      end
+    end
+  end
 end

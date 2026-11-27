@@ -78,6 +78,7 @@ if Code.ensure_loaded?(AshJourneys.Info) do
     alias AshBrowserTests.FailureCapture
     alias AshBrowserTests.Figure
     alias AshBrowserTests.Journeys.Candidates
+    alias AshBrowserTests.Ledger
     alias AshBrowserTests.RowActions
     alias AshBrowserTests.Trace
     alias AshBrowserTests.Trace.Cursor
@@ -85,6 +86,7 @@ if Code.ensure_loaded?(AshJourneys.Info) do
     alias AshJourneys.Info
     alias AshJourneys.Ir
     alias AshJourneys.L10n
+    alias AshJourneys.Lock
     alias AshJourneys.Manifest
     alias AshJourneys.Preflight
     alias AshJourneys.Raster
@@ -132,12 +134,115 @@ if Code.ensure_loaded?(AshJourneys.Info) do
     (`AshBrowserTests.Ledger.documentation_problems/3`): each surface a step is
     on, as `{:journey, id, {:surface, surface_id}}`, and each row action a step
     performs, as `{:journey, id, {:action, surface_id, "row:" <> row_action_id}}`.
+    Every declaration counts, approved or not; `proven/3` counts only the
+    journeys the lock proves.
     """
     @spec documented([module()]) :: [AshBrowserTests.Ledger.documented()]
     def documented(modules) do
       for module <- modules,
           journey <- Info.journeys(module),
-          {step, surface} <- Ir.step_surfaces(journey),
+          entry <- walks(journey),
+          uniq: true,
+          do: entry
+    end
+
+    @typedoc "A journey and locale whose approved run does not prove it, and why."
+    @type unproven :: {String.t(), String.t(), Lock.refusal(), [String.t()]}
+
+    @doc """
+    What the journeys `modules` declare walk, as `documented/1` reports it, from
+    only the journeys the lock under the project root `root` holds current in
+    every locale they declare (`AshJourneys.Lock.check/4`: approved, and not
+    stale, altered or drifted). The others are `unproven`, one entry per locale
+    that is not current, with the lock's reasons. `opts` are
+    `AshJourneys.Lock.verify/6`'s.
+    """
+    @spec proven([module()], Path.t(), keyword()) ::
+            {:ok, %{documented: [AshBrowserTests.Ledger.documented()], unproven: [unproven()]}}
+            | {:error, [String.t()]}
+    def proven(modules, root, opts \\ []) do
+      with {:ok, declared} <- Lock.declared(modules),
+           {:ok, lock} <- Lock.read(root) do
+        status = Lock.check(root, lock, declared, opts)
+        current = MapSet.new(status.current)
+
+        unproven =
+          Enum.sort(
+            for({id, locale} <- status.unapproved, do: {id, locale, :unapproved, []}) ++
+              for(
+                refusal <- [:stale, :altered, :drifted],
+                {id, locale, reasons} <- Map.fetch!(status, refusal),
+                do: {id, locale, refusal, reasons}
+              )
+          )
+
+        documented =
+          for module <- modules,
+              journey <- Info.journeys(module),
+              id = Atom.to_string(journey.name),
+              Enum.all?(declared[id].ir["locales"], &MapSet.member?(current, {id, &1})),
+              entry <- walks(journey),
+              uniq: true,
+              do: entry
+
+        {:ok, %{documented: documented, unproven: unproven}}
+      end
+    end
+
+    @doc """
+    The documentation ledger of a host's declared surfaces
+    (`AshBrowserTests.Surfaces.declared/1` of `surfaces_host`, and its waivers),
+    walked by the journeys `modules` declare that the lock proves (`proven/3`).
+    Raises `ExUnit.AssertionError` on any problem of
+    `AshBrowserTests.Ledger.documentation_problems/3`, or of
+    `AshBrowserTests.Ledger.waiver_problems/1` among the `:undocumented`
+    waivers. The message names every journey that was not counted, and why.
+
+    `opts`: `:root`, the project root the lock is read under (the current
+    directory by default); the rest are `AshJourneys.Lock.verify/6`'s.
+    """
+    @spec assert_documented!(module(), [module()], keyword()) :: :ok
+    def assert_documented!(surfaces_host, modules, opts \\ []) do
+      {root, opts} = Keyword.pop_lazy(opts, :root, &File.cwd!/0)
+
+      %{documented: documented, unproven: unproven} =
+        case proven(modules, root, opts) do
+          {:ok, proven} ->
+            proven
+
+          {:error, problems} ->
+            raise ExUnit.AssertionError,
+              message:
+                "the journeys or their lock do not read:\n  " <> Enum.join(problems, "\n  ")
+        end
+
+      waivers = surfaces_host.waivers()
+
+      problems =
+        Ledger.documentation_problems(
+          AshBrowserTests.Surfaces.declared(surfaces_host),
+          waivers,
+          documented
+        ) ++ Ledger.waiver_problems(Enum.filter(waivers, &(elem(&1, 0) == :undocumented)))
+
+      if problems != [] do
+        raise ExUnit.AssertionError,
+          message:
+            "the documentation ledger is not complete:\n" <>
+              Enum.map_join(problems, "\n", &Ledger.format_problem/1) <>
+              Enum.map_join(unproven, "", &uncounted/1)
+      end
+
+      :ok
+    end
+
+    defp uncounted({id, locale, refusal, reasons}) do
+      "\n  journey #{id} walks nothing yet: #{locale} is #{refusal}" <>
+        Enum.map_join(reasons, "", &"\n    #{&1}")
+    end
+
+    defp walks(journey) do
+      for {step, surface} <- Ir.step_surfaces(journey),
           surface != nil,
           key <- [{:surface, Atom.to_string(surface)} | row_actions(step, surface)],
           uniq: true,

@@ -6,6 +6,7 @@ Two project-scoped MCP configs live at the repo root and must not drift silently
 |---|---|---|---|
 | `tidewave` | `http://localhost:4000/tidewave/mcp` | same | needs the dev server running (`iex-server`); shows disconnected otherwise. mix.lock holds tidewave 0.9.2; 0.9.0 removed the `get_*_schema` family (incl. `get_ash_resources`), see `docs/research/beam-observer-tooling.md`. |
 | `ash-agent` | `http://127.0.0.1:4197` | same | read-only introspection MCP (`ash_describe`, `ash_validate`, `ash_search`, `ash_context`, `ash_forbidden`, `ash_laws`, `ash_daemon_status`, `ash_reload` + concept tools). **No auth by design** (loopback-only, POST-only). |
+| `ollaya` | stdio `ollaya mcp`, endpoint from `OLLAYA_BASE_URL` / `OLLAYA_API_KEY` | local `ollaya mcp`, same env, `enabled: false` | optional, advisory, in-zone only; needs the `ollaya` binary on PATH. Claude Code shows it disconnected without one; opencode keeps it off until enabled. |
 | `serena` | not configured (optional) | local: `uvx --from git+https://github.com/oraios/serena serena start-mcp-server --context ide-assistant` | symbolic Ash-DSL edits. Needs `uv`/`uvx` on PATH (host also has `~/.local/bin/uvx`). |
 
 ## In-app alternative: `/ash_agent/mcp`

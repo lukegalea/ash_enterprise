@@ -166,6 +166,29 @@ order of how much they cost:
    therefore one module to write and a number to compare against, rather than a search. Remove either of those
    properties and this would not be a dependency to take.
 
+**What the seven mean for System One's band tables.** A band table ([thesis 8](08-models-observe-declarations-decide.md),
+[ADR 0041](../adr/0041-thresholds-are-dmn-earned-by-calibration.md)) is a DMN decision from `ash_decisions` that turns
+one probability into a band, so it meets the same engine and the same gaps. Per gap, as of 2026-11-26:
+
+1. *No try-before-publish in the editor:* **partly affected.** A band table is not authored cold. A calibration run
+   proposes its thresholds from labelled samples and records the measured error, and a person certifies the table that
+   was measured. The editor gap itself stays open for every other decision.
+2. *No publish-time overlap or completeness analysis:* **affected, and not closed.** A band table is a short ladder
+   over one number, so an overlap is easy to see, but nothing checks it before publication. What holds today is the
+   read side: a band table that reports no `matched_rule_ids` is refused, and a probability no row takes is an
+   unknown, never an admission.
+3. *The audit trail and the fired rule:* **closed for this use** (the correction in that item). The ledger names the
+   band, the rule ids and the table's definition version.
+4. *Three-valued logic:* **affected, and handled by declaration.** A missing probability is `null`, and the table's
+   outcome for it is review or omit, never admit. The silent-equality hole does not arise because band tables compare
+   with ordering, not equality.
+5. *A tenant behind a baseline:* **out of scope.** A band table is published and certified per family and per
+   tenant, and a certification expires (`max_age_days`) rather than drifting quietly.
+6. *No export:* **affected, not closed.** A table and its certification are rows and survive a `COPY`; there is no
+   migration path to another engine, as for any decision.
+7. *Tier-3 engine:* **affected.** Band tables ride the same engine and the same conformance suite, and add no second
+   evaluator.
+
 **→ Decided.** Six records: [ADR 0009 — `ash_strangler` and `ash_bpmn` are
 first-party](../adr/0009-strangler-and-bpmn-are-first-party.md),
 [ADR 0015 — approvals and process modelling stay inside Ash](../adr/0015-approvals-stay-in-ash.md),
@@ -228,14 +251,25 @@ views — but both keep the analytical store outside Ash rather than behind a re
 
 ## 7. Internationalization
 
-Three competing packages — `ash_translation`, `ash_trans`, `ash_phoenix_translations` — none with meaningful adoption
-and no clear winner. Phoenix's Gettext covers UI strings; **translated *content*** (a product name in six languages,
-stored per-tenant) has no settled answer.
+There are two different problems here, and they have different statuses.
+
+**Product interface copy ships in English and French.** This is a requirement of this repository, not a gap in a
+package: [HOUSE-STYLE HS-9](../HOUSE-STYLE.md) says a user-facing string is not done until it has both languages.
+Phoenix's Gettext is the mechanism, and [ADR 0060](../adr/0060-localization-through-gettext-and-library-catalogs.md)
+decides how the host and the packages share it: the host owns its catalogs, a library ships catalogs for its own
+strings, and the host's French wording must not contradict a library's. The discipline is the open part. A screen can
+still be written with an English-only string, and what stops it is review and the catalog checks in CI rather than a
+guarantee, so every screen's own ticket carries an English and French acceptance criterion.
+
+**Translated *content*** (a product name in six languages, stored per-tenant) is the other problem, and it has no
+settled answer. Three competing packages — `ash_translation`, `ash_trans`, `ash_phoenix_translations` — have no
+meaningful adoption and no clear winner.
 
 Ironically the CDM models this well: `is.localized.displayedAs` carries a `[languageTag, displayText]` table on every
 entity and attribute. We currently read only the `"en"` row, which is also all the upstream corpus populates.
 
-**→ Still open.** No decision taken.
+**→ Decided for interface copy, still open for content.** Interface copy: [ADR 0060](../adr/0060-localization-through-gettext-and-library-catalogs.md)
+and HS-9. Translated content: no decision taken.
 
 ## 8. Reporting and document generation
 
@@ -323,34 +357,48 @@ the masked rendering of a hidden value are open. [The roadmap](../ROADMAP.md) li
 
 ## 13. Probabilistic model judgments
 
-*Added 2026-09-27.* Nothing here uses a System One model — a fast model that answers a typed question with a calibrated
-probability — and nothing calls `ash_ai`'s `evaluate`, although the version this repository locks ships it. There is no
-question registry, no judgment ledger, no calibration store, no band table and no evidence package. The doctrine exists
-([thesis 8](08-models-observe-declarations-decide.md)) and the code does not.
+*Added 2026-09-27; rewritten 2026-11-26 to what is on `main`.* A System One model is a fast model that answers a typed
+question with a calibrated probability. The doctrine is [thesis 8](08-models-observe-declarations-decide.md) and the
+records are [ADR 0038](../adr/0038-models-observe-declarations-decide.md) through
+[ADR 0047](../adr/0047-learning-produces-proposals.md); the index in [`../adr/README.md`](../adr/README.md) says, per
+record, what of it is built.
 
-**What it costs:** documents that arrive as evidence — certificates, licences, contracts — are judged by a person or
-not at all, and the audit trail records the verdict without a machine-checkable link to the clause that justified it.
+**What exists.**
+- *The loop.* Questions are declared on a resource and locked in `priv/judgments/lock.json`; a judge action calls the
+  model through `ash_judgments` and writes a ledger row (`AshEnterprise.SystemOne.Judgment`) that is read back, never
+  recomputed; a calibration run (`CalibrationRun`, `CalibrationSample`) measures a family; a band table published
+  through `ash_decisions` turns a probability into admit, review or omit; a person certifies the table
+  (`BandTableCertification`) for a limited time. Four families have a certified table in the instance we run:
+  `commenting`, `house_style`, `model_call_location` and `agent_reply_style` (version 3, n 265). The review surfaces
+  are at `/app/judgments`. Judged scores for agent quality suites read that certification across tenants and report;
+  they never gate a release ([ADR 0058](../adr/0058-agent-quality-and-releases.md), decision D9).
+- *The automation principal* ([ADR 0043](../adr/0043-automation-authority-is-a-grant.md), built 2026-10-29): an agent
+  acts with its own grants intersected with the person who started it, and cannot administer authority or add
+  privileges. No grant lets an automation admit a judgment unattended, and none has been issued.
+- *Evidence.* Evidence assertions are built ([ADR 0044](../adr/0044-documents-are-addressed-atoms-evidence-is-an-assertion.md)).
+  Parsing a document into addressed atoms is done by a separate private package, not in this repository; the host
+  records the run and its atoms.
+- *Selection by meaning.* A person's plain-language filter becomes a proposal that a person confirms, and a confirmed
+  filter runs as a query over any set ([ADR 0048](../adr/0048-a-judgment-is-a-predicate-over-any-set.md)).
+- *Licences.* A licence family judges the licence a package declares, with its own band tables per question; it is
+  calibrated on a corpus of public package metadata and is not certified for unattended admission.
+- *Tooling.* The pre-flight gate for coding agents asks the repository's rules first and a System One question only
+  for what those rules defer; its answer is capped at ask until its tables are certified, and a deny from it becomes an ask
+  ([ADR 0045](../adr/0045-system-one-in-tooling-is-advisory.md)). Review-banded master-data match pairs may get a model
+  second opinion that decides nothing until its own table is certified.
 
-**What stands in the way here, specifically:** two items in §3 above. A band table that turns probabilities into
-admissions has to be overlap-free and has to record which band fired; `ash_decisions` does both, and this
-repository's lock now carries both (§3 above), so here the decision trail does say which row matched. The
-vendor that defined the decision-model wire protocol is also very new — it had been public for twelve days on the date
-of this entry — which is why the design runs every instrument in the data's own declared zone and uses no hosted model
-at all.
+**What does not exist.** The offline learners ([ADR 0047](../adr/0047-learning-produces-proposals.md)): a proposal is
+a record a person adopts, and there is no job that makes one without being asked. The flow rule of
+[ADR 0042](../adr/0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md). Certification of any family for
+unattended admission of a high-consequence fact. A held-out calibration set for the newest families.
 
-**→ Still open.** Ten records are accepted, not built (2026-09-28) — the decisions are taken and none is built:
-[ADR 0038](../adr/0038-models-observe-declarations-decide.md) through
-[ADR 0047](../adr/0047-learning-produces-proposals.md), sequenced in
-[`../plans/system-one.md`](../plans/system-one.md), with several of their own decisions marked pending inside them.
+**What stands in the way here, specifically:** the seven items in §3, scoped for band tables at the end of that item.
+The vendor that defined the decision-model wire protocol is also very new, which is why every instrument runs in the
+data's own declared zone and no hosted model is used.
 
-**Correction, 2026-10-23.** The first paragraph of this section is out of date. A judgment ledger
-(`AshEnterprise.SystemOne.Judgment`), a calibration store (`SystemOne.CalibrationRun`, `CalibrationSample`,
-`BandTableCertification`), declared questions locked in `priv/judgments/lock.json`, band tables published through
-`ash_decisions` (`SystemOne.BandTablePublication`) and evidence assertions (`SystemOne.Evidence`) all exist now, and
-judge actions call the model through `ash_judgments`. The ADR index records, per record, what of 0038–0047 is built and
-what is not ([`../adr/README.md`](../adr/README.md), correction of 2026-10-23). What is still missing here includes the
-automation principal ([ADR 0043](../adr/0043-automation-authority-is-a-grant.md)) and the offline learners
-([ADR 0047](../adr/0047-learning-produces-proposals.md)).
+**→ Roadmap.** The decisions are taken ([ADR 0038](../adr/0038-models-observe-declarations-decide.md)–[0047](../adr/0047-learning-produces-proposals.md));
+the loop is built and used, and what is listed above as missing is open, tracked in
+[`../plans/system-one.md`](../plans/system-one.md).
 
 ---
 
