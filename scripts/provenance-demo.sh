@@ -15,7 +15,7 @@
 #   4. Demo step 2: why on a derived field.
 #   5. Demo step 3: why on a judged fact; an erased document's atoms read erased.
 #   6. Demo step 4: a viewer without source read; not-found equivalence.
-#   7. Demo step 5, the assistant on /mcp: PENDING until the Why surface lands (P1-H4).
+#   7. Demo step 5, the assistant on /mcp: the explain tool by address, behind ont_why.
 #   8. Demo step 7: a recipe-written value names its publisher and grant.
 #   9. Demo step 6: the clinic's scenario apply is refused and a scenario run has its own rows
 #      (the clinic's own tests, from the checkout named by CLINIC_DEMO_DIR).

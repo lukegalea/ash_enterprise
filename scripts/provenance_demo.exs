@@ -12,6 +12,7 @@ defmodule ProvenanceDemo do
   require Ash.Query
 
   alias AshEnterprise.Audit.EventLog
+  alias AshEnterprise.Flags
   alias AshEnterprise.Platform.DemoTenant
   alias AshEnterprise.Provenance
   alias AshEnterprise.Provenance.DemoData
@@ -34,7 +35,7 @@ defmodule ProvenanceDemo do
     why_on_a_derived_value!(reader, tenant, handles)
     why_on_a_judged_fact!(reader, tenant, handles)
     why_as_a_viewer_without_the_source!(viewer, tenant, handles)
-    pending!("5 the assistant on /mcp", "the Why surface and the assistant tool (P1-H4)")
+    why_through_the_assistant!(reader, viewer, tenant, handles, admin)
     why_on_a_recipe_written_value!(reader, tenant, handles, admin)
   end
 
@@ -146,6 +147,43 @@ defmodule ProvenanceDemo do
     pass("a viewer without source read: the task and the fact are not found, as a missing id is")
   end
 
+  # Demo step 5: the assistant's explain tool on /mcp, given the address of the title. The
+  # `ont_why` flag is turned on for the demo tenant only, and offers the answer without
+  # authorizing it: the reader gets the steps as rows, never the value, and the viewer, who has
+  # no read grant, gets the one row an absent value gets.
+  defp why_through_the_assistant!(reader, viewer, tenant, handles, admin) do
+    admin_actor = DemoData.actor!(to_string(admin.email), tenant)
+    address = "#{Provenance.base()}/task/#{handles.task}#title"
+
+    {:error, off} = call_explain(reader, address)
+    expect!(off =~ "not turned on", "the flag off offers nothing", "not turned on", off)
+
+    Flags.set_flag!("ont_why", %{state: :on}, actor: admin_actor, tenant: tenant)
+
+    {:rows, rows} = call_explain(reader, address)
+    entries = Enum.filter(rows, &(&1["role"] == "entry"))
+    expect!(entries != [], "the reader is answered with steps", "entry rows", rows)
+
+    expect!(
+      Enum.any?(entries, &(&1["kind"] == "was_generated_by")),
+      "a step names the write that set the title",
+      "was_generated_by",
+      Enum.map(entries, & &1["kind"])
+    )
+
+    refute!(JSON.encode!(rows) =~ "Dana", "the title itself is in an answer")
+
+    {:rows, [hidden]} = call_explain(viewer, address)
+    {:rows, [absent]} = call_explain(viewer, "#{Provenance.base()}/task/#{Ash.UUID.generate()}#title")
+    expect!(hidden["role"] == "missing", "a viewer without the grant gets the missing row", "missing", hidden)
+    expect!(hidden["missing"] =~ "that you may read", "the missing row's words", "that you may read", hidden)
+
+    mask = fn row -> String.replace(row["missing"], ~r/task\/[0-9a-f-]{36}/, "task/ID") end
+    expect!(mask.(hidden) == mask.(absent), "a hidden value reads as an absent one", mask.(absent), mask.(hidden))
+
+    pass("the assistant on /mcp: the reader gets steps and no value; the viewer gets what an absent value gets")
+  end
+
   # Demo step 7: a value a recipe's step wrote names the principal, the person it acted for,
   # the dispatch and the standing grant it ran under, and never the person who caused the event.
   defp why_on_a_recipe_written_value!(reader, tenant, handles, admin) do
@@ -172,6 +210,29 @@ defmodule ProvenanceDemo do
 
   defp explain(actor, tenant, type, id, attribute) do
     Provenance.explain("#{Provenance.base()}/#{type}/#{id}##{attribute}", actor: actor, tenant: tenant)
+  end
+
+  # The explain tool on the loopback instance, called with `actor`'s bearer token.
+  defp call_explain(actor, address) do
+    {:ok, token, _claims} = AshAuthentication.Jwt.token_for_user(actor)
+
+    response =
+      Req.post!("http://127.0.0.1:#{System.fetch_env!("PORT")}/mcp",
+        auth: {:bearer, token},
+        json: %{
+          "jsonrpc" => "2.0",
+          "id" => 1,
+          "method" => "tools/call",
+          "params" => %{"name" => "explain", "arguments" => %{"input" => %{"address" => address}}}
+        }
+      )
+
+    expect!(response.status == 200, "the /mcp status", 200, response.status)
+
+    case response.body do
+      %{"result" => %{"isError" => false, "content" => [%{"text" => text}]}} -> {:rows, text |> JSON.decode!() |> List.wrap()}
+      %{"result" => %{"isError" => true} = result} -> {:error, JSON.encode!(result)}
+    end
   end
 
   defp recipe_task(tenant) do
@@ -206,7 +267,6 @@ defmodule ProvenanceDemo do
   defp refute!(true, message), do: raise(message)
 
   defp pass(message), do: IO.puts("PASS  #{message}")
-  defp pending!(step, waits_for), do: IO.puts("PENDING  step #{step}: waits for #{waits_for}")
 end
 
 ProvenanceDemo.run()
