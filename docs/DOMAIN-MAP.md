@@ -1493,7 +1493,7 @@ The documents surface: issuing real documents from the host's own data through t
 |---|---|---|---|
 | `ash_events` | fork | git @ bd5f4970 | [Audit](#audit) | Audit/event ledger with as-of capture/replay (ADR 0002). |
 | `ash_events_projections` | transitive | git @ 931d9fd0 | [Compliance](#compliance) | The projector engine behind compliance findings. |
-| `ash_strangler` | first-party | git @ b7134a6b | [Legacy estate](#legacy), [Change ledger](#ledger) | Strangler-fig mappings, ledger, drain. |
+| `ash_strangler` | first-party | git @ 5643da35 | [Legacy estate](#legacy), [Change ledger](#ledger) | Strangler-fig mappings, ledger, drain. |
 | `ash_operations` | first-party | git @ 84f2b221 | [Integration](#integration) | Declared provider operations + webhook ingress. |
 | `ash_discrete_business_events` | first-party | git @ 4badc1c3 | [Business events](#business-events) | SourceRecord landing + chained event ledger. |
 | `ash_mdm` | first-party | git @ f8db5fb3 | [Master data](#mdm) | Mappings-as-data, resolution, survivorship, merge. |
