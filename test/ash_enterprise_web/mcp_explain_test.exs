@@ -189,8 +189,10 @@ defmodule AshEnterpriseWeb.McpExplainTest do
         assert row["kind"] == Atom.to_string(want.relation)
         assert row["meaning"] == want.what
         assert row["by"] == want[:by]
+        assert row["on_behalf_of"] == want[:on_behalf_of]
         assert row["at"] == want[:at]
         assert row["summary"] == want[:summary]
+        assert row["from"] == want[:from]
         assert row["correlation_id"] == want[:correlation_id]
         refute Map.has_key?(row, "value")
       end

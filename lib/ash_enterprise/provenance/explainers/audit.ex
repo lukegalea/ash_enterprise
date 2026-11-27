@@ -16,6 +16,19 @@ defmodule AshEnterprise.Provenance.Explainers.Audit do
   read is the reader's own, and a Forbidden read passes, so the record columns
   answer at record granularity instead.
 
+  A value-granularity answer keeps the event honest: the value the event
+  recorded is restored with Ash's own API and compared with the current one,
+  and when they differ — the newest recorded write was not the write that left
+  today's value — the step is at `:record` granularity with no value, and a
+  `:not_recorded` gap says so. The summary names neither value. A value the
+  reader cannot see (`Ash.ForbiddenField`) is not compared.
+
+  An audited attribute with no event in either the hot log or the archive is a
+  `:not_recorded` gap, not a pass: the attribute's history was purged, or it
+  was written outside the recorded actions. A gap-only answer does not end the
+  dispatch, so the record columns answer after it. A resource that writes no
+  events, and a reader without the audit grant, pass.
+
   A read that fails for any other reason is a `:failed` gap, never "nothing
   happened"; an archive read that fails is `:archived`.
   """
@@ -25,6 +38,7 @@ defmodule AshEnterprise.Provenance.Explainers.Audit do
   alias AshEnterprise.Audit
   alias AshEnterprise.Erasure.Calculations.Unseal
   alias AshEnterprise.Provenance.{Explainer, Labels}
+  alias AshEnterprise.Security.ActorContext
   alias AshProvenance.{EntityRef, Gap, Step}
 
   # ADR 0080: the execution context a write ran in, mapped once. Anything the
@@ -89,20 +103,7 @@ defmodule AshEnterprise.Provenance.Explainers.Audit do
 
       {:ok, nil} ->
         # Nothing in the hot log: the newest write may have left it already.
-        case read_archived(subject, attribute, ctx) do
-          {:ok, nil} ->
-            # No event in either table changed this attribute.
-            :pass
-
-          {:ok, event} ->
-            {:ok, answer(event, subject, attribute, ctx)}
-
-          {:error, %Ash.Error.Forbidden{}} ->
-            :pass
-
-          {:error, _other} ->
-            {:ok, gap_answer(:archived, subject)}
-        end
+        archived_answer(subject, attribute, ctx)
 
       # A reader who may not read the log learns nothing from it.
       {:error, %Ash.Error.Forbidden{}} ->
@@ -110,6 +111,33 @@ defmodule AshEnterprise.Provenance.Explainers.Audit do
 
       {:error, _other} ->
         {:ok, gap_answer(:failed, subject)}
+    end
+  end
+
+  defp archived_answer(subject, attribute, ctx) do
+    case read_archived(subject, attribute, ctx) do
+      {:ok, nil} ->
+        # No event in either table changed this attribute. On an audited
+        # resource that is an answer about the evidence, not a pass: the
+        # attribute's history was purged, or it was written outside the
+        # recorded actions. A gap-only answer does not end the dispatch, so
+        # the record columns still answer after it. A resource that writes no
+        # events passes, and so does a reader whose grants reach nothing of
+        # the log — for them "no event" is no evidence.
+        if audit_readable?(ctx) and Audit.EventSource.audited?(subject.resource) do
+          {:ok, no_write_answer(subject)}
+        else
+          :pass
+        end
+
+      {:ok, event} ->
+        {:ok, answer(event, subject, attribute, ctx)}
+
+      {:error, %Ash.Error.Forbidden{}} ->
+        :pass
+
+      {:error, _other} ->
+        {:ok, gap_answer(:archived, subject)}
     end
   end
 
@@ -158,6 +186,10 @@ defmodule AshEnterprise.Provenance.Explainers.Audit do
         :value
       end
 
+    # A value-granularity answer is only one when the event's own recorded
+    # value is the value the reader reads now.
+    {granularity, value_gaps} = value_evidence(event, subject, attribute, granularity)
+
     # The anchor the step's record sits on (ADR 0078, section 7), read once
     # per explain call: nil means "not checked", never "verified".
     {integrity, cache} = integrity_of(event, ctx)
@@ -187,7 +219,7 @@ defmodule AshEnterprise.Provenance.Explainers.Audit do
 
     %{
       steps: [generated_by] ++ associated_with ++ behalf ++ used,
-      gaps: agent_gaps,
+      gaps: agent_gaps ++ value_gaps,
       antecedents: [],
       correlation_ids: %{activity => correlation_id(event)},
       cache: cache
@@ -199,6 +231,49 @@ defmodule AshEnterprise.Provenance.Explainers.Audit do
   defp integrity_of(event, ctx) do
     {verification, cache} = AshEnterprise.Provenance.Integrity.verification(ctx)
     {AshEnterprise.Provenance.Integrity.step_integrity(event, verification), cache}
+  end
+
+  # The event's own claim, checked: the value it recorded is restored with
+  # Ash's own API and compared with the value the reader reads now. A write
+  # outside the recorded actions (a SQL backfill, a database cascade) left no
+  # event, so the newest recorded write of the attribute may not show its
+  # current value. That answer stays at `:record` granularity with no value —
+  # the event changed the record, and nothing says it wrote this value — and a
+  # `:not_recorded` gap says so. The summary carries neither value. Only a
+  # plain readable value is compared: a `%Ash.ForbiddenField{}` is what the
+  # reader cannot see, so there is nothing to compare against.
+  @value_gap_summary "The newest recorded write of this attribute does not show its current value."
+
+  defp value_evidence(event, subject, attribute, granularity) do
+    if granularity == :value and not match?(%Ash.ForbiddenField{}, subject.value) and
+         not records_current?(event, attribute, subject.value) do
+      {:record, [Gap.new!(kind: :not_recorded, of: subject.address, summary: @value_gap_summary)]}
+    else
+      {granularity, []}
+    end
+  end
+
+  defp records_current?(event, attribute, current) do
+    raw = recorded_raw(event, Atom.to_string(attribute.name))
+
+    try do
+      case Ash.Type.cast_from_embedded(attribute.type, raw, attribute.constraints) do
+        {:ok, recorded} -> Ash.Type.equal?(attribute.type, recorded, current)
+        _not_restorable -> false
+      end
+    rescue
+      _restoration_or_comparison_failed -> false
+    end
+  end
+
+  # An attribute an action took as input is keyed in `data`; the rest is in
+  # `changed_attributes`. Both are JSON-decoded maps from jsonb.
+  defp recorded_raw(event, name) do
+    changed = event.changed_attributes || %{}
+
+    if Map.has_key?(changed, name),
+      do: Map.get(changed, name),
+      else: Map.get(event.data || %{}, name)
   end
 
   # -- Agents --------------------------------------------------------------
@@ -401,6 +476,35 @@ defmodule AshEnterprise.Provenance.Explainers.Audit do
       antecedents: [],
       correlation_ids: %{}
     }
+  end
+
+  # No recorded write of the attribute, on an audited resource: the write's
+  # evidence is missing, and the summary says which of the two ways that
+  # happens. It carries no value and no identifiers.
+  @no_write_gap_summary "No recorded write of this attribute: its history was purged, or it was written outside the recorded actions."
+
+  defp no_write_answer(subject) do
+    %{
+      steps: [],
+      gaps: [Gap.new!(kind: :not_recorded, of: subject.address, summary: @no_write_gap_summary)],
+      antecedents: [],
+      correlation_ids: %{}
+    }
+  end
+
+  # The reader may read the log at all. The log's grant is a filter check, so
+  # a read it does not reach comes back empty — the same `{:ok, nil}` an empty
+  # log gives — and only a reader whose reads reach the log can tell "never
+  # recorded" from "not theirs to see". Only a `:global` grant reaches the log
+  # (its policy says so), the reach the execution authority asks for too.
+  defp audit_readable?(ctx) do
+    context = ActorContext.for_actor(ctx.actor)
+
+    context.system? or
+      match?(
+        %ActorContext.Grant{global?: true},
+        ActorContext.grant(context, Audit.EventLog, :read)
+      )
   end
 
   # Structural only: which action type ran, never its arguments or messages.

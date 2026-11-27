@@ -19,6 +19,7 @@ defmodule AshEnterpriseWeb.WhyLiveTest do
   alias AshEnterprise.Canonical.Task
   alias AshEnterprise.Flags
   alias AshEnterprise.Provenance
+  alias AshEnterprise.Security.Impersonation
 
   @title "SYNTHETIC-TITLE book the venue"
 
@@ -110,5 +111,34 @@ defmodule AshEnterpriseWeb.WhyLiveTest do
 
     assert report_rows(messages) == []
     refute JSON.encode!(messages) =~ @title
+  end
+
+  test "rows keep on behalf of when the answer has one", %{
+    admin: admin,
+    reader: reader
+  } do
+    turn_on!(admin)
+
+    subject = member!(admin, "Subject #{System.unique_integer([:positive])}", [])
+    operator = member!(admin, "Operator #{System.unique_integer([:positive])}", [])
+
+    # The subject's write, made while the operator held the keyboard.
+    actor = Impersonation.acting_as(subject.actor, operator.user.id)
+
+    task =
+      Task.capture!("SYNTHETIC-TITLE the impersonated write", %{},
+        actor: actor,
+        tenant: admin.tenant,
+        authorize?: false
+      )
+
+    {:ok, view, _html} = live(sign_in(reader.user), "/app/why")
+    messages = ask(view, "#{Provenance.base()}/task/#{task.id}#title")
+    rows = report_rows(messages)
+    assert rows != [], JSON.encode!(messages)
+
+    assert Enum.any?(rows, fn row ->
+             row["what"] == "on behalf of" and row["on_behalf_of"] == subject.email
+           end)
   end
 end

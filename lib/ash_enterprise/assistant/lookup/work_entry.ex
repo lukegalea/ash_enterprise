@@ -36,6 +36,9 @@ defmodule AshEnterprise.Assistant.Lookup.WorkEntry do
       masked text and nothing else), whether the step is about the value or its record,
       the execution context, the chain status, and the correlation id of the write.
       A value is never put in a row (see `AshEnterprise.Assistant.Lookups.Work`).
+    * `on_behalf_of` and `from` — also only on a value's answer: whom an act was
+      done for, and what a step read from or used (a recipe step names the standing
+      grant it ran under, as `"<type>:<id>"`).
   """
 
   use AshEnterprise.Platform.Resource,
@@ -68,6 +71,8 @@ defmodule AshEnterprise.Assistant.Lookup.WorkEntry do
     attribute :under, :string, public?: true
     attribute :definition, :string, public?: true
     attribute :by, :string, public?: true
+    attribute :on_behalf_of, :string, public?: true
+    attribute :from, :string, public?: true
     attribute :summary, :string, public?: true
     attribute :missing, :string, public?: true
     attribute :value, :string, public?: true

@@ -23,7 +23,20 @@ defmodule AshEnterpriseWeb.A2ui.WhyUI do
     component :report, :why do
       action(:why)
       params([:address])
-      fields([:what, :value, :by, :at, :summary, :granularity, :context, :integrity, :plan])
+
+      fields([
+        :what,
+        :value,
+        :by,
+        :on_behalf_of,
+        :from,
+        :at,
+        :summary,
+        :granularity,
+        :context,
+        :integrity,
+        :plan
+      ])
     end
 
     field :address do
@@ -40,6 +53,14 @@ defmodule AshEnterpriseWeb.A2ui.WhyUI do
 
     field :by do
       label("By")
+    end
+
+    field :on_behalf_of do
+      label("On behalf of")
+    end
+
+    field :from do
+      label("From")
     end
 
     field :at do

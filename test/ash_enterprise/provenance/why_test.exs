@@ -7,7 +7,7 @@ defmodule AshEnterprise.Provenance.WhyTest do
   use ExUnit.Case, async: true
 
   alias AshEnterprise.Provenance.Why
-  alias AshProvenance.{Address, Explanation, Gap, Step}
+  alias AshProvenance.{Address, EntityRef, Explanation, Gap, Step}
 
   @base "https://example.test/id"
 
@@ -64,6 +64,32 @@ defmodule AshEnterprise.Provenance.WhyTest do
 
     [row] = Why.rows(explanation([step(%{execution_context: :live})], []), %{})
     assert row.context == "live"
+  end
+
+  test "a used step names the record it used, and a delegated step names whom it was for" do
+    grant =
+      EntityRef.new!(resource: "agent_start_grant", id: "00000000-0000-0000-0000-000000000001")
+
+    [used, behalf] =
+      Why.rows(
+        explanation(
+          [
+            step(%{
+              relation: :used,
+              entity: grant,
+              activity: "dispatch:00000000-0000-0000-0000-000000000002"
+            }),
+            step(%{relation: :acted_on_behalf_of, on_behalf_of: "publisher@example.test"})
+          ],
+          []
+        ),
+        %{}
+      )
+
+    # A `:used` step has no antecedent: what it names is the record it used.
+    assert used.from == "agent_start_grant:00000000-0000-0000-0000-000000000001"
+    assert behalf.by == "Dana"
+    assert behalf.on_behalf_of == "publisher@example.test"
   end
 
   test "an unreadable gap carries its kind and what it was of, and nothing else" do

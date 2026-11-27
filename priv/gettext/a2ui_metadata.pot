@@ -1522,6 +1522,7 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:454
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:557
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
 msgid "From"
 msgstr ""
 
@@ -2246,6 +2247,10 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 msgctxt "one_of:status"
 msgid "Omitted"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/why_ui.ex:1
+msgid "On behalf of"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1

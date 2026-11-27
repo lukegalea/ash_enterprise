@@ -10,7 +10,7 @@ defmodule AshEnterprise.Provenance.ErasedTest do
 
   use AshEnterprise.DataCase, async: false
 
-  import AshEnterprise.Test.DailyFixtures, only: [tenant!: 1, member!: 3, scope!: 1]
+  import AshEnterprise.Test.DailyFixtures, only: [tenant!: 1, member!: 3, scope!: 1, person!: 3]
 
   alias AshEnterprise.Audit.EventLog
   alias AshEnterprise.Canonical.Task
@@ -140,5 +140,106 @@ defmodule AshEnterprise.Provenance.ErasedTest do
       actor: ctx.actor,
       tenant: ctx.tenant
     )
+  end
+
+  describe "an erased person" do
+    # A person erasure blanks the plaintext `name` on the row, so it is plain
+    # nil, not a `Shredded`. Only a person erasure blanks it, so a nil reads
+    # as erased only when the reader may read the erase's receipt.
+    setup do
+      operator = tenant!(operator?: true)
+      unique = System.unique_integer([:positive])
+      email = "erased-person-#{unique}@example.test"
+      name = "Erased Person #{unique}"
+
+      reader =
+        member!(operator, "Erased reader #{unique}", [
+          {AshEnterprise.Canonical.Person, :read, :basic},
+          {EventLog, :read, :global},
+          {PersonErasure, :read, :global},
+          {AshEnterprise.Accounts.User, :read, :global}
+        ])
+
+      person = person!(reader, email, name)
+
+      assert {:ok, receipt} =
+               Erasure.erase_person(email, email, "test",
+                 actor: operator.actor,
+                 tenant: operator.tenant
+               )
+
+      %{reader: reader, person: person, email: email, name: name, receipt: receipt}
+    end
+
+    test "a blanked name reads as erased with the receipt, and the sealed address keeps its own",
+         %{
+           reader: reader,
+           person: person,
+           email: email,
+           name: name,
+           receipt: receipt
+         } do
+      {:ok, %{explanation: explanation}} = explain(reader, "person", person.id, "name")
+
+      assert [%{kind: :erased, receipt: name_receipt}] =
+               Enum.filter(explanation.gaps, &(&1.kind == :erased))
+
+      assert name_receipt == "person_erasure:" <> to_string(receipt.id)
+
+      {:ok, %{explanation: email_explanation}} = explain(reader, "person", person.id, "email")
+
+      assert [%{kind: :erased, receipt: email_receipt}] =
+               Enum.filter(email_explanation.gaps, &(&1.kind == :erased))
+
+      assert email_receipt == name_receipt
+
+      # Neither answer carries the name or the address it erased.
+      for answer <- [explanation, email_explanation] do
+        refute inspect(answer) =~ name
+        refute inspect(answer) =~ email
+      end
+    end
+
+    test "a reader who may not read the receipt is told nothing of the erase", %{
+      operator: operator
+    } do
+      unique = System.unique_integer([:positive])
+
+      blind =
+        member!(operator, "No receipts #{System.unique_integer([:positive])}", [
+          {AshEnterprise.Canonical.Person, :read, :basic},
+          {EventLog, :read, :global},
+          {AshEnterprise.Accounts.User, :read, :global}
+        ])
+
+      # A person row is owner-only, so the member who reads the answer owns it.
+      email = "blinded-person-#{unique}@example.test"
+      blind_person = person!(blind, email, "Blinded Person #{unique}")
+
+      assert {:ok, _receipt} =
+               Erasure.erase_person(email, email, "test",
+                 actor: operator.actor,
+                 tenant: operator.tenant
+               )
+
+      result = explain(blind, "person", blind_person.id, "name")
+      assert {:ok, %{explanation: explanation}} = result
+
+      assert Enum.filter(explanation.gaps, &(&1.kind == :erased)) == []
+      refute inspect(result) =~ "person_erasure:"
+      refute inspect(result) =~ "Blinded Person #{unique}"
+      refute inspect(result) =~ email
+    end
+
+    test "a person still standing reads no erased gap", %{reader: reader} do
+      unique = System.unique_integer([:positive])
+
+      live =
+        person!(reader, "standing-person-#{unique}@example.test", "Standing Person #{unique}")
+
+      {:ok, %{explanation: explanation}} = explain(reader, "person", live.id, "name")
+
+      assert Enum.filter(explanation.gaps, &(&1.kind == :erased)) == []
+    end
   end
 end

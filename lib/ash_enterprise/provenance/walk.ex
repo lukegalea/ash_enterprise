@@ -23,7 +23,10 @@ defmodule AshEnterprise.Provenance.Walk do
 
   An explainer whose answer holds only gaps (a failed evidence read, say) does
   not end the dispatch: the next explainer is still asked, so a `:failed` audit
-  read never hides the record columns behind it.
+  read never hides the record columns behind it. An answer with nothing in it —
+  no steps, no antecedents, no gaps — is a pass the same way: the next explainer
+  is asked and `answered` stays what it was, so a calculation no explainer can
+  read metadata for never reads as explained.
   """
 
   alias AshEnterprise.Provenance.Registry
@@ -353,6 +356,29 @@ defmodule AshEnterprise.Provenance.Walk do
     [Gap.new!(kind: :erased, of: address, receipt: receipt(value.erasure_scope_id, ctx))]
   end
 
+  # A person erasure also *blanks* the plaintext `sensitive?` attributes it does
+  # not shred (a person's name, their blind index, the pre-seal column), so they
+  # read as plain nil. Only a person erasure blanks them, so a nil on a row that
+  # still carries its erasure scope reads as erased — and its receipt is named
+  # as for a shredded value, only to a reader who may read one; a reader who may
+  # not is told nothing about an erase. The dispatch continues either way: the
+  # write history is not erased, so the audit explainer still answers. Nothing
+  # else is read.
+  defp erased_gaps(
+         %{value: nil, address: address, resource: resource, record: record, field: field},
+         ctx
+       ) do
+    with %Ash.Resource.Attribute{sensitive?: true} <- Ash.Resource.Info.attribute(resource, field),
+         %Ash.Resource.Attribute{} <-
+           Ash.Resource.Info.attribute(resource, :erasure_scope_id),
+         scope_id when not is_nil(scope_id) <- record.erasure_scope_id,
+         found when not is_nil(found) <- receipt(scope_id, ctx) do
+      [Gap.new!(kind: :erased, of: address, receipt: found)]
+    else
+      _not_a_blanked_field_or_no_receipt -> []
+    end
+  end
+
   defp erased_gaps(_subject, _ctx), do: []
 
   # The shred's receipt is named only to a reader who may read one (ADR 0078,
@@ -432,19 +458,30 @@ defmodule AshEnterprise.Provenance.Walk do
           |> take_correlations(answer)
           |> take_cache(answer)
 
-        cond do
-          state.cut? ->
-            # The step bound cut the answer; the walk stops here.
-            {:halt, {state, true, []}}
-
-          answer.steps == [] and answer.antecedents == [] ->
-            # A gap-only answer: the next explainer may still add steps.
-            {:cont, {state, true, []}}
-
-          true ->
-            {:halt, {state, true, Enum.map(answer.antecedents, &{&1, depth + 1})}}
-        end
+        conclude(answer, state, answered, next, depth)
     end
+  end
+
+  # The step bound cut the answer; the walk stops here.
+  defp conclude(_answer, %{cut?: true} = state, _answered, _next, _depth) do
+    {:halt, {state, true, []}}
+  end
+
+  # Nothing in the answer: a pass, not an answered question. The next
+  # explainer is asked, and `answered` stays what it was — its cache and
+  # correlation ids are merged already, and merging them is harmless.
+  defp conclude(%{steps: [], antecedents: []} = answer, state, answered, next, _depth)
+       when answer.gaps in [nil, []] do
+    {:cont, {state, answered, next}}
+  end
+
+  # A gap-only answer: the next explainer may still add steps.
+  defp conclude(%{steps: [], antecedents: []}, state, _answered, _next, _depth) do
+    {:cont, {state, true, []}}
+  end
+
+  defp conclude(answer, state, _answered, _next, depth) do
+    {:halt, {state, true, Enum.map(answer.antecedents, &{&1, depth + 1})}}
   end
 
   defp take_steps(state, answer, limits) do

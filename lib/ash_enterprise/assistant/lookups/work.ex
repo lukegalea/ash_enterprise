@@ -110,10 +110,12 @@ defmodule AshEnterprise.Assistant.Lookups.Work do
       granularity: row.granularity,
       value: row[:masked?] && row.value,
       by: row[:by],
+      on_behalf_of: row[:on_behalf_of],
       at: row[:at],
       summary: row[:summary],
       definition: row[:plan],
       entry: row[:activity],
+      from: row[:from],
       context: row[:context],
       integrity: row[:integrity],
       correlation_id: row[:correlation_id]

@@ -58,7 +58,7 @@ defmodule AshEnterprise.Provenance.Why do
       plan: step.plan && Plan.format(step.plan),
       context: context(step.execution_context),
       integrity: integrity(step.integrity),
-      from: step.antecedent && ref(step.antecedent),
+      from: from(step),
       activity: step.activity,
       correlation_id: step.activity && Map.get(correlation_ids, step.activity)
     })
@@ -110,6 +110,13 @@ defmodule AshEnterprise.Provenance.Why do
 
   defp ref(%Address{} = address), do: Address.to_iri(address)
   defp ref(%EntityRef{resource: type, id: id}), do: type <> ":" <> Address.encode_id(id)
+
+  # Where a step's answer came from: an antecedent's address, or, for a step
+  # that used a record (a recipe step's standing grant), that record's
+  # reference (`"<type>:<id>"`).
+  defp from(%Step{antecedent: %Address{} = antecedent}), do: ref(antecedent)
+  defp from(%Step{relation: :used, entity: %EntityRef{} = entity}), do: ref(entity)
+  defp from(%Step{}), do: nil
 
   defp stamp(nil), do: nil
   defp stamp(at), do: LocalTime.stamp(at)

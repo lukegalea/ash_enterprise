@@ -3,7 +3,9 @@ defmodule AshEnterprise.Provenance.ArchiveTest do
   The archive (ADR 0078, section 3, `:archived` gap's neighbour): an event
   older than ninety days moved to `AshEnterprise.Audit.ArchivedEvent` still
   answers, read under the same grant as the hot log. A reader without the
-  audit grant gets no audit step from the archive either.
+  audit grant gets no audit step from the archive either. An archived write
+  whose recorded value is not the value read today answers at record
+  granularity, with a `:not_recorded` gap saying so.
   """
 
   use AshEnterprise.DataCase, async: false
@@ -16,6 +18,8 @@ defmodule AshEnterprise.Provenance.ArchiveTest do
   alias AshEnterprise.Provenance
   alias AshEnterprise.Repo
 
+  @value_gap_summary "The newest recorded write of this attribute does not show its current value."
+
   setup do
     # The tenant does not exist yet: the planted event enters its chain before
     # any bootstrap write, so it is the head of the leading run of old events
@@ -25,7 +29,7 @@ defmodule AshEnterprise.Provenance.ArchiveTest do
     unique = System.unique_integer([:positive])
 
     task = task!(org, "Archive #{unique}")
-    planted = plant_title_event!(org, task, "Written long ago", 120)
+    planted = plant_title_event!(org, task, task.title, 120)
 
     admin = tenant!(organization_id: org)
 
@@ -36,7 +40,7 @@ defmodule AshEnterprise.Provenance.ArchiveTest do
         {User, :read, :global}
       ])
 
-    %{admin: admin, reader: reader, task: task, planted: planted}
+    %{admin: admin, reader: reader, task: task, planted: planted, org: org}
   end
 
   test "an event that left the hot log still answers, from the archive", %{
@@ -63,6 +67,38 @@ defmodule AshEnterprise.Provenance.ArchiveTest do
     assert generated.activity == "audit_event:" <> to_string(planted)
     assert generated.granularity == :value
     assert generated.value == {:value, task.title}
+  end
+
+  test "an archived write that does not show the current value says so", %{
+    admin: admin,
+    org: org,
+    reader: reader,
+    task: task,
+    planted: planted
+  } do
+    # A write outside the recorded actions left today's value: the newest
+    # event that changed `title` is the one this test plants after setup's,
+    # and its recorded title is not the title the reader reads.
+    backfilled =
+      plant_title_event!(org, task, "Backfilled #{System.unique_integer([:positive])}", 1)
+
+    assert {:ok, %{audit: _steps}} = Retention.archive()
+
+    refute hot?(admin.tenant, planted)
+    assert archived?(admin.tenant, planted)
+
+    {:ok, %{explanation: explanation}} = explain(reader, "task", task.id, "title")
+
+    # The newest recorded write (planted or not) named, but at record
+    # granularity: nothing shows it wrote today's value.
+    generated = step(explanation, :was_generated_by)
+    assert generated.activity == "audit_event:" <> to_string(backfilled)
+    assert generated.granularity == :record
+    assert generated.value == nil
+
+    assert Enum.any?(explanation.gaps, fn gap ->
+             gap.kind == :not_recorded and gap.summary == @value_gap_summary
+           end)
   end
 
   test "a reader without the audit grant gets no audit step from the archive either", %{

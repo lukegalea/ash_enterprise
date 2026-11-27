@@ -190,7 +190,8 @@ defmodule ProvenanceDemo do
     title_task = recipe_task(tenant)
     expect!(title_task == handles.recipe_task, "the recipe's task", handles.recipe_task, title_task)
 
-    {:ok, %{explanation: explanation}} = explain(reader, tenant, "task", handles.recipe_task, "title")
+    {:ok, %{explanation: explanation, correlation_ids: correlation_ids}} =
+      explain(reader, tenant, "task", handles.recipe_task, "title")
 
     behalf = step!(explanation, :acted_on_behalf_of)
     expect!(behalf.agent_label == "an automation principal (recipe_runner)", "the runner", "recipe_runner", behalf.agent_label)
@@ -201,6 +202,14 @@ defmodule ProvenanceDemo do
     used = step!(explanation, :used)
     expect!(used.entity.resource == "agent_start_grant", "the grant", "agent_start_grant", used.entity.resource)
     expect!(used.entity.id == handles.grant, "the grant's id", handles.grant, used.entity.id)
+
+    # The rows the Why page and the tool show carry the publisher and the grant too.
+    rows = Provenance.Why.rows(explanation, correlation_ids)
+    behalf_row = Enum.find(rows, &(&1.relation == :acted_on_behalf_of))
+    expect!(behalf_row[:on_behalf_of] == publisher, "the row's on behalf of", publisher, behalf_row[:on_behalf_of])
+    grant_ref = "agent_start_grant:" <> handles.grant
+    used_row = Enum.find(rows, &(&1.relation == :used))
+    expect!(used_row[:from] == grant_ref, "the row's grant", grant_ref, used_row[:from])
 
     refute!(inspect(explanation) =~ to_string(admin.email), "the person who caused the event is named")
     pass("why on a recipe-written value: recipe_runner for the publisher, under the dispatch and its grant")

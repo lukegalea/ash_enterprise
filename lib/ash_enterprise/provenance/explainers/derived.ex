@@ -10,9 +10,13 @@ defmodule AshEnterprise.Provenance.Explainers.Derived do
   dispatched again — except a secured column (ADR 0073), which is named as the
   antecedent and never dispatched, whether or not the reader holds its grant
   (ADR 0078, section 6: what a derivation reads of a secured column is exactly
-  what the column's grant withholds). An aggregate, or a ref through a
-  relationship, is one record-granularity step and is not recursed into: no
-  per-row reads.
+  what the column's grant withholds). A name in `load/3` that is a relationship
+  of the subject's resource is one record-granularity step per relationship
+  (`calculation over <name>`), and an aggregate one (`aggregate over <path>`);
+  neither is recursed into: no per-row reads. A calculation given as an
+  anonymous function carries no metadata about what it reads, and passes. An explainer answer with no steps, no antecedents and no gaps
+  never leaves here: what cannot be named is a pass, and the walk's
+  `:not_recorded` gap stands.
 
   A decrypting calculation over sealed content
   (`AshEnterprise.Erasure.Calculations.Unseal`) is not a derivation and passes.
@@ -56,15 +60,16 @@ defmodule AshEnterprise.Provenance.Explainers.Derived do
       {Ash.Resource.Calculation.Expression, opts} ->
         refs_answer(Ash.Filter.list_refs(opts[:expr]), subject)
 
+      {Ash.Resource.Calculation.Function, _opts} ->
+        # A function calculation has no metadata to read: nothing names its
+        # inputs, so it is a pass, never an empty answer.
+        :pass
+
       module when is_atom(module) ->
         load_answer(module, [], subject)
 
       {module, opts} when is_atom(module) ->
         load_answer(module, opts, subject)
-
-      _function ->
-        # A function-based calculation has no metadata to read.
-        :pass
     end
   end
 
@@ -91,9 +96,37 @@ defmodule AshEnterprise.Provenance.Explainers.Derived do
          }}
 
       names ->
-        {steps, antecedents} = derived_from_fields(names |> load_names() |> Enum.uniq(), subject)
+        names = names |> load_names() |> Enum.uniq()
 
-        {:ok, %{steps: steps, gaps: [], antecedents: antecedents, correlation_ids: %{}}}
+        {relationship_names, rest} =
+          Enum.split_with(names, &Ash.Resource.Info.relationship(subject.resource, &1))
+
+        {aggregate_names, field_names} =
+          Enum.split_with(rest, &Ash.Resource.Info.aggregate(subject.resource, &1))
+
+        relationship_steps =
+          Enum.map(relationship_names, fn name ->
+            over_relationship(subject, "calculation", Atom.to_string(name))
+          end)
+
+        aggregate_steps =
+          Enum.map(aggregate_names, fn name ->
+            over_relationship(
+              subject,
+              "aggregate",
+              path(Ash.Resource.Info.aggregate(subject.resource, name))
+            )
+          end)
+
+        {field_steps, antecedents} = derived_from_fields(field_names, subject)
+
+        {:ok,
+         %{
+           steps: field_steps ++ relationship_steps ++ aggregate_steps,
+           gaps: [],
+           antecedents: antecedents,
+           correlation_ids: %{}
+         }}
     end
   end
 
