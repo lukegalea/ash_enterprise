@@ -19,3 +19,4 @@
 - A runner records the journey's texts with `AshJourneys.L10n.texts/3`, in the run's locale and with the `AshA2ui.Manifest` options the surfaces rendered with. A projection checks an approved run with `AshJourneys.Lock.verify/6` before showing anything from it.
 - Pass `gettext: MyApp.Gettext` to `use AshJourneys.Journeys`. Put `mix ash_journeys.gettext.extract --check-up-to-date` in the static checks, and translate `journeys.pot` with `mix gettext.merge`.
 - Publish pages with `mix ash_journeys.export`, which reads only approved runs. A runner paints masked regions `AshJourneys.Export.capture_mask_color/0` (magenta, Playwright's default), so published pages can show them neutral.
+- Export a run for report tooling with `mix ash_journeys.export.messages <run-dir>`. It is a projection: a retried, errored or unmeasured step is never `PASSED`, so a runner that leaves a value `nil` gets `UNKNOWN`, not a pass.

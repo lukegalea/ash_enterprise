@@ -297,6 +297,7 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_a
 - `mix ash_greenmask.gen.config` - Generates greenmask.yml from the resource declarations
 - `mix ash_journeys.approve` - Publishes a passing run's figures and manifests, and updates the lock
 - `mix ash_journeys.export` - Writes each approved journey as a documentation page per locale
+- `mix ash_journeys.export.messages` - Writes a run as a Cucumber Messages NDJSON stream
 - `mix ash_journeys.gettext.extract` - Extracts journeys' titles and narration into a .pot file
 - `mix ash_journeys.impact` - Shows what approving a run would change, with changed figures side by side
 - `mix ash_journeys.lock` - Reports, or checks, whether every journey's approved run proves its declaration
