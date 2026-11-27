@@ -424,6 +424,13 @@ jobs:
       # main job holds the --warnings-as-errors gate.
       - run: mix deps.compile
 
+      # ash_browser_tests defines AshBrowserTests.Journeys only when ash_journeys
+      # is there to compile against, and Mix does not recompile the package when
+      # that changes: its files are the same. A cache restored from a lock
+      # without ash_journeys then has no journey runner, and every journey test
+      # file fails to compile. Rebuilding the package costs seconds.
+      - run: mix deps.compile ash_browser_tests --force
+
       # Under the CANARY_INSTRUMENT preamble, so long verifications print
       # "[long verification]" lines into this log. The instrument degrades to
       # a no-op on any Elixir without the API.
@@ -597,8 +604,11 @@ jobs:
 
       # Dependencies first, so their warnings stay in their own step; the
       # main job holds the --warnings-as-errors gate.
+      # ash_browser_tests is rebuilt for the reason given in the shards job.
       - id: deps-compile
-        run: mix deps.compile
+        run: |
+          mix deps.compile
+          mix deps.compile ash_browser_tests --force
 
       - name: Durability tier
         if: ${{ !cancelled() && steps.deps-compile.outcome == 'success' }}
@@ -1149,6 +1159,8 @@ jobs:
 
       - run: mix deps.get
       - run: mix deps.compile
+      # ash_browser_tests is rebuilt for the reason given in the shards job.
+      - run: mix deps.compile ash_browser_tests --force
 
       - uses: actions/setup-node@v4
         with:
