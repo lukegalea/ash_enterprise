@@ -177,6 +177,21 @@ implements the behaviour); `:facts` passes triples directly. Options other
 than `:organization`, `:bundle`, `:facts` and `:fact_builder` reach the
 builder, so the guard's `transition_to` works the same way here.
 
+`:bundle` takes a stored `PolicyBundle` or an `AshRules.Ir.Bundle`. An IR
+bundle is normalised to the stored spelling before evaluation, so pass
+`MyRules.__bundle__()` as it is: do not round-trip it through
+`AshRules.Ir.encode!/1` and `decode!/1` first. The bundle hash and revision
+do not change.
+
+To drive an interview off an `:unknown` status, call
+`AshCompliance.status_questions(status, bundle)` (`AshCompliance.Status.questions/2`)
+with the same bundle. It returns `{:ok, entries}`, one string-keyed map per
+(rule, subject, predicate) for each absence declared `missing: :unknown` that
+an unknown rule probes: `"rule"`, `"message"`, `"evidence"`, `"subject"`,
+`"predicate"`, `"question"` (the fact's schema description). Do not filter
+`missing_facts` yourself. An empty list never means compliant: keep treating
+`:unknown` as blocking.
+
 ## RulesetEditorLive
 
 `use AshCompliance.Web.RulesetEditorLive, domain: ..., organization: ...,
@@ -283,3 +298,8 @@ it records evidence for. Add the function in the same change that makes the
 producer call the evidence writer, then keep the flag on in CI. A `file:`
 producer is never proven. A freshness waiver silences only with a requester
 different from its approver and a window of at most 90 days.
+
+A producer that can run outside production passes `environment_class:` to
+`Evidence.record/4`, in the Boundary's terms (`:production` or
+`:non_production`). The sweep never counts a `:non_production` artifact, so
+never mark a test or staging run `:production` to make a control fresh.
