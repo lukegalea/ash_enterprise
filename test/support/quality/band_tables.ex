@@ -56,10 +56,9 @@ defmodule AshEnterprise.Test.Quality.BandTables do
   @doc """
   Records a certification of `definition` as a person in a tenant of their own, and
   returns it. `overrides` replace the recorded fields (`definition_version`,
-  `content_hash`, `status`).
+  `content_hash`, `status`, `calibration_run_id`); `tenant` is the certifier's.
   """
-  def certify!(definition, overrides \\ %{}) do
-    tenant = Ash.UUID.generate()
+  def certify!(definition, overrides \\ %{}, tenant \\ Ash.UUID.generate()) do
     certifier = person(tenant: tenant)
 
     BandTableCertification

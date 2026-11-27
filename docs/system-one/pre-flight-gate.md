@@ -32,17 +32,27 @@ This repository's rules:
 
 | Rule | Answer | Source |
 |---|---|---|
-| `ae_ci_force_push` | allow `git push -f origin HEAD:refs/heads/ci/<name>`, exactly | CLAUDE.md:57-60, ship-a-change:66 |
+| `ae_ci_force_push` | allow `git push -f origin HEAD:refs/heads/ci/<name>`, exactly, with a `-C` directory spelled as a plain path | CLAUDE.md:57-60, ship-a-change:66 |
 | `ae_ecto_drop_shared` | deny `mix ecto.drop`/`ecto.reset` without `DB_NAME` | ship-a-change:24, :106 |
 | `ae_ecto_drop_own` | ask before dropping a database the command names | ship-a-change:106 |
-| `ae_bare_mix` | deny `mix` outside `devenv shell --` | CLAUDE.md:13-14 |
+| `ae_bare_mix` | deny `mix` run as a command outside quotes, which is outside `devenv shell --` | CLAUDE.md:13-14 |
 | `ae_phx_server` | ask before `mix phx.server` | CLAUDE.md:27 |
 | `ae_vendored_cdm` | deny edits under `priv/cdm/schemaDocuments/` | CLAUDE.md:54-55 |
 | `ae_generated_migration` | deny edits to migrations and resource snapshots | CLAUDE.md:52, 43-44 |
 | `ae_agents_md` | ask before editing `AGENTS.md` | CLAUDE.md:86-87 |
 
-Force to `main` or any other branch, and a compound command that hides a
-second push, fall through to the seed's `gate_force_push` and are denied.
+Force to `main` or any other branch, a compound command that hides a
+second push, and a `-C` directory the shell would compute (`$(...)`, a
+backtick), fall through to the seed's `gate_force_push` and are denied.
+
+The tables read the command with the shell's other spellings of a plain
+command written plainly (`$IFS` as a space, an unquoted newline as `;`,
+`"--force"` as `--force`). A file path is relative to its own nearest
+repository, so the path rules see a file in a worktree under
+`.claude/worktrees/` from a session whose cwd is the main checkout. Shell
+and file-writing MCP tools meet the same rules as `Bash` and `Edit`, and
+a tool that evaluates code (Tidewave's `project_eval`) is asked about:
+no pattern can read it.
 
 Every decision is appended to `.agents/logs/gate.jsonl` (ignored by git)
 with the rule, the table's SHA-256 and the rules the engine matched. No

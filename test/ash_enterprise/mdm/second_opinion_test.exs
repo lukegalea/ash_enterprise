@@ -181,6 +181,40 @@ defmodule AshEnterprise.Mdm.SecondOpinionTest do
       assert queue(ctx) == []
     end
 
+    test "an admitted yes from a table certified for another instrument changes nothing", ctx do
+      other_digest = %{@instrument | model_digest: "sha256:" <> String.duplicate("d", 64)}
+      other_runtime = %{@instrument | runtime_version: "synthetic-runtime-2"}
+
+      for instruments <- [
+            [certified_instrument(other_digest)],
+            [certified_instrument(other_runtime)],
+            []
+          ] do
+        {candidate, staged, _golden} =
+          staged_candidate!(
+            ctx.org,
+            ctx.admin,
+            "Rowan Vale",
+            "rowan-#{System.unique_integer()}@x.test"
+          )
+
+        assert {:ok, %{reading: "yes", certified?: false, acted: :none, candidate: stamped}} =
+                 SecondOpinion.ask(
+                   candidate,
+                   opts(ctx,
+                     resolver: &admit_yes/3,
+                     band_table: table(DateTime.utc_now(), instruments)
+                   )
+                 )
+
+        assert stamped.status == :pending
+        assert stamped.second_opinion["certified"] == false
+
+        assert Ash.get!(StagedRecord, staged.id, tenant: ctx.org, authorize?: false).status !=
+                 :merged
+      end
+    end
+
     test "a review from a certified band table leaves the pair with the steward", ctx do
       assert {:ok, %{reading: "unsure", certified?: true, acted: :none, candidate: stamped}} =
                SecondOpinion.ask(
@@ -283,7 +317,7 @@ defmodule AshEnterprise.Mdm.SecondOpinionTest do
     |> Ash.read!()
   end
 
-  defp table(certified_at) do
+  defp table(certified_at, instruments \\ [certified_instrument(@instrument)]) do
     %{
       definition_id: Ash.UUID.generate(),
       definition_key: "judgments_band_mdm_match_second_opinion",
@@ -293,11 +327,14 @@ defmodule AshEnterprise.Mdm.SecondOpinionTest do
       certified_at: certified_at,
       certification:
         if(certified_at,
-          do: %{status: :certified, certified_at: certified_at},
+          do: %{status: :certified, certified_at: certified_at, instruments: instruments},
           else: %{status: :none}
         )
     }
   end
+
+  defp certified_instrument(instrument),
+    do: Map.take(instrument, [:model_digest, :runtime_version])
 
   defp admit_yes(_family, _tenant, _inputs),
     do: evaluation(%{"band" => "admit", "fact_value" => true})

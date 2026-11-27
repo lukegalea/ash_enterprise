@@ -46,7 +46,7 @@ opt-in: see docs/system-one/pre-flight-gate.md.
         <inputExpression id="expr_repo_kind" typeRef="string"><text>repo_kind</text></inputExpression>
       </input>
       <input id="clause_ci_force_push" label="Force-pushes its own ci/ branch">
-        <inputExpression id="expr_ci_force_push" typeRef="boolean"><text>matches(command, "^\s*git( -C [^ ;&amp;|\r\n]+)? push (-f|--force|--force-with-lease) origin HEAD:refs/heads/ci/[A-Za-z0-9_/-]+\s*$")</text></inputExpression>
+        <inputExpression id="expr_ci_force_push" typeRef="boolean"><text>matches(command, "^\s*git( -C ((~|\$HOME|\$\{HOME\})(/([A-Za-z0-9_/@+-]|\.)*)?|([A-Za-z0-9_/@+-]|\.)+))? push (-f|--force|--force-with-lease) origin HEAD:refs/heads/ci/[A-Za-z0-9_/-]+\s*$")</text></inputExpression>
       </input>
       <input id="clause_ecto_drop" label="Drops a database">
         <inputExpression id="expr_ecto_drop" typeRef="boolean"><text>matches(command, "mix\s+ecto\.(drop|reset)(\W|$)")</text></inputExpression>
@@ -54,11 +54,8 @@ opt-in: see docs/system-one/pre-flight-gate.md.
       <input id="clause_own_database" label="Names its own database">
         <inputExpression id="expr_own_database" typeRef="boolean"><text>matches(command, "(^|[\s;&amp;('\x22])DB_NAME=[A-Za-z0-9_]+")</text></inputExpression>
       </input>
-      <input id="clause_bare_mix" label="Runs mix">
-        <inputExpression id="expr_bare_mix" typeRef="boolean"><text>matches(command, "(^|[;&amp;|(]\s*)([A-Za-z_][A-Za-z0-9_]*=\S*\s+)*mix(\s|$)")</text></inputExpression>
-      </input>
-      <input id="clause_in_devenv" label="Inside devenv shell">
-        <inputExpression id="expr_in_devenv" typeRef="boolean"><text>matches(command, "devenv\s+shell")</text></inputExpression>
+      <input id="clause_bare_mix" label="Runs mix outside quotes">
+        <inputExpression id="expr_bare_mix" typeRef="boolean"><text>matches(command, "^(\x22[^\x22]*\x22|'[^']*'|[^'\x22])*?([;&amp;|(`]\s*|^\s*)((env|exec|command|nohup|nice|time)(\s+-\S+)*\s+|timeout(\s+-\S+)*\s+\S+\s+|[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*mix(\s|$)")</text></inputExpression>
       </input>
       <input id="clause_phx_server" label="Runs phx.server">
         <inputExpression id="expr_phx_server" typeRef="boolean"><text>matches(command, "mix\s+phx\.server")</text></inputExpression>
@@ -79,14 +76,13 @@ opt-in: see docs/system-one/pre-flight-gate.md.
       <output id="out_reason" name="reason" label="Reason" typeRef="string"/>
 
       <rule id="ae_ci_force_push">
-        <description>CLAUDE.md:57-60 (finished work goes through CI on a ci/&lt;name&gt; branch) and ship-a-change SKILL.md:66 (git push -f origin HEAD:refs/heads/ci/&lt;name&gt;; force only on your own ci/ branch). Only that exact command: a compound command falls through to the seed's force-push refusal.</description>
+        <description>CLAUDE.md:57-60 (finished work goes through CI on a ci/&lt;name&gt; branch) and ship-a-change SKILL.md:66 (git push -f origin HEAD:refs/heads/ci/&lt;name&gt;; force only on your own ci/ branch). Only that exact command, with a -C directory spelled as a plain path (no substitution, no variable but $HOME): a compound command, or one whose directory the shell would compute, falls through to the seed's force-push refusal.</description>
         <inputEntry id="ae_ci_force_push_tool"><text>"bash"</text></inputEntry>
         <inputEntry id="ae_ci_force_push_repo_kind"><text>"first_party"</text></inputEntry>
         <inputEntry id="ae_ci_force_push_ci_force_push"><text>true</text></inputEntry>
         <inputEntry id="ae_ci_force_push_ecto_drop"><text>-</text></inputEntry>
         <inputEntry id="ae_ci_force_push_own_database"><text>-</text></inputEntry>
         <inputEntry id="ae_ci_force_push_bare_mix"><text>-</text></inputEntry>
-        <inputEntry id="ae_ci_force_push_in_devenv"><text>-</text></inputEntry>
         <inputEntry id="ae_ci_force_push_phx_server"><text>-</text></inputEntry>
         <inputEntry id="ae_ci_force_push_vendored_cdm"><text>-</text></inputEntry>
         <inputEntry id="ae_ci_force_push_generated_migration"><text>-</text></inputEntry>
@@ -104,7 +100,6 @@ opt-in: see docs/system-one/pre-flight-gate.md.
         <inputEntry id="ae_ecto_drop_shared_ecto_drop"><text>true</text></inputEntry>
         <inputEntry id="ae_ecto_drop_shared_own_database"><text>false</text></inputEntry>
         <inputEntry id="ae_ecto_drop_shared_bare_mix"><text>-</text></inputEntry>
-        <inputEntry id="ae_ecto_drop_shared_in_devenv"><text>-</text></inputEntry>
         <inputEntry id="ae_ecto_drop_shared_phx_server"><text>-</text></inputEntry>
         <inputEntry id="ae_ecto_drop_shared_vendored_cdm"><text>-</text></inputEntry>
         <inputEntry id="ae_ecto_drop_shared_generated_migration"><text>-</text></inputEntry>
@@ -122,7 +117,6 @@ opt-in: see docs/system-one/pre-flight-gate.md.
         <inputEntry id="ae_ecto_drop_own_ecto_drop"><text>true</text></inputEntry>
         <inputEntry id="ae_ecto_drop_own_own_database"><text>true</text></inputEntry>
         <inputEntry id="ae_ecto_drop_own_bare_mix"><text>-</text></inputEntry>
-        <inputEntry id="ae_ecto_drop_own_in_devenv"><text>-</text></inputEntry>
         <inputEntry id="ae_ecto_drop_own_phx_server"><text>-</text></inputEntry>
         <inputEntry id="ae_ecto_drop_own_vendored_cdm"><text>-</text></inputEntry>
         <inputEntry id="ae_ecto_drop_own_generated_migration"><text>-</text></inputEntry>
@@ -133,14 +127,13 @@ opt-in: see docs/system-one/pre-flight-gate.md.
       </rule>
 
       <rule id="ae_bare_mix">
-        <description>CLAUDE.md:13-14: everything runs inside devenv; do not invoke mix directly (wrong Elixir, and it writes to ~/.mix).</description>
+        <description>CLAUDE.md:13-14: everything runs inside devenv; do not invoke mix directly (wrong Elixir, and it writes to ~/.mix). A mix at a command position outside quotes runs in the caller's shell; inside devenv shell it is that command's argument (devenv shell -- mix ...) or quoted in its script (devenv shell -- bash -lc '... mix ...').</description>
         <inputEntry id="ae_bare_mix_tool"><text>"bash"</text></inputEntry>
         <inputEntry id="ae_bare_mix_repo_kind"><text>-</text></inputEntry>
         <inputEntry id="ae_bare_mix_ci_force_push"><text>-</text></inputEntry>
         <inputEntry id="ae_bare_mix_ecto_drop"><text>-</text></inputEntry>
         <inputEntry id="ae_bare_mix_own_database"><text>-</text></inputEntry>
         <inputEntry id="ae_bare_mix_bare_mix"><text>true</text></inputEntry>
-        <inputEntry id="ae_bare_mix_in_devenv"><text>false</text></inputEntry>
         <inputEntry id="ae_bare_mix_phx_server"><text>-</text></inputEntry>
         <inputEntry id="ae_bare_mix_vendored_cdm"><text>-</text></inputEntry>
         <inputEntry id="ae_bare_mix_generated_migration"><text>-</text></inputEntry>
@@ -158,7 +151,6 @@ opt-in: see docs/system-one/pre-flight-gate.md.
         <inputEntry id="ae_phx_server_ecto_drop"><text>-</text></inputEntry>
         <inputEntry id="ae_phx_server_own_database"><text>-</text></inputEntry>
         <inputEntry id="ae_phx_server_bare_mix"><text>-</text></inputEntry>
-        <inputEntry id="ae_phx_server_in_devenv"><text>-</text></inputEntry>
         <inputEntry id="ae_phx_server_phx_server"><text>true</text></inputEntry>
         <inputEntry id="ae_phx_server_vendored_cdm"><text>-</text></inputEntry>
         <inputEntry id="ae_phx_server_generated_migration"><text>-</text></inputEntry>
@@ -176,7 +168,6 @@ opt-in: see docs/system-one/pre-flight-gate.md.
         <inputEntry id="ae_vendored_cdm_ecto_drop"><text>-</text></inputEntry>
         <inputEntry id="ae_vendored_cdm_own_database"><text>-</text></inputEntry>
         <inputEntry id="ae_vendored_cdm_bare_mix"><text>-</text></inputEntry>
-        <inputEntry id="ae_vendored_cdm_in_devenv"><text>-</text></inputEntry>
         <inputEntry id="ae_vendored_cdm_phx_server"><text>-</text></inputEntry>
         <inputEntry id="ae_vendored_cdm_vendored_cdm"><text>true</text></inputEntry>
         <inputEntry id="ae_vendored_cdm_generated_migration"><text>-</text></inputEntry>
@@ -194,7 +185,6 @@ opt-in: see docs/system-one/pre-flight-gate.md.
         <inputEntry id="ae_generated_migration_ecto_drop"><text>-</text></inputEntry>
         <inputEntry id="ae_generated_migration_own_database"><text>-</text></inputEntry>
         <inputEntry id="ae_generated_migration_bare_mix"><text>-</text></inputEntry>
-        <inputEntry id="ae_generated_migration_in_devenv"><text>-</text></inputEntry>
         <inputEntry id="ae_generated_migration_phx_server"><text>-</text></inputEntry>
         <inputEntry id="ae_generated_migration_vendored_cdm"><text>-</text></inputEntry>
         <inputEntry id="ae_generated_migration_generated_migration"><text>true</text></inputEntry>
@@ -212,7 +202,6 @@ opt-in: see docs/system-one/pre-flight-gate.md.
         <inputEntry id="ae_agents_md_ecto_drop"><text>-</text></inputEntry>
         <inputEntry id="ae_agents_md_own_database"><text>-</text></inputEntry>
         <inputEntry id="ae_agents_md_bare_mix"><text>-</text></inputEntry>
-        <inputEntry id="ae_agents_md_in_devenv"><text>-</text></inputEntry>
         <inputEntry id="ae_agents_md_phx_server"><text>-</text></inputEntry>
         <inputEntry id="ae_agents_md_vendored_cdm"><text>-</text></inputEntry>
         <inputEntry id="ae_agents_md_generated_migration"><text>-</text></inputEntry>
@@ -230,7 +219,6 @@ opt-in: see docs/system-one/pre-flight-gate.md.
         <inputEntry id="ae_no_rule_ecto_drop"><text>-</text></inputEntry>
         <inputEntry id="ae_no_rule_own_database"><text>-</text></inputEntry>
         <inputEntry id="ae_no_rule_bare_mix"><text>-</text></inputEntry>
-        <inputEntry id="ae_no_rule_in_devenv"><text>-</text></inputEntry>
         <inputEntry id="ae_no_rule_phx_server"><text>-</text></inputEntry>
         <inputEntry id="ae_no_rule_vendored_cdm"><text>-</text></inputEntry>
         <inputEntry id="ae_no_rule_generated_migration"><text>-</text></inputEntry>
