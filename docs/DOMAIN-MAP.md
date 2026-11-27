@@ -1502,7 +1502,7 @@ The documents surface: issuing real documents from the host's own data through t
 | `ash_evidence` | first-party | git @ 329c367c | [System One](#system-one) | Document versions, addressed atoms, parse runs, assertions. |
 | `ash_provenance` | first-party | git @ ac73afc9 | [System One](#system-one) | Plain-data contract that explains a value: steps, typed gaps, PROV-O export. |
 | `ash_rules` | first-party | git @ ab97fdc8 | [Compliance](#compliance) | Serializable rule IR, fact schemas, evaluator seam. |
-| `ash_compliance` | first-party | git @ 506eac0b | [Compliance](#compliance) | Catalogs/profiles/waivers → immutable bundles; findings projection. |
+| `ash_compliance` | first-party | git @ e6e8fbe6 | [Compliance](#compliance) | Catalogs/profiles/waivers → immutable bundles; findings projection. |
 | `ash_decisions` | first-party | git @ 1a01808e | [Decisions](#decisions) | Decisions as versioned resources; TCK-measured. |
 | `boxic_dmn` | transitive | git @ 6280f2fa | [Decisions](#decisions) | Decision-document validation (ADR 0027). |
 | `boxic_feel` | transitive | hex 0.2.0 | [Decisions](#decisions) | The FEEL expression engine (ADR 0027). |
@@ -1518,7 +1518,7 @@ The documents surface: issuing real documents from the host's own data through t
 | `ash_signatures` | first-party | git @ cb192d44 | [Signatures](#signatures) | The signature and acknowledgement fragments the host instantiates (ADR 0074). |
 | `ash_versions` | first-party | git @ 62b29b14 | [Artifacts](#artifacts) | The version registry the artifact pages read through, and temporal history. |
 | `ash_paper` | first-party | git @ e14889c9 | [Documents](#documents) | Deterministic PDF documents from Ash data (early; the API may change). |
-| `ash_journeys` | first-party | git @ ab0d76fd | [Surfaces](#surfaces) | User journeys declared once: walked by the browser tier, published from approved runs (early; the API may change). |
+| `ash_journeys` | first-party | git @ 53b6f4c7 | [Surfaces](#surfaces) | User journeys declared once: walked by the browser tier, published from approved runs (early; the API may change). |
 
 <!-- domain-map:substrates:end -->
 

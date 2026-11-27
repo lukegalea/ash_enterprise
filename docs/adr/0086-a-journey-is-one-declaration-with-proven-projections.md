@@ -138,7 +138,7 @@ in-app help ship in a release while the browser runner stays test-only.
 |---|---|---|
 | `ash_journeys` | the DSL, verifiers and `Info`; the IR and its hash; the run manifest; the `World`, `Persona`, `EvidenceSink` and `FigureStore` behaviours; label resolution and the `journeys` Gettext extractor; the exporter; the `lock`, `approve`, `impact` and `export` tasks; `usage-rules.md` | yes, with no browser or Playwright dependency |
 | `ash_browser_tests` | the journey runner, per-step capture and framing, a per-step span cursor in `Trace`, journey and `:undocumented` keys in `Ledger` | no; test-only, as before |
-| the host | its journeys; `World` and `Persona` over its demo data; the guide pages (`AshEnterprise.Guides`, `AshEnterpriseWeb.GuideLive`); later, an `EvidenceSink` over its compliance store, a `FigureStore` over its evidence store, and `journey:` references in `docs/controls.json` | — |
+| the host | its journeys; `World` and `Persona` over its demo data; the guide pages (`AshEnterprise.Guides`, `AshEnterpriseWeb.GuideLive`); an `EvidenceSink` over its compliance store, a `FigureStore` over its evidence store, and `journey:` references in `docs/controls.json` (`AshEnterprise.Journeys.ControlReference`), which resolve only while the journey's approved run proves it | — |
 
 - `ash_browser_tests` depends on `ash_journeys`, never the reverse.
 - `ash_journeys` carries no compliance, evidence or document-rendering types. Control ids are opaque `metadata` that
@@ -162,12 +162,15 @@ in-app help ship in a release while the browser runner stays test-only.
    it is added there and in the host's sink before any run is counted.
 4. **Figures come only from the seeded world.** An `:operated` run records its manifest and never screenshots, until
    the erasure path (ADR 0024) covers figure bytes. No published figure shows a real person's data.
-5. **Figure bytes are stored once, by hash.** Today they are files under `priv/journeys/`, named in the lock. The
-   host's `FigureStore`, when built, keeps each figure as an immutable document version and each execution as one run
-   record; the stored bytes are the record (ADR 0067). Playwright trace files are kept as hashes only.
+5. **Figure bytes are stored once, by hash.** The approved files are under `priv/journeys/`, named in the lock. The
+   host's `FigureStore` (`AshEnterprise.Journeys.FigureStore`) keeps the audit copy: each figure as an immutable
+   document version of kind `journey-figure`, each execution of it as one `playwright` run record, and its highlight
+   as a region of that run; the stored bytes are the record (ADR 0067). It stores only bytes that hash to the lock's
+   `file_sha256`. Playwright trace files are kept as hashes only.
 6. **Verdicts reach compliance only through the host's sink**, on the template of `Audit.ChainVerifyWorker`: a pass
    records evidence with `method: :test` and `producer: "journey:<id>"`, and a failure upserts a `:noncompliant`
-   finding. No sink is built, so no journey run is evidence yet.
+   finding. The host's sink is `AshEnterprise.Journeys.EvidenceSink`; nothing calls it yet, so no journey run is
+   evidence yet.
 7. **A step is proved by its audit rows, not by its spans.** Spans link a step to the audit rows its correlation id
    names; the audit row is the proof. The [ADR 0065 amendment](0065-signoz-and-glitchtip-observability-backends.md)
    states the rules.

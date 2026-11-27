@@ -828,8 +828,15 @@ config :ash_a2ui, catalog: :admin_v1
 
 # The modules that declare journeys (`AshJourneys`), for its tasks: `mix
 # ash_journeys.lock --check` and `mix ash_journeys.gettext.extract
-# --check-up-to-date` in `check`, `approve`, `impact` and `export`.
+# --check-up-to-date` in `check`, `approve`, `impact` and `export`; and for
+# `journey:` references in docs/controls.json.
 config :ash_journeys, journeys: [AshEnterprise.Journeys.Offboarding]
+
+# `journey:<id>` in docs/controls.json resolves only while the journey's approved run
+# proves it, and as a producer proves the criteria its metadata names
+# (`mix ash_compliance.controls.check`).
+config :ash_compliance,
+  reference_schemes: %{"journey" => AshEnterprise.Journeys.ControlReference}
 
 # Calendars (`display :calendar`: /app/calendar, and calendars the assistant
 # composes) cut days in the display zone, read on every request so the

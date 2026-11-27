@@ -340,9 +340,9 @@
       "applicability": "applicable",
       "frequency": "quarterly",
       "owner_role": "Security Lead",
-      "evidence_producer": "module:AshEnterprise.Security.AccessRequest",
-      "test_ref": "file:test/ash_enterprise/process/access_request_demo_test.exs",
-      "rationale": "Access requests are recorded and decided by a process. A deactivated user cannot sign in and an earlier bearer token stops authenticating (`test/ash_enterprise/accounts/deactivation_test.exs`), and a quarterly review of who holds access is a recipe in the soc2 pack that a tenant publishes, with nothing yet recording the attestation as evidence."
+      "evidence_producer": "journey:revoke_a_leavers_access",
+      "test_ref": "journey:revoke_a_leavers_access",
+      "rationale": "Removing access is proven by the offboarding journey: an admin deactivates a leaver and the leaver's next action sends them to sign in, walked in a real browser. Each pass on the first attempt is recorded as evidence (AshEnterprise.Journeys.EvidenceSink); a run outside an audited production deployment is recorded and never counted. Access requests are recorded and decided by a process (`test/ash_enterprise/process/access_request_demo_test.exs`). A deactivated user cannot sign in and an earlier bearer token stops authenticating (`test/ash_enterprise/accounts/deactivation_test.exs`), and a quarterly review of who holds access is a recipe in the soc2 pack that a tenant publishes, with nothing yet recording the attestation as evidence."
     },
     {
       "id": "CC6.3",
@@ -350,9 +350,9 @@
       "applicability": "applicable",
       "frequency": "quarterly",
       "owner_role": "Security Lead",
-      "evidence_producer": "module:AshEnterprise.Audit.EventLog",
-      "test_ref": "file:test/ash_enterprise/audit/impersonation_test.exs",
-      "rationale": "Role assignments are audited resources that name the grantor and the grantee. Impersonation is attributed but not gated (q32)."
+      "evidence_producer": "journey:revoke_a_leavers_access",
+      "test_ref": "journey:revoke_a_leavers_access",
+      "rationale": "Removing a leaver's access is proven by the offboarding journey, and each pass on the first attempt is recorded as evidence (AshEnterprise.Journeys.EvidenceSink); a run outside an audited production deployment is recorded and never counted. Role assignments are audited resources that name the grantor and the grantee. Impersonation is attributed (`test/ash_enterprise/audit/impersonation_test.exs`) but not gated (q32)."
     },
     {
       "id": "CC6.4",
