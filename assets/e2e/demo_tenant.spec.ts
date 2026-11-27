@@ -16,7 +16,7 @@ import {signIn} from "./support/sign_in"
 test("the demo administrator reaches the credentialing tour and its fault panel", async ({page}) => {
   await signIn(page, {email: DEMO_ADMIN, password: demoPassword()})
 
-  await page.goto("/app/showcase/credentialing", {waitUntil: "networkidle"})
+  await page.goto("/app/showcase/credentialing")
   await expect(page.locator("#beats")).toBeVisible({timeout: 15_000})
 
   const panel = page.locator("#fault-panel")

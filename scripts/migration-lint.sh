@@ -96,6 +96,13 @@ self_test() { # name expect fixture allowlist-json message
   fresh_db "${base_partition}_self"
   rm -rf "$work/sql" && mkdir -p "$work/sql"
   capture "test/fixtures/migrations/$fixture" 20000101000000 "$work/sql"
+  # An empty capture (the SQL step raced the database and wrote nothing) must
+  # fail here by name: squawk on nothing finds nothing, and the `fail` cases
+  # below would "pass" for the wrong reason.
+  ls "$work"/sql/*.sql >/dev/null 2>&1 || {
+    echo "self-test '$name': the SQL capture wrote no files for $fixture" >&2
+    exit 1
+  }
   echo "$allow_json" >"$work/allow.json"
   out="$(lint "$work/sql" "$work/allow.json" 2>&1)" || status=$?
   if [ "$expect" = pass ] && [ "$status" -ne 0 ]; then
