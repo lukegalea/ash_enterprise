@@ -1787,3 +1787,9 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "This guide cannot be shown until a run of it is approved."
 msgstr ""
+
+#: lib/ash_enterprise_web/auth_overrides/brand.ex:26
+#, elixir-autogen, elixir-format
+msgctxt "sign-in divider between the password form and other ways in"
+msgid "or"
+msgstr ""

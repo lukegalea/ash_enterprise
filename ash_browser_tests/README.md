@@ -312,8 +312,8 @@ end
 `ash_journeys` is an optional dependency of this package: the host declares it,
 test-only, beside its journeys. `AshBrowserTests.Journeys.Host` is the browser half
 of the host's side: the path that opens each surface, sign-in, the manifest options a
-surface renders with in a locale, the selector of each masked region, and the audit
-assertion. The surface registry, personas and world come from the journey module.
+surface renders with in a locale, the selector of each masked region, the data its
+figures show, and the audit assertion. The surface registry, personas and world come from the journey module.
 
 Each test checks the journey against its surfaces, seeds its world, and signs every
 persona in on a browser context of its own (one sandbox, one test key, a failure
@@ -347,6 +347,13 @@ one ran. A test claims its directory first, so two tests of one journey never wr
 same file. A second attempt, or a second `mix test` at the same commit, counts as a
 retry and is never approvable. The driver's own end-of-test screenshot is off for these
 tests.
+
+`pseudo_locale: "xx_XA"` adds one more test per journey, in a locale the host answers with
+every message accented. After each figure, the text visible in the figured region, outside
+its masks, may have no word of ASCII letters left, except what the host's
+`visible_data/1` names as data; a step that finds one fails with the text and the surface.
+The run is written under `pseudo-<run>` and is never approvable: the journey declares no
+such locale.
 
 ```yaml
 env:

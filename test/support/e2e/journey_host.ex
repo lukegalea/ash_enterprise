@@ -11,6 +11,9 @@ defmodule AshEnterpriseWeb.E2E.JourneyHost do
       the labels the reader sees.
     * `:as_of` is the page header's "As of" time, the one request-time label on a
       surface page. It cannot be pinned by a seed, so a figure masks it.
+    * What the pseudo-locale run does not count as untranslated: the product's
+      name, the seeded organization's, the command palette's key hint, and each
+      seeded person's email and creation time.
     * The audit proof: the `audit_events` row the step's row action wrote, by its
       action on its resource, about the record it acted on, with the step's
       correlation id and no earlier than the step began. A LiveView keeps one
@@ -26,6 +29,7 @@ defmodule AshEnterpriseWeb.E2E.JourneyHost do
 
   alias AshEnterprise.Audit.EventLog
   alias AshEnterprise.Journeys.Surfaces
+  alias AshEnterprise.Journeys.World
   alias AshEnterpriseWeb.E2E.Login
 
   @impl true
@@ -39,6 +43,21 @@ defmodule AshEnterpriseWeb.E2E.JourneyHost do
 
   @impl true
   def mask(:as_of), do: ~s([id$="-as-of"])
+
+  @impl true
+  def visible_data(bindings) do
+    [AshEnterprise.Brand.product_name(), World.organization_name(), "ctrl p"] ++
+      Enum.flat_map(bindings, &record_data/1)
+  end
+
+  # A person is their email, and the instant their row was created, as the
+  # surface formats it: the pseudo-locale has no date formats of its own.
+  defp record_data({_binding, %{email: email} = user}) do
+    created = user |> Ash.reload!(authorize?: false) |> Map.fetch!(:created_on)
+    [to_string(email), Calendar.strftime(created, "%b %-d, %Y, %H:%M")]
+  end
+
+  defp record_data(_other), do: []
 
   @impl true
   def assert_audit(correlation_id, %{record: %{id: record_id}} = acted, _context) do

@@ -6,7 +6,7 @@ kind: "how-to"
 locale: "fr"
 version: 1
 declaration: "c779dc4d3696347b659685c6678a60aa30062636325456583844c87b38e0240d"
-commit: "9bd2f0b1523fe9fcd85629806d01283d68f8efcb"
+commit: "7337b7a8cb7f262496ed258fa8c075f0e3e65486"
 ---
 
 # Révoquer l'accès d'une personne qui s'en va
@@ -21,7 +21,7 @@ La personne qui s'en va ne peut plus utiliser l'application.
 
 3. Choisissez **Désactiver** sur sa ligne, puis confirmez.
 
-   ![Choisissez Désactiver sur sa ligne, puis confirmez.](../../../site/src/assets/journeys/ed61586ba5fe45d006b1e783c1dd56fe8696a6092382ec013a5383ecbcf2abc3.png)
+   ![Choisissez Désactiver sur sa ligne, puis confirmez.](../../../site/src/assets/journeys/3a39e3e173d3f5aa3bb68fdadb419c53b655120e89fde7985e2614cfb567ea2e.png)
 
    ![Choisissez Désactiver sur sa ligne, puis confirmez.](../../../site/src/assets/journeys/b838b1e8a1c72bc8c471704f1cf411437d888b49c06cbd2cb0a95e89004ee4e0.png)
 
@@ -30,6 +30,6 @@ La personne qui s'en va ne peut plus utiliser l'application.
 
 4. La prochaine fois que cette personne ouvre l'application, elle est renvoyée vers la page de connexion.
 
-   ![La prochaine fois que cette personne ouvre l'application, elle est renvoyée vers la page de connexion.](../../../site/src/assets/journeys/2b3eb7f5f37a2b000afb97bed14d6a849ac0d738729039a4b769ed939c3b4e46.png)
+   ![La prochaine fois que cette personne ouvre l'application, elle est renvoyée vers la page de connexion.](../../../site/src/assets/journeys/fac4ed33041009168e064c442982cea2a0e314e2c6fedf069ad0c0b544b03bab.png)
 
 Son compte est inactif, et sa prochaine action dans l'application la renvoie vers la page de connexion.

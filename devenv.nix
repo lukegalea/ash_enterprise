@@ -336,6 +336,7 @@ in
       mix gettext.extract --check-up-to-date
       mix ash_a2ui.gettext.extract_metadata --check-up-to-date
       mix ash_journeys.gettext.extract --check-up-to-date
+      mix ash_journeys.gettext.extract --check-translated
       mix ash_journeys.lock --check
       mix ash_enterprise.data_inventory --check
       mix test

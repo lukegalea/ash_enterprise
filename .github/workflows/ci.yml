@@ -208,10 +208,12 @@ jobs:
       # declaration recorded: the lock check fails when a declaration has changed
       # since its run was approved (priv/journeys/journeys.lock.json), and for
       # nothing else. Re-run the journey and approve it from the `journeys` job's
-      # artifact.
-      - name: Check the journeys catalog is extracted and the journeys are approved
+      # artifact. Every text a journey says has a translation in each of its
+      # locales, or its page publishes in English, silently.
+      - name: Check the journeys catalog is extracted, translated and the journeys are approved
         run: |
           mix ash_journeys.gettext.extract --check-up-to-date
+          mix ash_journeys.gettext.extract --check-translated
           mix ash_journeys.lock --check
 
       # docs/roadmap.json is the single source for every status table in the

@@ -59,5 +59,13 @@ defmodule AshBrowserTests.Journeys.Host do
               context :: map()
             ) :: any()
 
-  @optional_callbacks mask: 1, assert_audit: 3
+  @doc """
+  The strings a figured region shows that are data, not interface copy: what the
+  world's records say (`bindings`, by binding name) and the product's own name.
+  The pseudo-locale run (`AshBrowserTests.Journeys`) does not count them as
+  untranslated. Without it, every visible word of ASCII letters is.
+  """
+  @callback visible_data(bindings :: %{atom() => term()}) :: [String.t()]
+
+  @optional_callbacks mask: 1, assert_audit: 3, visible_data: 1
 end
