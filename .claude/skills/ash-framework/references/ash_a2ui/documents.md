@@ -41,7 +41,11 @@ drawn beside the surface's sections with each value boxed on its page
   from its own `handle_params/3`, or the switch cannot patch the address.
 - The page around the surface can follow the pane with
   `AshA2ui.DocumentPane.url_state/2` on its params (to hide a side nav, say),
-  or the `:ash_a2ui_document_state` assign.
+  or the `:ash_a2ui_document_state` assign. Both follow the address alone, so
+  an old link holds the pane open on a record with no document. A layout that
+  follows the drawn pane (a wider page) reads `:ash_a2ui_document_shown`
+  instead: only the panes open with a document to draw (it follows the
+  address until the surface has built).
 - `document_pane` (shown or hidden) and `document_region` (a region a person
   went to) are quiet actions that read nothing. Answer them in
   `handle_event("a2ui:message", ...)` if the host needs to.

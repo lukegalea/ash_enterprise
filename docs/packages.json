@@ -43,7 +43,7 @@
       "adr": "0033",
       "declared": "direct",
       "only": null,
-      "ref": "e417c6e70da54cdd8b8233c68fea63a67b01eb5d",
+      "ref": "fd91e33d35eb1b3c8a00ed8ce528c7834777b499",
       "version": "0.1.0",
       "stated_status": "Under active development; the first release waits for an npm release of the A2UI renderer that implements the 1.0 specification.",
       "maturity": "used-and-tested-here",
@@ -539,7 +539,7 @@
       ],
       "hex_name": "free (checked on hex.pm 2026-11-26).",
       "hex_path": "After ash_a2ui, an optional dependency, reaches Hex.",
-      "carry": "Pinned by `ref:`; the declarations live in lib/ash_enterprise/journeys/, and `mix ash_journeys.lock --check` fails when a declaration is newer than its approved run, so a change to a journey or to the surface it walks needs a re-approved run."
+      "carry": "Pinned by `ref:`; the declarations live in lib/ash_enterprise/journeys/, and `mix ash_journeys.lock --check` fails when a journey is newer than its approved run (its declaration, the pinned browser build, or a text or label of the surface it walks), so such a change needs a re-approved run."
     },
     {
       "name": "ash_planning",

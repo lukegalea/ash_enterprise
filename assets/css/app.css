@@ -384,3 +384,18 @@
   opacity: 1;
   color: color-mix(in srgb, var(--foreground) 72%, var(--background));
 }
+
+/* A Markdown list in an A2UI Text keeps its numbers (a guide's steps are one).
+ * The merged catalog's Text draws in the light DOM, so the preflight's
+ * `ol, ul { list-style: none; padding: 0 }` reaches it. GAP: until the
+ * ash_a2ui pin includes lukegalea/ash_a2ui#151, which moves these rules into
+ * the Text skin (docs/BLEEDING-EDGE.md, section 3). */
+.a2ui-text ol {
+  list-style: decimal;
+  padding-inline-start: 1.5em;
+}
+
+.a2ui-text ul {
+  list-style: disc;
+  padding-inline-start: 1.5em;
+}

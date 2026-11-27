@@ -14,8 +14,9 @@
 //    says is verifying the outcome. A violation that only breaks an editor's icons would
 //    otherwise ship straight into a marketing capture.
 //
-// Browser: Firefox by default. `docs/README.md` records that Chromium could not rasterize in
-// the sandbox these were first captured in; override with BROWSER=chromium if yours can.
+// Browser: Firefox by default, because the committed captures are Firefox: Chromium could not
+// rasterize in the sandbox they were first taken in. It can now (the browser tests and the
+// journeys' figures are Chromium captures); BROWSER=chromium takes these in Chromium too.
 
 import { chromium, firefox } from "playwright";
 import { mkdirSync, readFileSync } from "node:fs";
