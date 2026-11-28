@@ -8,6 +8,9 @@ outputs:
   elixir-version:
     description: The pinned Elixir version, for cache keys.
     value: ${{ steps.pin.outputs.elixir-version }}
+  otp-version:
+    description: The pinned OTP version, for cache and seed keys.
+    value: ${{ steps.pin.outputs.otp-version }}
 
 runs:
   using: composite

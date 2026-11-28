@@ -93,22 +93,24 @@ shorter than a local whole-suite run.
 
 ### Self-hosted runners
 
-Every job in `ci.yml`, and the SBOM job in `supply-chain.yml`, can run on a self-hosted runner
-labelled `self-hosted` and `homelab` instead of GitHub's. It is off until the `SELF_HOSTED_JOBS`
-repository variable lists the job's id, as a JSON array:
+Every job in `ci.yml`, and the SBOM job in `supply-chain.yml`, can run on the runner host
+(`lukegalea/ci-runner-host`) instead of GitHub's runners. It is off until the
+`SELF_HOSTED_JOBS` repository variable lists the job's id, as a JSON array:
 
 ```bash
-gh variable set SELF_HOSTED_JOBS --body '["test-shards","integration"]'
+gh variable set SELF_HOSTED_JOBS --body '["test-shards","durability"]'
 gh variable delete SELF_HOSTED_JOBS          # everything back on GitHub's runners
 ```
 
-The ids are the job keys: `test`, `test-shards` (all ten shards), `tests`, `integration`, `e2e`,
-`quick`, `dialyzer`, and `sbom` in `supply-chain.yml`. Only a push to this repository is ever
-routed. A pull request never is: the repository is public, and a fork's pull request must never
-reach a self-hosted runner. A runner that takes these jobs needs Docker (each job's Postgres is
-a service container on host port 5432, so one job at a time per Docker host), passwordless sudo
-for apt on Ubuntu, and Chromium's system libraries for `e2e` and `quick`. The note at the top of
-`ci.yml` is the reference.
+The ids are the job keys: `test`, `test-shards` (all 32 shards), `tests`, `durability`,
+`integration`, `e2e`, `quick`, `dialyzer`, and `sbom` in `supply-chain.yml`. Routed: a push
+to this repository, or a pull request whose head is this repository, by lukegalea. Never
+routed: a fork's pull request (the repository is public, and a fork's pull request must
+never reach a self-hosted runner) or anyone else's event. `test-shards` runs on runners
+labelled `shard`; every other routed job on runners labelled `homelab`. A runner that takes
+them needs Docker (each job's Postgres is a service container on host port 5432 of its own
+Docker host), passwordless sudo for apt on Ubuntu, and Chromium for `e2e` and `quick`.
+The note at the top of `ci.yml` is the reference.
 
 ## 4. When other work lands first
 

@@ -1,0 +1,58 @@
+name: Restore the mix build
+description: >
+  deps/ and _build/ for a job. On a self-hosted runner that has a seed for this
+  repository (lukegalea/ci-runner-host, ci-seed-builder), copies the newest one in
+  the family: no download. Anywhere else, restores the GitHub cache with the given
+  key and restore-keys, as the step this replaces did. Restore only.
+inputs:
+  key:
+    description: The GitHub cache key, as actions/cache/restore takes it.
+    required: true
+  restore-keys:
+    description: The GitHub restore-keys, as actions/cache/restore takes them.
+    required: true
+  seed-prefix:
+    description: >
+      The seed family. Seeds are directories named <seed-prefix><commit> under
+      /srv/ci-seed/<owner/repo>; carry the Elixir and OTP versions in it.
+    required: true
+outputs:
+  source:
+    description: 'The copy source: "seed" or "github".'
+    value: ${{ steps.pick.outputs.source }}
+  cache-hit:
+    description: From actions/cache/restore; empty when the copy came from a seed.
+    value: ${{ steps.cache.outputs.cache-hit }}
+  cache-matched-key:
+    description: From actions/cache/restore; the seed directory when the copy came from a seed.
+    value: ${{ steps.pick.outputs.matched || steps.cache.outputs.cache-matched-key }}
+runs:
+  using: composite
+  steps:
+    - id: pick
+      shell: bash
+      env:
+        SEED_PREFIX: ${{ inputs.seed-prefix }}
+      run: |
+        set -euo pipefail
+        root="/srv/ci-seed/$GITHUB_REPOSITORY"
+        if [ "${RUNNER_ENVIRONMENT:-github-hosted}" != self-hosted ] || [ ! -d "$root" ]; then
+          echo "source=github" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        seed="$(ls -t "$root/$SEED_PREFIX"*/.seed-at 2>/dev/null | head -1 || true)"
+        [ -n "$seed" ] || { echo "source=github" >> "$GITHUB_OUTPUT"; exit 0; }
+        seed="$(dirname "$seed")"
+        cp -a "$seed/deps" "$seed/_build" .
+        echo "source=seed" >> "$GITHUB_OUTPUT"
+        echo "matched=$seed" >> "$GITHUB_OUTPUT"
+        echo "deps/ and _build/ copied from $seed"
+    - id: cache
+      if: steps.pick.outputs.source == 'github'
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          deps
+          _build
+        key: ${{ inputs.key }}
+        restore-keys: ${{ inputs.restore-keys }}
